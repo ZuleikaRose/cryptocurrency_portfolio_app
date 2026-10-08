@@ -45,10 +45,17 @@ except urllib.error.HTTPError as e: # The API returns an error status for things
     error = json.loads(e.read().decode("utf-8")).get("status", {}).get("error_message", e.reason)
     raise SystemExit(f"API error ({e.code}): {error}") # Exit the program with an error message if the API request fails
 
-for symbol_data in symbols: # Iterate over the list of entered cryptocurrency symbols
-    coin = data.get(symbol_data) # Get the data for the current symbol from the API response
-    if coin: # Check if the data for the symbol exists
-        rank = int(coin["cmc_rank"]) # Get the rank of the cryptocurrency
-        print(f"Rank {rank} {coin['name']} ({symbol_data}): ${coin['quote']['USD']['price']:,.2f}") # Print the rank, name, symbol, and price of the cryptocurrency
-    else: # If no data is found for the symbol
-        print(f"No data found for symbol: {symbol_data}") # Print a message if no data is found for the symbol
+found = [symbol for symbol in symbols if data.get(symbol)] # Symbols the API returned data for
+missing = [symbol for symbol in symbols if not data.get(symbol)] # Symbols the API returned no data for
+
+# Sort by CoinMarketCap rank (1 is best); unranked coins (rank is None) go last
+found.sort(key=lambda symbol: data[symbol]["cmc_rank"] or float("inf"))
+
+for symbol_data in found: # Iterate over the symbols in rank order
+    coin = data[symbol_data] # Get the data for the current symbol from the API response
+    price = coin["quote"]["USD"]["price"] # The API returns None for coins without a current price
+    price_text = f"${price:,.2f}" if price is not None else "price unavailable" # Only format the price when it exists
+    print(f"Rank {coin['cmc_rank']} {coin['name']} ({symbol_data}): {price_text}") # Print the rank, name, symbol, and price of the cryptocurrency
+
+for symbol_data in missing: # Report symbols with no data after the ranked ones
+    print(f"No data found for symbol: {symbol_data}") # Print a message if no data is found for the symbol
