@@ -1,0 +1,9 @@
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# VS Code Code Runner scratch file
+tempCodeRunnerFile.py
+
+# Local secrets (e.g. CMC_API_KEY)
+.env
