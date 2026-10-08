@@ -43,12 +43,12 @@ try:
         data = json.loads(response.read().decode("utf-8"))["data"] # Parse the JSON response and extract the "data" field
 except urllib.error.HTTPError as e: # The API returns an error status for things like invalid symbols or a bad API key
     error = json.loads(e.read().decode("utf-8")).get("status", {}).get("error_message", e.reason)
-    raise SystemExit(f"API error ({e.code}): {error}")
+    raise SystemExit(f"API error ({e.code}): {error}") # Exit the program with an error message if the API request fails
 
-for symbol in symbols: # Iterate over the list of entered cryptocurrency symbols
-    coin = data.get(symbol) # Get the data for the current symbol from the API response
+for symbol_data in symbols: # Iterate over the list of entered cryptocurrency symbols
+    coin = data.get(symbol_data) # Get the data for the current symbol from the API response
     if coin: # Check if the data for the symbol exists
         rank = int(coin["cmc_rank"]) # Get the rank of the cryptocurrency
-        print(f"Rank {rank} {coin['name']} ({symbol}): ${coin['quote']['USD']['price']:,.2f}") # Print the rank, name, symbol, and price of the cryptocurrency
+        print(f"Rank {rank} {coin['name']} ({symbol_data}): ${coin['quote']['USD']['price']:,.2f}") # Print the rank, name, symbol, and price of the cryptocurrency
     else: # If no data is found for the symbol
-        print(f"No data found for symbol: {symbol}") # Print a message if no data is found for the symbol
+        print(f"No data found for symbol: {symbol_data}") # Print a message if no data is found for the symbol
