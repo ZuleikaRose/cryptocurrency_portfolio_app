@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { DemoBanner, SignInSheet, Toasts } from "./GlobalOverlays.jsx";
+import SearchOverlay from "./SearchOverlay.jsx";
+import { useApp } from "../state/context.js";
 import { menuGroups, pagesInGroup, tabs } from "../routes.js";
 
-function TopBar({ onOpenMenu, onOpenA11y }) {
+function TopBar({ onOpenMenu, onOpenA11y, onOpenSearch }) {
   return (
     <header className="topbar">
       <Link to="/" className="brand" aria-label="CPA, Cryptocurrency Portfolio App — home">
@@ -13,9 +15,9 @@ function TopBar({ onOpenMenu, onOpenA11y }) {
         <span>CPA</span>
       </Link>
       <div className="top-actions">
-        <Link to="/search" className="icon-button" aria-label="Search (⌘K)">
+        <button className="icon-button" onClick={onOpenSearch} aria-label="Search" aria-keyshortcuts="Control+K Meta+K /">
           <Icon name="search" />
-        </Link>
+        </button>
         <button className="icon-button" onClick={onOpenA11y} aria-label="Accessibility menu">
           <Icon name="accessibility" />
         </button>
@@ -71,7 +73,7 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [a11yOpen, setA11yOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
+  const { openSearch } = useApp();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeA11y = useCallback(() => setA11yOpen(false), []);
 
@@ -80,23 +82,24 @@ export default function AppShell() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // ⌘K / Ctrl+K opens search from anywhere (US-2.5).
+  // ⌘K / Ctrl+K, or "/" outside a text field, opens search from anywhere (US-2.5).
   useEffect(() => {
     const onKeyDown = (event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName) || event.target.isContentEditable;
+      if (((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") || (event.key === "/" && !typing)) {
         event.preventDefault();
-        navigate("/search");
+        openSearch();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [navigate]);
+  }, [openSearch]);
 
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to content</a>
       <div className="phone">
-        <TopBar onOpenMenu={() => setMenuOpen(true)} onOpenA11y={() => setA11yOpen(true)} />
+        <TopBar onOpenMenu={() => setMenuOpen(true)} onOpenA11y={() => setA11yOpen(true)} onOpenSearch={() => openSearch()} />
         <DemoBanner />
         <main id="main" className="content" tabIndex={-1}>
           <Outlet />
@@ -107,6 +110,7 @@ export default function AppShell() {
 
       <Toasts />
       <SignInSheet />
+      <SearchOverlay />
 
       <Sheet open={menuOpen} onClose={closeMenu} title="Menu">
         {menuGroups.map((group) => (

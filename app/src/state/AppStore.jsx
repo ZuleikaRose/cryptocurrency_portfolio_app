@@ -6,11 +6,29 @@ import { keys, readJson, writeJson } from "../lib/storage.js";
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
 // "user" is a signed-up account whose data is saved to localStorage.
 
-const emptyData = { watchlist: [], settings: defaultSettings, recentCoins: [], votes: {}, reminders: {}, reminderTimings: ["1h"] };
+const emptyData = { watchlist: [], settings: defaultSettings, recentCoins: [], recentSearches: [], votes: {}, reminders: {}, reminderTimings: ["1h"], transactions: [] };
 const guestData = () => ({ ...emptyData, watchlist: ["bitcoin"] });
-const demoData = () => ({ ...emptyData, watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"] });
+// Demo portfolio from 11-portfolio.md: totals $36,058.99, +28.26% all-time at sample prices.
+const demoTransactions = [
+  { id: "demo-btc", coinId: "bitcoin", type: "buy", amount: 0.25, price: 52300, fee: 0, date: "2025-03-10T15:00:00.000Z", note: "" },
+  { id: "demo-eth", coinId: "ethereum", type: "buy", amount: 3.2, price: 2950, fee: 0, date: "2025-06-02T15:00:00.000Z", note: "" },
+  { id: "demo-sol", coinId: "solana", type: "buy", amount: 40, price: 140, fee: 0, date: "2025-08-19T15:00:00.000Z", note: "" },
+];
+const demoData = () => ({ ...emptyData, watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"], transactions: demoTransactions });
+let idCounter = 0;
+const newId = (prefix) => `${prefix}-${Date.now().toString(36)}-${(idCounter += 1)}`;
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const TRANSACTION_TYPES = new Set(["buy", "sell", "transfer-in", "transfer-out"]);
+function isValidTransaction(tx) {
+  return (
+    tx && typeof tx === "object" &&
+    typeof tx.id === "string" && typeof tx.coinId === "string" && TRANSACTION_TYPES.has(tx.type) &&
+    Number.isFinite(tx.amount) && tx.amount > 0 && Number.isFinite(tx.price) && tx.price >= 0 &&
+    !Number.isNaN(new Date(tx.date).getTime())
+  );
+}
 
 function loadInitial() {
   // Saved data may be missing or hand-edited; fall back to a guest session rather than crash.
@@ -20,8 +38,17 @@ function loadInitial() {
   if (!account) return { session: { kind: "guest" }, data: guestData() };
   const rawStored = readJson(keys.user(account.id), {});
   const stored = rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {};
-  if (!Array.isArray(stored.watchlist)) delete stored.watchlist;
-  if (!Array.isArray(stored.recentCoins)) delete stored.recentCoins;
+  ["watchlist", "recentCoins", "recentSearches", "transactions"].forEach((key) => {
+    if (!Array.isArray(stored[key])) delete stored[key];
+  });
+  // Drop malformed entries rather than let one bad record break a page.
+  ["watchlist", "recentCoins", "recentSearches"].forEach((key) => {
+    if (stored[key]) stored[key] = stored[key].filter((item) => typeof item === "string");
+  });
+  if (stored.transactions) stored.transactions = stored.transactions.filter(isValidTransaction);
+  ["votes", "reminders"].forEach((key) => {
+    if (stored[key] && (typeof stored[key] !== "object" || Array.isArray(stored[key]))) delete stored[key];
+  });
   return {
     session: { kind: "user", userId: account.id, name: account.name, email: account.email },
     data: {
@@ -80,6 +107,7 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(initial.data);
   const [authPrompt, setAuthPrompt] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const [search, setSearch] = useState({ open: false, scope: "all" });
   const toastId = useRef(0);
   const dataRef = useRef(data);
   const pendingAction = useRef(null);
@@ -97,11 +125,18 @@ export function AppProvider({ children }) {
     action();
   }, [session.kind]);
 
-  // Persist signed-up accounts only.
+  // Persist signed-up accounts only. If the browser refuses (storage full or blocked),
+  // say so once instead of failing silently.
+  const notifyRef = useRef(null);
+  const saveWarned = useRef(false);
   useEffect(() => {
     if (session.kind !== "user") return;
     const stored = readJson(keys.user(session.userId), {}) ?? {};
-    writeJson(keys.user(session.userId), { ...stored, ...data });
+    const saved = writeJson(keys.user(session.userId), { ...stored, ...data });
+    if (!saved && !saveWarned.current) {
+      saveWarned.current = true;
+      notifyRef.current?.("Couldn't save your changes on this device. They'll be lost when you close the tab.");
+    }
   }, [session, data]);
 
   // Reflect display settings on <html> so CSS tokens can respond.
@@ -114,12 +149,19 @@ export function AppProvider({ children }) {
     root.dataset.motion = data.settings.stopAnimations ? "off" : "on";
   }, [data.settings.theme, data.settings.colors, data.settings.stopAnimations]);
 
-  const showToast = useCallback((message) => {
+  // Toasts last 4 s (5 s when they offer Undo); at most two at once.
+  const showToast = useCallback((message, action) => {
     toastId.current += 1;
     const id = toastId.current;
-    setToasts((current) => [...current.slice(-1), { id, message }]);
-    window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4000);
+    setToasts((current) => [...current.slice(-1), { id, message, action }]);
+    window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), action ? 5000 : 4000);
   }, []);
+
+  useEffect(() => {
+    notifyRef.current = showToast;
+  }, [showToast]);
+
+  const dismissToast = useCallback((id) => setToasts((current) => current.filter((toast) => toast.id !== id)), []);
 
   // Guests are asked to sign in; the action then completes (US-1.1).
   const requireAuth = useCallback(
@@ -202,6 +244,64 @@ export function AppProvider({ children }) {
     [requireAuth, showToast],
   );
 
+  // Watchlist order (US-6.1): move up/down or drop at a new index.
+  const moveWatch = useCallback((coinId, toIndex) => {
+    setData((current) => {
+      const list = current.watchlist.filter((id) => id !== coinId);
+      list.splice(Math.max(0, Math.min(toIndex, list.length)), 0, coinId);
+      return { ...current, watchlist: list };
+    });
+  }, []);
+
+  // Remove with a 5 s Undo that restores the coin to its old position (US-P10.2).
+  const removeWatch = useCallback(
+    (coin) => {
+      const index = dataRef.current.watchlist.indexOf(coin.id);
+      if (index < 0) return;
+      setData((current) => ({ ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }));
+      showToast(`${coin.name} removed`, { label: "Undo", run: () => moveWatch(coin.id, index) });
+    },
+    [moveWatch, showToast],
+  );
+
+  // Search overlay and recent searches (US-2.5, US-P04.2).
+  const openSearch = useCallback((scope = "all") => setSearch({ open: true, scope }), []);
+  const closeSearch = useCallback(() => setSearch((current) => ({ ...current, open: false })), []);
+  const addRecentSearch = useCallback((query) => {
+    const text = query.trim();
+    if (text.length < 2) return;
+    setData((current) => ({
+      ...current,
+      recentSearches: [text, ...current.recentSearches.filter((item) => item.toLowerCase() !== text.toLowerCase())].slice(0, 10),
+    }));
+  }, []);
+  const removeRecentSearch = useCallback((query) => {
+    setData((current) => ({ ...current, recentSearches: current.recentSearches.filter((item) => item !== query) }));
+  }, []);
+  const clearRecentSearches = useCallback(() => setData((current) => ({ ...current, recentSearches: [] })), []);
+
+  // Portfolio transactions (US-6.3). Holdings are derived, never stored.
+  const saveTransaction = useCallback(
+    (transaction) => {
+      const isNew = !transaction.id;
+      setData((current) => ({
+        ...current,
+        transactions: isNew
+          ? [...current.transactions, { ...transaction, id: newId("tx") }]
+          : current.transactions.map((item) => (item.id === transaction.id ? transaction : item)),
+      }));
+      showToast(isNew ? "Transaction added" : "Transaction updated");
+    },
+    [showToast],
+  );
+  const deleteTransaction = useCallback(
+    (id) => {
+      setData((current) => ({ ...current, transactions: current.transactions.filter((item) => item.id !== id) }));
+      showToast("Transaction deleted");
+    },
+    [showToast],
+  );
+
   const updateSettings = useCallback((patch) => {
     setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
   }, []);
@@ -219,6 +319,19 @@ export function AppProvider({ children }) {
       watchlist: data.watchlist,
       settings: data.settings,
       recentCoins: data.recentCoins,
+      recentSearches: data.recentSearches,
+      transactions: data.transactions,
+      search,
+      openSearch,
+      closeSearch,
+      addRecentSearch,
+      removeRecentSearch,
+      clearRecentSearches,
+      moveWatch,
+      removeWatch,
+      saveTransaction,
+      deleteTransaction,
+      dismissToast,
       reminders: data.reminders,
       reminderTimings: data.reminderTimings,
       addRecentCoin,
@@ -239,7 +352,7 @@ export function AppProvider({ children }) {
       toasts,
       showToast,
     }),
-    [session, data, authPrompt, requireAuth, startDemo, endDemo, toggleWatch, addRecentCoin, castVote, voteFor, setReminder, updateSettings, updateMarketSettings, toasts, showToast],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast],
   );
 
   return (

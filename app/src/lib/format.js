@@ -31,7 +31,7 @@ export function formatPrice(usd, currency = "USD", rate = 1) {
   const value = usd * rate;
   const abs = Math.abs(value);
   const text =
-    abs >= 1
+    abs >= 1 || abs === 0
       ? value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : value.toLocaleString("en-US", { maximumSignificantDigits: 4 });
   return withUnit(text, currency);

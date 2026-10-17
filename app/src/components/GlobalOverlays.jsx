@@ -5,13 +5,24 @@ import { useApp } from "../state/context.js";
 
 // Toasts sit above the bottom nav; at most two, each for 4 s (00-app-shell.md).
 export function Toasts() {
-  const { toasts } = useApp();
+  const { toasts, dismissToast } = useApp();
   return (
     <div className="toast-region" role="status" aria-live="polite">
       {toasts.map((toast) => (
         <p key={toast.id} className="toast">
           <Icon name="check" />
-          {toast.message}
+          <span className="toast-text">{toast.message}</span>
+          {toast.action && (
+            <button
+              className="button-tertiary"
+              onClick={() => {
+                toast.action.run();
+                dismissToast(toast.id);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
         </p>
       ))}
     </div>

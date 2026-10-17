@@ -84,6 +84,7 @@ const invented = [
   ["quarry-ai", "Quarry AI", "QRY", "AI", 9],
   ["hearth-rwa", "Hearth RWA", "HRTH", "RWA", 15],
   ["pixelforge", "PixelForge", "PXF", "Gaming", 2],
+  ["orbcash", "OrbCash", "ORB", "Meme", 19],
 ];
 const syllables = ["al", "ver", "zen", "kor", "lux", "nim", "tes", "dra", "vio", "rax", "mo", "qui", "sol", "tar", "ely", "fen", "gra", "hal", "ion", "jet"];
 const tints = ["orange", "violet", "teal", "yellow", "blue", "pink", "red", "slate"];
@@ -128,6 +129,8 @@ function buildCoins() {
     "orbit-l2": { price: 1.24, change24h: 3.4, marketCap: 842.5e6, fdv: 3.1e9, volume24h: 64.2e6, tint: "violet" },
     driftnet: { price: 0.42, change24h: -2.1, marketCap: 126e6, tint: "teal" },
     "lumen-protocol": { price: 0.86, change24h: 5.12, marketCap: 64e6, tint: "yellow" },
+    // Copycat ticker for search (US-2.5): same "ORB" symbol, tiny cap, unverified.
+    orbcash: { price: 0.0031, change24h: -8.2, marketCap: 1.2e6, tint: "orange" },
   };
 
   invented.forEach(([slug, name, symbol, category, listedDaysAgo]) => {

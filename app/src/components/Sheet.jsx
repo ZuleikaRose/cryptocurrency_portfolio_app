@@ -3,14 +3,15 @@ import Icon from "./Icon.jsx";
 
 // Modal panel used for the menu drawer and bottom sheets.
 // Closes on Escape or backdrop click, traps Tab focus, and returns focus to the opener.
-export default function Sheet({ open, onClose, title, side = "right", children }) {
+export default function Sheet({ open, onClose, title, side = "right", initialFocus, hideHeader = false, children }) {
   const panelRef = useRef(null);
 
   useEffect(() => {
     if (!open) return undefined;
     const opener = document.activeElement;
     const panel = panelRef.current;
-    panel?.querySelector("button, a, input, select, textarea")?.focus();
+    const target = (initialFocus && panel?.querySelector(initialFocus)) || panel?.querySelector("button, a, input, select, textarea");
+    target?.focus();
 
     const onKeyDown = (event) => {
       if (event.key === "Escape") onClose();
@@ -31,7 +32,7 @@ export default function Sheet({ open, onClose, title, side = "right", children }
       document.removeEventListener("keydown", onKeyDown);
       opener?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, initialFocus]);
 
   if (!open) return null;
 
@@ -39,7 +40,7 @@ export default function Sheet({ open, onClose, title, side = "right", children }
     <div className={`sheet-layer sheet-${side}`}>
       <div className="sheet-backdrop" onClick={onClose} aria-hidden="true" />
       <section ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-label={title}>
-        <header className="sheet-header">
+        <header className={hideHeader ? "sheet-header visually-hidden" : "sheet-header"}>
           <h2>{title}</h2>
           <button className="icon-button" onClick={onClose} aria-label={`Close ${title.toLowerCase()}`}>
             <Icon name="close" />

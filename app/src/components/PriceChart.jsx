@@ -15,7 +15,9 @@ const markerMeta = {
 };
 
 // Interactive SVG price chart (US-3.1, US-3.2). Pointer drag or ←/→ moves the crosshair.
-export default function PriceChart({ points, rangeId, mode, markers, showMarkers, onMarker, currency, rate, label }) {
+export default function PriceChart({ points, rangeId, mode = "line", markers = [], showMarkers = false, onMarker, currency, rate, label, mask = false, name = "Price" }) {
+  // Hide balances (US-P11.1): every value reads ••••, the % change stays visible.
+  const money = (value) => (mask ? "••••" : formatPrice(value, currency, rate));
   const [active, setActive] = useState(null);
 
   const { min, max, x, y } = useMemo(() => {
@@ -68,12 +70,12 @@ export default function PriceChart({ points, rangeId, mode, markers, showMarkers
       <div className="chart-readout num" aria-hidden="true">
         {point ? (
           <>
-            <strong>{formatPrice(point.price, currency, rate)}</strong>
+            <strong>{money(point.price)}</strong>
             <span>{formatChartTime(point.time, rangeId)}</span>
           </>
         ) : (
           <>
-            <strong>{formatPrice(points[points.length - 1].price, currency, rate)}</strong>
+            <strong>{money(points[points.length - 1].price)}</strong>
             <span className={up ? "up" : "down"}>{formatPercent(change)} · {label}</span>
           </>
         )}
@@ -84,7 +86,7 @@ export default function PriceChart({ points, rangeId, mode, markers, showMarkers
           className="chart-surface"
           role="img"
           tabIndex={0}
-          aria-label={`Price chart. ${chartSummary(points, label, currency, rate)} Use left and right arrow keys to read prices.`}
+          aria-label={mask ? `${name} chart. Values hidden.` : `${name} chart. ${chartSummary(points, label, currency, rate)} Use left and right arrow keys to read values.`}
           onPointerMove={(event) => setActive(indexFromEvent(event))}
           onPointerDown={(event) => setActive(indexFromEvent(event))}
           onPointerLeave={(event) => event.pointerType === "mouse" && setActive(null)}
@@ -131,8 +133,8 @@ export default function PriceChart({ points, rangeId, mode, markers, showMarkers
             )}
           </svg>
           {point && <span className="crosshair-dot" style={{ left: `${(x(point.time) / WIDTH) * 100}%`, top: `${(y(point.price) / HEIGHT) * 100}%` }} />}
-          <span className="axis-label axis-high num">{formatPrice(max, currency, rate)}</span>
-          <span className="axis-label axis-low num">{formatPrice(min, currency, rate)}</span>
+          <span className="axis-label axis-high num">{money(max)}</span>
+          <span className="axis-label axis-low num">{money(min)}</span>
         </div>
 
         {visibleMarkers.map((marker) => (

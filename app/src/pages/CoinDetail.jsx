@@ -20,6 +20,7 @@ import {
   rateFor,
   relativeTime,
 } from "../lib/format.js";
+import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { NotFound } from "./Placeholder.jsx";
 
@@ -32,14 +33,6 @@ const tabs = [
 
 const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
-function useNow(intervalMs) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
 
 // Share card (US-8.2): a branded PNG with source and timestamp, via Web Share or download.
 async function shareCoin(coin, priceText, changeText) {

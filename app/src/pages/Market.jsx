@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import CoinLogo from "../components/CoinLogo.jsx";
+import { Link, useSearchParams } from "react-router-dom";
+import CoinRow, { ProTable, SkeletonRows } from "../components/CoinRow.jsx";
 import Icon from "../components/Icon.jsx";
 import Sheet from "../components/Sheet.jsx";
 import Sparkline from "../components/Sparkline.jsx";
@@ -10,12 +10,11 @@ import {
   direction,
   formatCompact,
   formatPercent,
-  formatPrice,
   rateFor,
   relativeTime,
   spokenPercent,
-  spokenPrice,
 } from "../lib/format.js";
+import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const views = [
@@ -43,14 +42,6 @@ const initialCapTotal = initialCoins.reduce((sum, coin) => sum + coin.marketCap,
 
 let hasLoadedOnce = false;
 
-function useNow(intervalMs) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
 
 function subtitleFor(view, market) {
   if (view === "gainers") return `Biggest ${market.gainersWindow} gains · volume over $100K`;
@@ -195,127 +186,6 @@ function SortSheet({ open, onClose, market, onApply }) {
   );
 }
 
-function SkeletonRows({ count }) {
-  return Array.from({ length: count }, (_, index) => (
-    <div key={index} className="coin-row skeleton-row" aria-hidden="true">
-      <span className="skeleton skeleton-dot" />
-      <span className="skeleton skeleton-logo" />
-      <span className="skeleton skeleton-text" />
-      <span className="skeleton skeleton-price" />
-    </div>
-  ));
-}
-
-function CoinRow({ coin, starred, onStar, currency, rate, changeKey, flash, tick, stale }) {
-  const change = coin[changeKey];
-  const dir = direction(change);
-  const down = coin.change7d < 0;
-  const changeLabel = changeKey === "change24h" ? "24 hours" : changeKey === "change1h" ? "1 hour" : "7 days";
-
-  return (
-    <article className={flash ? `coin-row flash-${flash}-${tick % 2}` : "coin-row"}>
-      <button
-        className={starred ? "star-button starred" : "star-button"}
-        aria-pressed={starred}
-        aria-label={`${starred ? "Remove" : "Add"} ${coin.name} ${starred ? "from" : "to"} watchlist`}
-        onClick={() => onStar(coin)}
-      >
-        <Icon name="star" filled={starred} />
-      </button>
-      <span className="rank num" aria-hidden="true">{coin.rank}</span>
-      <CoinLogo coin={coin} />
-      <Link
-        to={`/coins/${coin.id}`}
-        className="coin-name row-link"
-        aria-label={`${coin.name}, ${coin.symbol}, rank ${coin.rank}, price ${spokenPrice(coin.price, currency, rate)}, ${spokenPercent(change)} in ${changeLabel}`}
-      >
-        <strong>{coin.name}</strong>
-        <span>{coin.symbol}</span>
-      </Link>
-      <Sparkline points={coin.spark} down={down} />
-      <div className={stale ? "coin-price stale" : "coin-price"} aria-hidden="true">
-        <strong className="num">
-          {stale && <Icon name="clock" className="icon-inline" />}
-          {formatPrice(coin.price, currency, rate)}
-        </strong>
-        <span className={`num ${dir}`}>{formatPercent(change)}</span>
-      </div>
-    </article>
-  );
-}
-
-function ProTable({ rows, watchlist, onStar, currency, rate, market, onSort, flashes, tick, stale }) {
-  const columns = [
-    { id: "price", label: "Price", sort: "price" },
-    { id: "change24h", label: "24h", sort: "change24h" },
-    { id: "change7d", label: "7d" },
-    { id: "marketCap", label: "MCap", sort: "marketCap" },
-    { id: "volume", label: "Volume", sort: "volume" },
-    { id: "fdv", label: "FDV" },
-  ];
-
-  const header = (label, sortId) => {
-    if (!sortId) return label;
-    const active = market.sort === sortId;
-    return (
-      <button className={active ? "th-sort active" : "th-sort"} onClick={() => onSort(sortId)}>
-        {label}
-        {active && <span aria-hidden="true">{market.dir === "desc" ? "▼" : "▲"}</span>}
-      </button>
-    );
-  };
-
-  const ariaSort = (sortId) => (market.sort === sortId ? (market.dir === "desc" ? "descending" : "ascending") : undefined);
-
-  return (
-    <div className="table-scroll" tabIndex={0} role="region" aria-label="Coins, Pro view (scrolls sideways)">
-      <table className="pro-table">
-        <thead>
-          <tr>
-            <th scope="col" className="sticky-col" aria-sort={ariaSort("rank")}>{header("# Name", "rank")}</th>
-            {columns.map((column) => (
-              <th key={column.id} scope="col" aria-sort={ariaSort(column.sort)}>{header(column.label, column.sort)}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((coin) => {
-            const starred = watchlist.includes(coin.id);
-            const flash = flashes[coin.id];
-            return (
-              <tr key={coin.id} className={flash ? `flash-${flash}-${tick % 2}` : undefined}>
-                <th scope="row" className="sticky-col">
-                  <div className="pro-name">
-                    <button
-                      className={starred ? "star-button starred" : "star-button"}
-                      aria-pressed={starred}
-                      aria-label={`${starred ? "Remove" : "Add"} ${coin.name} ${starred ? "from" : "to"} watchlist`}
-                      onClick={() => onStar(coin)}
-                    >
-                      <Icon name="star" filled={starred} />
-                    </button>
-                    <span className="rank num">{coin.rank}</span>
-                    <Link to={`/coins/${coin.id}`} className="pro-coin">
-                      <strong>{coin.symbol}</strong>
-                      <span>{coin.name}</span>
-                    </Link>
-                  </div>
-                </th>
-                <td className={stale ? "num stale" : "num"}>{formatPrice(coin.price, currency, rate)}</td>
-                <td className={`num ${direction(coin.change24h)}`}>{formatPercent(coin.change24h)}</td>
-                <td className={`num ${direction(coin.change7d)}`}>{formatPercent(coin.change7d)}</td>
-                <td className="num">{formatCompact(coin.marketCap, currency, rate)}</td>
-                <td className="num">{formatCompact(coin.volume24h, currency, rate)}</td>
-                <td className="num">{formatCompact(coin.fdv, currency, rate)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 // Keyed by view + filters so "View all" resets whenever the list changes.
 function CoinList({ rows, view, emptyAction, ...rowProps }) {
   const preview = view !== "watchlist";
@@ -399,10 +269,9 @@ function CoinList({ rows, view, emptyAction, ...rowProps }) {
 }
 
 export default function Market() {
-  const { settings, updateSettings, updateMarketSettings, watchlist, toggleWatch } = useApp();
+  const { settings, updateSettings, updateMarketSettings, watchlist, toggleWatch, openSearch } = useApp();
   const { coins, lastUpdated, tick, flashes, refresh } = useMarket();
   const [params, setParams] = useSearchParams();
-  const navigate = useNavigate();
   const [sortOpen, setSortOpen] = useState(false);
   const [aboutFearGreed, setAboutFearGreed] = useState(false);
   const [loading, setLoading] = useState(!hasLoadedOnce);
@@ -468,7 +337,7 @@ export default function Market() {
         <CurrencyMenu currency={currency} onChange={(code) => updateSettings({ currency: code })} />
       </div>
 
-      <button className="search-field" onClick={() => navigate("/search")}>
+      <button className="search-field" onClick={() => openSearch()}>
         <Icon name="search" />
         <span>Search coins, exchanges, IDO…</span>
         <kbd aria-hidden="true">⌘ K</kbd>

@@ -6,6 +6,8 @@ export const defaultSettings = {
   colors: "standard",
   autoRefresh: true,
   stopAnimations: false,
+  hideBalances: false,
+  watchlistSort: "mine",
   market: { view: "coins", sort: "rank", dir: "asc", category: "All", density: "simple", gainersWindow: "24h" },
 };
 

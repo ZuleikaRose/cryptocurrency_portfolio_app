@@ -86,6 +86,12 @@ const vestingOverrides = {
 
 const maxSupply = { bitcoin: 21e6, litecoin: 84e6, "bitcoin-cash": 21e6 };
 
+// Addresses used in the page specs (Search copycat example).
+const knownContracts = {
+  "orbit-l2": "0x9f3c4b2e8d1a7f60c5e2b9a4d3f1e8c7b6a5a71e",
+  orbcash: "0x44be7a1c3d9e2f60b8a5c4d1e7f2a3b9c6d809d2",
+};
+
 const NO_VESTING = new Set(["Stablecoin", "Meme"]);
 const NATIVE = new Set(["bitcoin", "ethereum", "bnb", "solana", "xrp", "dogecoin", "toncoin", "cardano", "avalanche", "tron", "polkadot", "bitcoin-cash", "near", "litecoin", "internet-computer", "aptos", "sui", "celestia"]);
 
@@ -160,9 +166,8 @@ export function researchFor(coin) {
     share: weights[index] / weightSum,
   }));
 
-  const contract = NATIVE.has(coin.id)
-    ? null
-    : `0x${Array.from({ length: 40 }, () => "0123456789abcdef"[Math.floor(random() * 16)]).join("")}`;
+  const generatedContract = `0x${Array.from({ length: 40 }, () => "0123456789abcdef"[Math.floor(random() * 16)]).join("")}`;
+  const contract = NATIVE.has(coin.id) ? null : (knownContracts[coin.id] ?? generatedContract);
 
   const about = {
     "orbit-l2": "Orbit L2 is an Ethereum layer 2 rollup that batches transactions off-chain and posts proofs to Ethereum. It targets AI agents and high-frequency apps that need low, predictable fees.",

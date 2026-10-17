@@ -170,7 +170,7 @@
 .star-button .icon { width: 16px; height: 16px; transition: transform var(--dur-micro) var(--ease-out); }
 .star-button:active .icon { transform: scale(0.85); }
 .star-button.starred { color: var(--accent); }
-.rank { width: 22px; flex: 0 0 auto; color: var(--subtle); font-size: 11px; }
+.rank { width: 28px; flex: 0 0 auto; color: var(--subtle); font-size: 11px; }
 
 .coin-logo {
   width: 32px; height: 32px; flex: 0 0 auto;
