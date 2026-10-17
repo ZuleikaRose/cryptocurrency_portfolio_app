@@ -1,5 +1,9 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/atkinson-hyperlegible/400.css";
+@import "@fontsource/atkinson-hyperlegible/700.css";
+@import "@fontsource/opendyslexic/400.css";
+@import "@fontsource/opendyslexic/700.css";
 @import "./styles/tokens.css";
 @import "./styles/shell.css";
 @import "./styles/market.css";
@@ -8,6 +12,8 @@
 @import "./styles/research.css";
 @import "./styles/home.css";
 @import "./styles/account.css";
+@import "./styles/info.css";
+@import "./styles/a11y.css";
 
 *,
 *::before,

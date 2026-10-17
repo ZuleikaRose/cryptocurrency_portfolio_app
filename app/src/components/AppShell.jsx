@@ -4,6 +4,9 @@ import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { DemoBanner, SignInSheet, Toasts } from "./GlobalOverlays.jsx";
 import SearchOverlay from "./SearchOverlay.jsx";
+import AccessibilityMenu from "./AccessibilityMenu.jsx";
+import ReadingGuide from "./ReadingGuide.jsx";
+import { shortcuts } from "../data/shortcuts.js";
 import { useApp } from "../state/context.js";
 import { menuGroups, pagesInGroup, tabs } from "../routes.js";
 
@@ -20,7 +23,7 @@ function TopBar({ onOpenMenu, onOpenA11y, onOpenSearch }) {
         <button className="icon-button" onClick={onOpenSearch} aria-label="Search" aria-keyshortcuts="Control+K Meta+K /">
           <Icon name="search" />
         </button>
-        <button className="icon-button" onClick={onOpenA11y} aria-label="Accessibility menu">
+        <button id="a11y-button" className="icon-button" onClick={onOpenA11y} aria-label="Accessibility menu" aria-keyshortcuts="Alt+A">
           <Icon name="accessibility" />
         </button>
         <Link
@@ -85,7 +88,8 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const location = useLocation();
-  const { openSearch, session, accessibilityOpen: a11yOpen, setAccessibilityOpen: setA11yOpen } = useApp();
+  const { openSearch, session, settings, accessibilityOpen: a11yOpen, setAccessibilityOpen: setA11yOpen } = useApp();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeA11y = useCallback(() => setA11yOpen(false), [setA11yOpen]);
   // Signed-in and demo users see Log out instead of Log in; guests don't see Log out.
@@ -107,10 +111,21 @@ export default function AppShell() {
         event.preventDefault();
         openSearch();
       }
+      // Alt+A: accessibility menu. Focus the ♿ button first so closing returns focus there (US-P27.5).
+      // event.code, because Alt+A types "å" on macOS.
+      if (event.altKey && event.code === "KeyA") {
+        event.preventDefault();
+        document.getElementById("a11y-button")?.focus();
+        setA11yOpen(true);
+      }
+      if (event.key === "?" && !typing) {
+        event.preventDefault();
+        setShortcutsOpen(true);
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [openSearch]);
+  }, [openSearch, setA11yOpen]);
 
   return (
     <div className="app-shell">
@@ -147,15 +162,27 @@ export default function AppShell() {
         ))}
       </Sheet>
 
-      <Sheet open={a11yOpen} onClose={closeA11y} title="Accessibility" side="bottom">
-        <p className="sheet-note">
-          Text size, contrast, motion, reading guide and the other settings arrive in Phase 7.
-        </p>
-        <Link to="/accessibility-policy" className="menu-link" onClick={closeA11y}>
-          Read the accessibility policy
-          <Icon name="chevron" />
-        </Link>
+      <AccessibilityMenu
+        open={a11yOpen}
+        onClose={closeA11y}
+        onShowShortcuts={() => {
+          closeA11y();
+          setShortcutsOpen(true);
+        }}
+      />
+      <Sheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} title="Keyboard shortcuts" side="bottom">
+        <table className="shortcut-table">
+          <tbody>
+            {shortcuts.map((item) => (
+              <tr key={item.keys}>
+                <th scope="row"><kbd>{item.keys}</kbd></th>
+                <td>{item.action}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Sheet>
+      {settings.a11y.readingGuide && <ReadingGuide />}
     </div>
   );
 }

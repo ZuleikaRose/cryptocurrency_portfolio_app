@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { categories, marketPulse } from "../data/coins.js";
 import { exchanges, saleStatus, tokenSales } from "../data/directory.js";
+import { promoStatus, promotions } from "../data/promotions.js";
 import { funds } from "../data/research.js";
 import { direction, formatCompact, formatPercent, rateFor } from "../lib/format.js";
 import { useApp, useMarket } from "../state/context.js";
@@ -41,6 +42,7 @@ export default function Explore() {
   const btc = coins.find((coin) => coin.id === "bitcoin");
   const mcapVsFdv = coins.find((coin) => coin.id === "orbit-l2");
 
+  const activePromos = promotions.filter((promo) => promoStatus(promo) === "active").length;
   const learn = [
     {
       title: "What is a token unlock?",
@@ -61,7 +63,7 @@ export default function Explore() {
   ];
 
   const more = [
-    { to: "/promotions", icon: "star", label: "Promotions", meta: "1 active" },
+    { to: "/promotions", icon: "star", label: "Promotions", meta: `${activePromos} active` },
     { to: "/affiliate", icon: "user", label: "Affiliate program" },
     { to: "/ai", icon: "compass", label: "AI features" },
     { to: "/support", icon: "info", label: "Customer support · FAQs" },

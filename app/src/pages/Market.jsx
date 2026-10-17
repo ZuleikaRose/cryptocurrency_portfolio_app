@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import CoinRow, { ProTable, SkeletonRows } from "../components/CoinRow.jsx";
+import ChartSummary from "../components/ChartSummary.jsx";
 import Icon from "../components/Icon.jsx";
 import Sheet from "../components/Sheet.jsx";
 import Sparkline from "../components/Sparkline.jsx";
@@ -393,6 +394,7 @@ export default function Market() {
           >
             Retry
           </button>
+          <Link to="/report-issue?type=data&from=%2Fmarket" className="button-tertiary">Report an issue</Link>
         </div>
       )}
 
@@ -401,12 +403,19 @@ export default function Market() {
           <h2>Market pulse</h2>
           <span className={stale ? "stale" : undefined}>
             {stale && <Icon name="clock" className="icon-inline" />}
-            Updated {relativeTime(lastUpdated, now)}
+            {settings.autoRefresh ? "Updated" : "Last updated"} {relativeTime(lastUpdated, now)}
           </span>
         </div>
-        <Link to="/explore#market-pulse" className="link-button">
-          View all <Icon name="chevron" />
-        </Link>
+        {settings.autoRefresh ? (
+          <Link to="/explore#market-pulse" className="link-button">
+            View all <Icon name="chevron" />
+          </Link>
+        ) : (
+          // Auto-refresh off (US-P27.3): prices only change when asked.
+          <button className="button-secondary compact" onClick={refresh}>
+            Refresh
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -442,6 +451,9 @@ export default function Market() {
               {marketPulse.btcDominance}%<span className={direction(marketPulse.btcDominanceChange)}>{formatPercent(marketPulse.btcDominanceChange)}</span>
             </p>
             <Sparkline points={marketPulse.btcDominanceSpark} />
+            <ChartSummary
+              text={`BTC dominance is ${marketPulse.btcDominance}%, ${formatPercent(marketPulse.btcDominanceChange)} in 24h. The trend line ${marketPulse.btcDominanceSpark.at(-1) > marketPulse.btcDominanceSpark[0] ? "rises" : "falls"} overall.`}
+            />
           </article>
         </div>
       )}

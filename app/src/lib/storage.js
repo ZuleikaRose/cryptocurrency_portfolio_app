@@ -9,6 +9,8 @@ export const keys = {
   session: `${PREFIX}session`,
   user: (id) => `${PREFIX}user:${id}`,
   resetTokens: `${PREFIX}resetTokens`,
+  supportLog: `${PREFIX}supportLog`,
+  probe: `${PREFIX}probe`,
 };
 
 export function readJson(key, fallback = null) {

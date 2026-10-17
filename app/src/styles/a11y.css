@@ -1,0 +1,157 @@
+/* Accessibility menu (27-accessibility-menu.md): driven by data-* attributes on <html>
+   set in AppStore. Loaded last so these overrides win. */
+
+/* Text size: zoom reflows the content column (unlike transform), so 200% wraps instead of overflowing. */
+main.content, .sheet-body { zoom: var(--a11y-zoom, 1); }
+
+/* Fonts */
+:root[data-font="readable"] { --font-sans: "Atkinson Hyperlegible", Verdana, Tahoma, sans-serif; }
+:root[data-font="dyslexic"] { --font-sans: "OpenDyslexic", "Comic Sans MS", Verdana, sans-serif; }
+
+/* Line height and letter spacing */
+:root[data-line-height="custom"] :is(main, .sheet-body) :is(p, li, dd, dt, td, th, label, span, a, button, h1, h2, h3, strong, small) {
+  line-height: var(--a11y-line-height) !important;
+}
+:root[data-letter-spacing="custom"] :is(main, .sheet-body) * { letter-spacing: var(--a11y-letter-spacing) !important; }
+
+/* Alignment */
+:root[data-align="left"] :is(main, .sheet-body) :is(p, li, h1, h2, h3, dd, td, th, span) { text-align: left !important; }
+:root[data-align="center"] :is(main, .sheet-body) :is(p, h1, h2, h3, dd) { text-align: center !important; }
+
+/* Contrast: "high" sharpens text and lines within the current theme. */
+:root[data-contrast="high"][data-theme="dark"] {
+  --bg: #000000; --bg-page: #000000; --surface: #0b0b0f; --surface-raised: #15151b;
+  --text: #ffffff; --muted: #e4e6ee; --subtle: #c9ccd6;
+  --line: #9aa0b0; --line-soft: #6b7080;
+  --accent: #b3a9ff; --raw-green: #6ff0bd; --raw-red: #ff8c97; --warning: #ffc04d;
+}
+:root[data-contrast="high"][data-theme="light"] {
+  --bg: #ffffff; --bg-page: #ffffff; --surface: #ffffff; --surface-raised: #ffffff;
+  --text: #000000; --muted: #1d2330; --subtle: #2c3444;
+  --line: #4a5263; --line-soft: #7a8292;
+  --accent: #3f2fbf; --raw-green: #05683f; --raw-red: #a11208; --warning: #7a4b00;
+}
+
+/* Saturation (on the root, so fixed elements keep their position) */
+:root[data-saturation="low"] { filter: saturate(0.45); }
+:root[data-saturation="high"] { filter: saturate(1.7); }
+:root[data-saturation="mono"] { filter: grayscale(1); }
+
+/* Navigation aids */
+:root[data-highlight-links="on"] a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 1px;
+}
+:root[data-highlight-headings="on"] :is(h1, h2, h3) {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+  background: var(--accent-soft);
+}
+:root[data-strong-focus="on"] :focus-visible,
+:root[data-strong-focus="on"] .switch input:focus-visible + .switch-track {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+:root[data-big-cursor="on"], :root[data-big-cursor="on"] * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M6 4l30 18-13 3 8 15-6 3-8-15-11 9z' fill='%23000' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E") 6 4, auto !important;
+}
+
+/* Reading guide */
+.reading-guide {
+  position: fixed; left: 0; right: 0; z-index: 60;
+  height: 44px;
+  margin-top: -22px;
+  border-top: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 0 100vmax color-mix(in srgb, #000 28%, transparent);
+  pointer-events: none;
+}
+.reading-guide-handle {
+  position: absolute; right: 12px; top: 50%;
+  width: 44px; height: 44px;
+  margin-top: -22px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+@media (hover: hover) and (pointer: fine) { .reading-guide-handle { display: none; } }
+
+/* Hide images: decorative graphics go, text stays. */
+:root[data-hide-images="on"] :is(img, .spark, .onboarding-art, .mini-bars) { visibility: hidden !important; }
+:root[data-hide-images="on"] .coin-logo { background: var(--surface-raised) !important; color: var(--text) !important; }
+
+/* Chart summaries */
+.chart-summary { margin: 8px 0 0; color: var(--muted); font-size: var(--summary-size, 16px); line-height: 1.5; }
+.generated-label { display: inline-block; margin-right: 4px; color: var(--accent); font-size: 12px; font-weight: 600; }
+
+/* Large text: tables become stacked cards (US: tables switch above 130%). */
+:root[data-text-large="on"] .pro-table thead { display: none; }
+:root[data-text-large="on"] .pro-table, :root[data-text-large="on"] .pro-table tbody { display: block; }
+:root[data-text-large="on"] .pro-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+:root[data-text-large="on"] .pro-table td { display: flex; justify-content: space-between; gap: 8px; padding: 0; border: 0; }
+:root[data-text-large="on"] .pro-table td:first-child { grid-column: 1 / -1; }
+:root[data-text-large="on"] .pro-table td[data-label]::before { content: attr(data-label); color: var(--subtle); }
+:root[data-text-large="on"] :is(.history-table, .shortcut-table, .data-table) :is(tr) { display: grid; }
+:root[data-text-large="on"] :is(.history-table, .data-table) thead { display: none; }
+
+/* Menu */
+.a11y-menu { display: grid; gap: 18px; }
+.a11y-menu h3 { margin: 0 0 8px; font-size: 15px; }
+.a11y-menu section { display: grid; gap: 4px; }
+.a11y-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.a11y-top .muted-line { margin: 0; }
+.a11y-top .button-secondary { margin-left: auto; }
+.profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.profile-tile {
+  display: grid; justify-items: center; gap: 6px;
+  min-height: 76px;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px; font-weight: 600; text-align: center;
+}
+.profile-tile .icon { width: 22px; height: 22px; color: var(--accent); }
+.profile-tile.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.a11y-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; font-size: 14px; }
+.a11y-row.stacked { display: grid; justify-content: stretch; gap: 6px; padding: 4px 0; }
+.stepper { display: inline-flex; align-items: center; gap: 4px; }
+.stepper output { min-width: 72px; text-align: center; font-size: 14px; font-weight: 600; }
+.stepper .icon-button { border: 1px solid var(--line); font-size: 18px; }
+.stepper .icon-button[aria-disabled="true"] { opacity: 0.35; }
+.a11y-links { display: grid; border-top: 1px solid var(--line-soft); }
+.a11y-links .menu-link { width: 100%; border: 0; background: transparent; color: var(--text); font-size: 14px; text-align: left; cursor: pointer; }
+.a11y-menu kbd, .shortcut-table kbd { padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit; font-size: 12px; }
+.shortcut-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.shortcut-table th { padding: 8px 8px 8px 0; text-align: left; font-weight: 500; white-space: nowrap; }
+.shortcut-table td { padding: 8px 0; color: var(--muted); }
+.shortcut-table tr + tr { border-top: 1px solid var(--line-soft); }
+
+/* Header rows wrap instead of pushing controls off-screen at large text sizes. */
+.market-heading, .section-title, .list-controls, .page-head, .detail-toolbar, .section-row, .settings-head { flex-wrap: wrap; }
+
+/* Above 130% text, two-column layouts become one column and rows wrap, so content
+   reflows inside the phone width instead of scrolling sideways (WCAG 1.4.10). */
+:root[data-text-large="on"] :is(.pulse-grid, .discover-grid, .stat-tiles, .custom-range, .password-checks, .sheet-actions, .profile-grid) {
+  grid-template-columns: minmax(0, 1fr);
+}
+:root[data-text-large="on"] :is(.input-row, .segmented, .unlock-card-head, .chart-readout, .promo-code-row, .round-foot, .detail-actions, .detail-header, .button-row, .still-stuck, .holding-row, .deal-list li, .feedback-prompt) {
+  flex-wrap: wrap;
+}
+:root[data-text-large="on"] :is(.chart, .chart-frame, .chart-surface, .card, .input, .unlock-card, .pulse-card) { min-width: 0; max-width: 100%; }
+:root[data-text-large="on"] :is(.display-value, .market-value, .home-figure, .dominance, .countdown, h1, h2) { overflow-wrap: anywhere; }
+:root[data-text-large="on"] .password-checks li { grid-column: auto; }
+:root[data-text-large="on"] .detail-actions > * { flex: 1 1 100%; }
+:root[data-text-large="on"] .detail-actions { grid-template-columns: minmax(0, 1fr); }
+/* Grid containers whose single column would otherwise size to their widest child. */
+:root[data-text-large="on"] :is(.auth-form, .promo-card, .affiliate-dashboard, .affiliate-join, .ai-card, .plan-card, .chart-card, .coin-panel, .overview, .chart) {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+:root[data-text-large="on"] .stats { grid-template-columns: minmax(0, 1fr); }

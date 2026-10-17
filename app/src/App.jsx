@@ -16,6 +16,15 @@ import Settings from "./pages/Settings.jsx";
 import TokenSales from "./pages/TokenSales.jsx";
 import Unlocks from "./pages/Unlocks.jsx";
 import Watchlist from "./pages/Watchlist.jsx";
+import Affiliate from "./pages/Affiliate.jsx";
+import AiFeatures from "./pages/AiFeatures.jsx";
+import Faqs from "./pages/Faqs.jsx";
+import Feedback from "./pages/Feedback.jsx";
+import Terms, { AccessibilityPolicy, Privacy } from "./pages/Legal.jsx";
+import Promotions from "./pages/Promotions.jsx";
+import ReportIssue from "./pages/ReportIssue.jsx";
+import Support from "./pages/Support.jsx";
+import TechRequirements from "./pages/TechRequirements.jsx";
 import Placeholder, { NotFound } from "./pages/Placeholder.jsx";
 import { pages } from "./routes.js";
 
@@ -29,6 +38,17 @@ const built = {
   "/reset-password": ResetPassword,
   "/logout": Logout,
   "/settings": Settings,
+  "/support": Support,
+  "/faqs": Faqs,
+  "/report-issue": ReportIssue,
+  "/feedback": Feedback,
+  "/promotions": Promotions,
+  "/affiliate": Affiliate,
+  "/technical-requirements": TechRequirements,
+  "/ai": AiFeatures,
+  "/terms": Terms,
+  "/privacy": Privacy,
+  "/accessibility-policy": AccessibilityPolicy,
   "/market": Market,
   "/coins/:slug": CoinDetail,
   "/search": Search,

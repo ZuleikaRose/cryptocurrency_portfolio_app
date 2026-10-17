@@ -1,7 +1,7 @@
 // Browser-only accounts (13–16 specs). Browser storage is not a secure server: this is
 // for demonstration. Passwords are never stored; only a salted PBKDF2-SHA-256 hash.
 import { leakedPasswords } from "../data/leakedPasswords.js";
-import { keys, readJson, writeJson } from "./storage.js";
+import { keys, readJson, removeKey, writeJson } from "./storage.js";
 
 export const PBKDF2_ITERATIONS = 310_000;
 const RESET_TTL_MS = 30 * 60_000;
@@ -203,4 +203,24 @@ export async function completeReset(token, password) {
   } catch {
     return "failed";
   }
+}
+
+// --- Data removal (17-customer-support.md, US-P17.2) ---
+// Only a deleted account's data can be erased. The support log keeps id, topic, date and
+// status only (no personal data). Returns "completed" | "completed-unlogged" (erased, but the
+// log entry couldn't be saved) | "active" | "unknown" | "storage" (nothing erased).
+export function eraseAccountData(email, ticketId) {
+  const account = findAccount(email);
+  if (!account) return "unknown";
+  if (account.status !== "deleted") return "active";
+  const log = readJson(keys.supportLog, []);
+  const entry = { id: ticketId, topic: "data-removal", date: new Date().toISOString(), status: "Completed" };
+  // Remove the account record first: once it's gone the data key is unreachable, so a
+  // later failure to remove that key can't leave a usable account behind.
+  if (!saveAccounts(getAccounts().filter((item) => item.id !== account.id))) return "storage";
+  if (!removeKey(keys.user(account.id))) return "storage";
+  // Best effort: a leftover token can't be used once the account record is gone (lookupReset fails).
+  writeJson(keys.resetTokens, (readJson(keys.resetTokens, []) || []).filter((item) => item?.accountId !== account.id));
+  if (!writeJson(keys.supportLog, [...(Array.isArray(log) ? log : []), entry])) return "completed-unlogged";
+  return "completed";
 }

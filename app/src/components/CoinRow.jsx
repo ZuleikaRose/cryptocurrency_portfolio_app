@@ -113,12 +113,12 @@ export function ProTable({ rows, watchlist, onStar, currency, rate, market, onSo
                     </Link>
                   </div>
                 </th>
-                <td className={stale ? "num stale" : "num"}>{formatPrice(coin.price, currency, rate)}</td>
-                <td className={`num ${direction(coin.change24h)}`}>{formatPercent(coin.change24h)}</td>
-                <td className={`num ${direction(coin.change7d)}`}>{formatPercent(coin.change7d)}</td>
-                <td className="num">{formatCompact(coin.marketCap, currency, rate)}</td>
-                <td className="num">{formatCompact(coin.volume24h, currency, rate)}</td>
-                <td className="num">{formatCompact(coin.fdv, currency, rate)}</td>
+                <td data-label="Price" className={stale ? "num stale" : "num"}>{formatPrice(coin.price, currency, rate)}</td>
+                <td data-label="24h" className={`num ${direction(coin.change24h)}`}>{formatPercent(coin.change24h)}</td>
+                <td data-label="7d" className={`num ${direction(coin.change7d)}`}>{formatPercent(coin.change7d)}</td>
+                <td data-label="MCap" className="num">{formatCompact(coin.marketCap, currency, rate)}</td>
+                <td data-label="Volume" className="num">{formatCompact(coin.volume24h, currency, rate)}</td>
+                <td data-label="FDV" className="num">{formatCompact(coin.fdv, currency, rate)}</td>
               </tr>
             );
           })}

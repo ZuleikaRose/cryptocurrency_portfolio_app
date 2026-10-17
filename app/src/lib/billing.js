@@ -8,7 +8,7 @@ export const plans = [
 ];
 export const planById = (id) => plans.find((plan) => plan.id === id) ?? plans[0];
 
-export const emptyBilling = { plan: "free", status: "active", billingDay: null, nextBilling: null, pausedUntil: null, cancelsOn: null, history: [], methods: [] };
+export const emptyBilling = { plan: "free", status: "active", billingDay: null, nextBilling: null, pausedUntil: null, cancelsOn: null, history: [], methods: [], promo: null };
 
 const iso = (date) => date.toISOString();
 const atNoon = (date) => {
@@ -44,6 +44,7 @@ export function normalizeBilling(value) {
     cancelsOn: typeof v.cancelsOn === "string" ? v.cancelsOn : null,
     history: Array.isArray(v.history) ? v.history.filter((h) => h && typeof h.date === "string" && Number.isFinite(h.amount)) : [],
     methods,
+    promo: v.promo && typeof v.promo.code === "string" ? { code: v.promo.code, appliedAt: String(v.promo.appliedAt ?? "") } : null,
   };
 }
 
@@ -62,7 +63,8 @@ export const isPaid = (billing) => billing.plan !== "free";
 // Delete account needs a cancelled subscription (Free counts as cancelled).
 export const blocksDeletion = (billing) => isPaid(billing) && billing.status !== "cancelled";
 
-export function subscribe(billing, planId, now = new Date()) {
+// `price` overrides the first charge (an applied promo); later periods bill the full price.
+export function subscribe(billing, planId, now = new Date(), price = null) {
   const plan = planById(planId);
   const day = Math.min(now.getDate(), 28);
   const next = plan.period === "year" ? addMonths(atNoon(now), 12) : nextOnDay(day, now);
@@ -74,7 +76,7 @@ export function subscribe(billing, planId, now = new Date()) {
     nextBilling: iso(next),
     pausedUntil: null,
     cancelsOn: null,
-    history: [{ date: iso(now), amount: plan.price, description: plan.label, status: "Paid" }, ...billing.history],
+    history: [{ date: iso(now), amount: price ?? plan.price, description: price != null && billing.promo ? `${plan.label} · ${billing.promo.code}` : plan.label, status: "Paid" }, ...billing.history],
   };
 }
 

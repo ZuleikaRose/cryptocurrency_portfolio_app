@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppContext, MarketContext, defaultSettings, normalizeFundraisingFilters, normalizeUnlockPrefs, useMarket } from "./context.js";
+import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi, normalizeFundraisingFilters, normalizeUnlockPrefs, useMarket } from "./context.js";
+import { prefersMoreContrast, prefersReducedMotion, summarySizes } from "../lib/a11y.js";
 import { initialCoins } from "../data/coins.js";
 import { researchFor } from "../data/research.js";
 import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets } from "../lib/alerts.js";
@@ -9,6 +10,7 @@ import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
 import { CryptoUnavailableError, accountById, clearFailures, createAccount, findAccount, lockState, newPasswordRecord, recordFailure, updateAccount, verifyPassword } from "../lib/auth.js";
 import { emptyBilling, normalizeBilling, settleBilling } from "../lib/billing.js";
 import { keys, readJson, removeKey, writeJson } from "../lib/storage.js";
+import { POINTS_PROMO, findPromo, pointsFor, promoStatus } from "../data/promotions.js";
 
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
 // "user" is a signed-up account whose data is saved to localStorage.
@@ -32,8 +34,23 @@ const emptyData = {
   onboarded: false,
   interests: { coins: [], sectors: [] },
   billing: emptyBilling,
+  tickets: [],
+  feedback: [],
+  feedbackPromptDismissed: 0,
+  affiliate: null,
+  visits: 0,
+  pointsSpent: 0,
 };
-const guestData = () => ({ ...emptyData, watchlist: ["bitcoin"] });
+// prefers-reduced-motion and prefers-contrast seed a guest's defaults (27-accessibility-menu.md).
+const guestData = () => ({
+  ...emptyData,
+  watchlist: ["bitcoin"],
+  settings: {
+    ...defaultSettings,
+    stopAnimations: prefersReducedMotion(),
+    a11y: { ...defaultSettings.a11y, contrast: prefersMoreContrast() ? "high" : "default" },
+  },
+});
 // Demo portfolio from 11-portfolio.md: totals $36,058.99, +28.26% all-time at sample prices.
 const demoTransactions = [
   { id: "demo-btc", coinId: "bitcoin", type: "buy", amount: 0.25, price: 52300, fee: 0, date: "2025-03-10T15:00:00.000Z", note: "" },
@@ -123,16 +140,26 @@ function loadInitial() {
   const saved = readJson(keys.session);
   const account = typeof saved?.userId === "string" ? accountById(saved.userId) : null;
   if (!account || account.status === "deleted") return { session: { kind: "guest" }, data: guestData() };
-  return loadAccount(account);
+  const loaded = loadAccount(account);
+  // Each app load counts as a visit (feedback prompt after the 5th, 20-feedback.md).
+  return { ...loaded, data: { ...loaded.data, visits: loaded.data.visits + 1 } };
 }
+
+const isTicket = (item) => item && typeof item.id === "string" && typeof item.subject === "string" && typeof item.date === "string";
 
 // A signed-up account's saved data, validated and normalised.
 function loadAccount(account) {
   const rawStored = readJson(keys.user(account.id), {});
   const stored = rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {};
-  ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications"].forEach((key) => {
+  ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications", "tickets", "feedback"].forEach((key) => {
     if (!Array.isArray(stored[key])) delete stored[key];
   });
+  if (stored.tickets) stored.tickets = stored.tickets.filter(isTicket);
+  if (stored.feedback) stored.feedback = stored.feedback.filter((item) => item && Number.isInteger(item.rating));
+  ["feedbackPromptDismissed", "visits", "pointsSpent"].forEach((key) => {
+    if (!Number.isFinite(stored[key])) delete stored[key];
+  });
+  if (!(stored.affiliate && typeof stored.affiliate.code === "string")) stored.affiliate = null;
   // Drop malformed entries rather than let one bad record break a page.
   ["watchlist", "recentCoins", "recentSearches", "followedProjects"].forEach((key) => {
     if (stored[key]) stored[key] = stored[key].filter((item) => typeof item === "string");
@@ -174,6 +201,8 @@ function loadAccount(account) {
         market: { ...defaultSettings.market, ...stored.settings?.market },
         unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
         fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
+        a11y: normalizeA11y(stored.settings?.a11y),
+        ai: normalizeAi(stored.settings?.ai),
         quietHours: { ...defaultSettings.quietHours, ...(stored.settings?.quietHours && typeof stored.settings.quietHours === "object" ? stored.settings.quietHours : {}) },
       },
       reminders: Object.fromEntries(
@@ -242,15 +271,27 @@ function MarketProvider({ autoRefresh, children }) {
 const CLOCK_MS = 30_000;
 function AlertWatcher({ onPrices, onClock }) {
   const { coins } = useMarket();
+  const coinsRef = useRef(coins);
   useEffect(() => {
+    coinsRef.current = coins;
     onPrices(coins);
   }, [coins, onPrices]);
   useEffect(() => {
-    onClock(Date.now());
-    const id = window.setInterval(() => onClock(Date.now()), CLOCK_MS);
+    onClock(Date.now(), coinsRef.current);
+    const id = window.setInterval(() => onClock(Date.now(), coinsRef.current), CLOCK_MS);
     return () => window.clearInterval(id);
   }, [onClock]);
   return null;
+}
+
+// "Weekly digest summary" (25-ai-integration.md): a factual recap, no advice words.
+function digestRecap(watchlist, coins) {
+  const held = watchlist.map((id) => coins.find((coin) => coin.id === id)).filter(Boolean);
+  if (!held.length) return "Your watchlist is empty this week.";
+  const sorted = [...held].sort((a, b) => b.change24h - a.change24h);
+  const up = held.filter((coin) => coin.change24h > 0).length;
+  const fmt = (value) => `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
+  return `${up} of ${held.length} watchlist coins are up in 24h. Biggest move: ${sorted[0].symbol} ${fmt(sorted[0].change24h)}; weakest: ${sorted.at(-1).symbol} ${fmt(sorted.at(-1).change24h)}.`;
 }
 
 export function AppProvider({ children }) {
@@ -295,15 +336,32 @@ export function AppProvider({ children }) {
     }
   }, [session, data]);
 
-  // Reflect display settings on <html> so CSS tokens can respond.
+  // Reflect display and accessibility settings on <html> so CSS can respond (27-accessibility-menu.md).
+  const { a11y } = data.settings;
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = data.settings.theme === "system"
+    const theme = data.settings.theme === "system"
       ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
       : data.settings.theme;
+    // Contrast "dark" / "light" force that theme; "high" raises contrast within it.
+    root.dataset.theme = a11y.contrast === "dark" || a11y.contrast === "light" ? a11y.contrast : theme;
+    root.dataset.contrast = a11y.contrast === "high" ? "high" : "default";
     root.dataset.colors = data.settings.colors;
     root.dataset.motion = data.settings.stopAnimations ? "off" : "on";
-  }, [data.settings.theme, data.settings.colors, data.settings.stopAnimations]);
+    root.dataset.font = a11y.font;
+    root.dataset.align = a11y.align;
+    root.dataset.saturation = a11y.saturation;
+    ["highlightLinks", "highlightHeadings", "strongFocus", "bigCursor", "hideImages"].forEach((key) => {
+      root.dataset[key] = a11y[key] ? "on" : "off";
+    });
+    root.dataset.lineHeight = a11y.lineHeight ? "custom" : "default";
+    root.dataset.textLarge = a11y.textSize > 130 ? "on" : "off"; // tables become stacked cards
+    root.dataset.letterSpacing = a11y.letterSpacing ? "custom" : "default";
+    root.style.setProperty("--a11y-zoom", String(a11y.textSize / 100));
+    root.style.setProperty("--a11y-line-height", String(a11y.lineHeight || 1.5));
+    root.style.setProperty("--a11y-letter-spacing", `${a11y.letterSpacing}em`);
+    root.style.setProperty("--summary-size", `${summarySizes[a11y.summarySize]}px`);
+  }, [data.settings.theme, data.settings.colors, data.settings.stopAnimations, a11y]);
 
   // Toasts last 4 s (5 s when they offer Undo); at most two at once.
   const showToast = useCallback((message, action) => {
@@ -560,7 +618,7 @@ export function AppProvider({ children }) {
   );
 
   const checkClock = useCallback(
-    (now) => {
+    (now, coins = []) => {
       if (session.kind === "guest") return;
       const current = dataRef.current;
       const notes = [];
@@ -589,7 +647,9 @@ export function AppProvider({ children }) {
         if (lastDigest > 0 && current.settings.weeklyDigest) {
           notes.push({
             id: newId("note"), kind: "digest", title: "Your weekly digest",
-            detail: `${current.watchlist.length} coins on your watchlist · ${Object.keys(current.follows).length} funds followed`,
+            detail: current.settings.ai.digestSummary
+              ? `✦ Generated summary: ${digestRecap(current.watchlist, coins)}`
+              : `${current.watchlist.length} coins on your watchlist · ${Object.keys(current.follows).length} funds followed`,
             path: "/watchlist", at: now, read: false, bypassQuiet: false,
           });
         }
@@ -814,6 +874,82 @@ export function AppProvider({ children }) {
 
   const clearRecentCoins = useCallback(() => setData((current) => ({ ...current, recentCoins: [] })), []);
 
+  // --- Support, feedback, promotions, affiliate (17–28 specs) ---
+
+  // Last uncaught error, for "technical details" in bug reports (19-report-issue.md).
+  const lastError = useRef(null);
+  useEffect(() => {
+    const onError = (event) => {
+      lastError.current = String(event.message ?? event.reason?.message ?? event.reason ?? "Unknown error").slice(0, 200);
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onError);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onError);
+    };
+  }, []);
+  const getLastError = useCallback(() => lastError.current, []);
+
+  // Ticket ids: #CPA-1042… for tickets, #BUG-0217… for issue reports. Logged data removals
+  // count too, so ids stay unique across guest visits. Returns the new ticket.
+  const nextTicketId = useCallback((kind) => {
+    const issue = kind === "issue";
+    const count = dataRef.current.tickets.filter((item) => (item.kind === "issue") === issue).length;
+    const logged = issue ? 0 : (readJson(keys.supportLog, []) || []).length;
+    return issue ? `BUG-${String(217 + count).padStart(4, "0")}` : `CPA-${1042 + count + logged}`;
+  }, []);
+  const addTicket = useCallback(
+    (ticket) => {
+      const id = ticket.id ?? nextTicketId(ticket.kind);
+      const saved = { status: "Received", ...ticket, id, date: new Date().toISOString() };
+      dataRef.current = { ...dataRef.current, tickets: [saved, ...dataRef.current.tickets] };
+      setData((latest) => ({ ...latest, tickets: [saved, ...latest.tickets] }));
+      return saved;
+    },
+    [nextTicketId],
+  );
+
+  const addFeedback = useCallback((entry) => {
+    setData((current) => ({ ...current, feedback: [{ ...entry, date: new Date().toISOString() }, ...current.feedback], feedbackPromptDismissed: Date.now() }));
+  }, []);
+  const dismissFeedbackPrompt = useCallback(() => setData((current) => ({ ...current, feedbackPromptDismissed: Date.now() })), []);
+
+  // Promo codes (21-promotions.md): returns { ok, promo } or { error: "invalid" | "new-only" | "points" }.
+  const applyPromo = useCallback((code) => {
+    const current = dataRef.current;
+    const promo = findPromo(code);
+    if (!promo || promo === POINTS_PROMO || promoStatus(promo) !== "active") return { error: "invalid" };
+    if (promo.newAccountsOnly && session.kind === "user") {
+      const created = new Date(accountById(session.userId)?.createdAt ?? 0).getTime();
+      if (Date.now() - created > 30 * 86_400_000) return { error: "new-only" };
+    }
+    setData((latest) => ({ ...latest, billing: { ...latest.billing, promo: { code: promo.code, appliedAt: new Date().toISOString() } } }));
+    showToast(`${promo.code} applied`);
+    return { ok: true, promo, previous: current.billing.promo?.code ?? null };
+  }, [session, showToast]);
+  const redeemPoints = useCallback(() => {
+    const current = dataRef.current;
+    if (pointsFor(current, session) < POINTS_PROMO.cost) return { error: "points" };
+    setData((latest) => ({
+      ...latest,
+      pointsSpent: latest.pointsSpent + POINTS_PROMO.cost,
+      billing: { ...latest.billing, promo: { code: POINTS_PROMO.code, appliedAt: new Date().toISOString() } },
+    }));
+    showToast(`${POINTS_PROMO.code} applied · ${POINTS_PROMO.cost} points used`);
+    return { ok: true };
+  }, [session, showToast]);
+
+  const joinAffiliate = useCallback((payoutMethod) => {
+    const base = (session.name ?? "cpa").toLowerCase().replace(/[^a-z]/g, "").slice(0, 8) || "cpa";
+    const code = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+    setData((current) => ({ ...current, affiliate: { joinedAt: new Date().toISOString(), code, payoutMethod } }));
+    showToast("You've joined the affiliate program");
+  }, [session.name, showToast]);
+  const setAffiliatePayout = useCallback((payoutMethod) => {
+    setData((current) => (current.affiliate ? { ...current, affiliate: { ...current.affiliate, payoutMethod } } : current));
+  }, []);
+
   const updateSettings = useCallback((patch) => {
     setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
   }, []);
@@ -899,8 +1035,22 @@ export function AppProvider({ children }) {
       accessibilityOpen,
       setAccessibilityOpen,
       exportData: () => data,
+      tickets: data.tickets,
+      visits: data.visits,
+      feedbackPromptDismissed: data.feedbackPromptDismissed,
+      affiliate: data.affiliate,
+      points: pointsFor(data, session),
+      getLastError,
+      addTicket,
+      nextTicketId,
+      addFeedback,
+      dismissFeedbackPrompt,
+      applyPromo,
+      redeemPoints,
+      joinAffiliate,
+      setAffiliatePayout,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, nextTicketId, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
   );
 
   return (

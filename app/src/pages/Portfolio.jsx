@@ -3,11 +3,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Donut from "../components/Donut.jsx";
 import Icon from "../components/Icon.jsx";
+import ChartSummary from "../components/ChartSummary.jsx";
 import PriceChart from "../components/PriceChart.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { researchFor } from "../data/research.js";
 import { direction, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
 import { amountHeld, computeHoldings, priceAt, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
+import { chartSummary } from "../lib/chart.js";
 import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { NotFound } from "./Placeholder.jsx";
@@ -238,6 +240,7 @@ export default function Portfolio() {
             {history.length > 1 && (
               <PriceChart points={history} rangeId={range === "24h" ? "1D" : range} currency={currency} rate={rate} label={range} mask={hide} name="Portfolio value" />
             )}
+            {history.length > 1 && !hide && <ChartSummary text={`Portfolio value: ${chartSummary(history, range, currency, rate)}`} />}
             <div className="segmented" role="group" aria-label="Chart range">
               {ranges.map((item) => (
                 <button key={item} className={range === item ? "segment active" : "segment"} aria-pressed={range === item} onClick={() => setRange(item)}>

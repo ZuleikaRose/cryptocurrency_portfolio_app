@@ -3,9 +3,12 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { PasswordChecklist, PasswordInput } from "../components/PasswordFields.jsx";
 import Sheet from "../components/Sheet.jsx";
+import { discountedPrice, findPromo } from "../data/promotions.js";
 import { ranges } from "../data/research.js";
+import { shortcuts } from "../data/shortcuts.js";
 import { accountById, isEmail, passwordChecks, passwordErrors } from "../lib/auth.js";
 import { blocksDeletion, cancel, changeBillingDay, isPaid, pause, planById, plans, resume, subscribe, validateCard } from "../lib/billing.js";
+import { downloadText } from "../lib/clipboard.js";
 import { currencies, formatDate } from "../lib/format.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useApp } from "../state/context.js";
@@ -19,12 +22,6 @@ const sections = [
   { id: "privacy", label: "Privacy" },
   { id: "accessibility", label: "Accessibility" },
   { id: "danger-zone", label: "Danger zone" },
-];
-const shortcuts = [
-  ["⌘ K / Ctrl K or /", "Open search"],
-  ["1 – 6", "Switch chart range on a coin"],
-  ["← →", "Read chart values; move between tabs"],
-  ["Esc", "Close a sheet or menu"],
 ];
 
 function Segmented({ label, value, options, onChange }) {
@@ -229,6 +226,8 @@ export default function Settings() {
   const [planTarget, setPlanTarget] = useState(null);
   const [paypal, setPaypal] = useState("");
   const [permission, setPermission] = useState(notificationPermission);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoError, setPromoError] = useState(null);
   const savedTimer = useRef(null);
 
   useEffect(() => {
@@ -260,6 +259,8 @@ export default function Settings() {
   };
 
   const plan = planById(billing.plan);
+  const promo = billing.promo ? findPromo(billing.promo.code) : null;
+  const promoPrice = discountedPrice(promo, plan);
   const paid = isPaid(billing);
   const defaultMethod = billing.methods.find((method) => method.default) ?? billing.methods[0];
   let planStatus = "Free plan";
@@ -318,14 +319,9 @@ export default function Settings() {
   const exportData = () => {
     const account = session.kind === "user" ? accountById(session.userId) : null;
     const profileOut = account ? { name: account.name, email: account.email, createdAt: account.createdAt, plan: account.plan } : { name: session.name };
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), profile: profileOut, data: app.exportData() }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `cpa-export-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast("Export downloaded");
+    const json = JSON.stringify({ exportedAt: new Date().toISOString(), profile: profileOut, data: app.exportData() }, null, 2);
+    const ok = downloadText(`cpa-export-${new Date().toISOString().slice(0, 10)}.json`, json, "application/json");
+    showToast(ok ? "Export downloaded" : "Couldn't start the download in this browser.");
   };
 
   return (
@@ -371,8 +367,19 @@ export default function Settings() {
         <div className="card plan-card">
           <p className="plan-name">
             <strong>CPA {paid ? "Pro" : "Free"}</strong>
-            {paid && <span className="num"> · ${plan.price.toFixed(2)}/{plan.period}</span>}
+            {paid && promoPrice == null && <span className="num"> · ${plan.price.toFixed(2)}/{plan.period}</span>}
+            {paid && promoPrice != null && (
+              <span className="num">
+                {" · "}<s>${plan.price.toFixed(2)}</s> ${promoPrice.toFixed(2)}/{plan.period}
+              </span>
+            )}
           </p>
+          {promo && (
+            <p className="promo-applied num">
+              {promo.code} applied
+              {promoPrice == null && (promo.plan ? ` · takes effect on ${planById(promo.plan).label}` : " · takes effect on a Pro plan")}
+            </p>
+          )}
           <p className="muted-line num">{planStatus}</p>
           {paid && (
             <div className="button-row wrap">
@@ -404,6 +411,25 @@ export default function Settings() {
             onChange={choosePlan}
           />
           <p className="muted-line">Simulated billing: no money is charged.</p>
+          <form
+            className="input-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!promoCode.trim()) return;
+              const result = app.applyPromo(promoCode);
+              setPromoError(result.ok ? null : result.error === "new-only" ? "This code is for accounts created in the last 30 days." : "This code isn't valid or has ended.");
+              if (result.ok) {
+                setPromoCode("");
+                markSaved("subscription");
+              }
+            }}
+          >
+            <label className="visually-hidden" htmlFor="settings-promo">Promo code</label>
+            <input id="settings-promo" className="input mono" value={promoCode} onChange={(event) => setPromoCode(event.target.value)} placeholder="Promo code" aria-invalid={Boolean(promoError) || undefined} aria-describedby={promoError ? "settings-promo-error" : undefined} />
+            <button type="submit" className="button-secondary compact">Apply</button>
+          </form>
+          {promoError && <p id="settings-promo-error" className="field-error" role="alert">{promoError}</p>}
+          <Link to="/promotions" className="link-button">See promotions <Icon name="chevron" /></Link>
         </div>
         <h3 className="subsection-title">Billing history</h3>
         {billing.history.length ? (
@@ -560,12 +586,12 @@ export default function Settings() {
         <details className="shortcuts">
           <summary className="menu-link">Keyboard shortcuts <Icon name="chevronDown" /></summary>
           <dl>
-            {shortcuts.map(([keysText, action]) => (
-              <div key={keysText}><dt><kbd>{keysText}</kbd></dt><dd>{action}</dd></div>
+            {shortcuts.map((item) => (
+              <div key={item.keys}><dt><kbd>{item.keys}</kbd></dt><dd>{item.action}</dd></div>
             ))}
           </dl>
         </details>
-        <Toggle label="Chart text summaries" hint="A Chart summary button under each chart" checked={settings.chartSummaries} onChange={(chartSummaries) => setting("accessibility", { chartSummaries })} />
+        <Toggle label="Chart text summaries" hint="Show the text summary under every chart" checked={settings.chartSummaries} onChange={(chartSummaries) => setting("accessibility", { chartSummaries })} />
       </section>
 
       <section id="danger-zone" aria-labelledby="danger-zone-title" className="settings-section danger-zone">
@@ -682,12 +708,12 @@ export default function Settings() {
 
       <Sheet open={sheet === "plan"} onClose={closeSheet} title={`Switch to ${planById(planTarget).label}?`} side="bottom">
         <p className="sheet-note num">
-          ${planById(planTarget).price.toFixed(2)} charged today to {defaultMethod?.type === "card" ? `${defaultMethod.brand} •••• ${defaultMethod.last4}` : "PayPal"} (simulated), then every {planById(planTarget).period}.
+          ${(discountedPrice(promo, planById(planTarget)) ?? planById(planTarget).price).toFixed(2)} charged today to {defaultMethod?.type === "card" ? `${defaultMethod.brand} •••• ${defaultMethod.last4}` : "PayPal"} (simulated), then every {planById(planTarget).period}.
         </p>
         <button
           className="button-primary"
           onClick={() => {
-            setBilling((current) => subscribe(current, planTarget));
+            setBilling((current) => subscribe(current, planTarget, new Date(), discountedPrice(promo, planById(planTarget))));
             setBillingDay(Math.min(new Date().getDate(), 28));
             showToast(`You're on ${planById(planTarget).label}`);
             markSaved("subscription");

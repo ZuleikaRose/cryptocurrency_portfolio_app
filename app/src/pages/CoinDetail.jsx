@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
+import SimilarCoins from "../components/SimilarCoins.jsx";
 import InfoTip from "../components/InfoTip.jsx";
 import PriceChart from "../components/PriceChart.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
+import ChartSummary from "../components/ChartSummary.jsx";
 import { chartSummary } from "../lib/chart.js";
 import Sheet from "../components/Sheet.jsx";
 import SupplyBar from "../components/SupplyBar.jsx";
@@ -41,7 +43,6 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
   const [rangeId, setRangeId] = useState(() => (ranges.some((item) => item.id === settings.chartRange) ? settings.chartRange : "1M"));
   const [mode, setMode] = useState("line");
   const [showMarkers, setShowMarkers] = useState(true);
-  const [showSummary, setShowSummary] = useState(false);
   const range = ranges.find((item) => item.id === rangeId);
   // Recomputed when the live price ticks, so the chart ends at today's price.
   const points = useMemo(() => priceHistory(coin, rangeId), [coin, rangeId]);
@@ -129,11 +130,6 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <span className="switch-track" aria-hidden="true" />
             Event markers
           </label>
-          {settings.chartSummaries && (
-            <button className="link-button" aria-expanded={showSummary} onClick={() => setShowSummary((value) => !value)}>
-              Chart summary <Icon name="chevronDown" />
-            </button>
-          )}
         </div>
         {showMarkers && (
           <p className="marker-legend">
@@ -141,20 +137,20 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <span className="marker-key marker-listing">L</span> Listing
           </p>
         )}
-        {showSummary && settings.chartSummaries && <p className="chart-summary">{chartSummary(points, range.label, currency, rate)}</p>}
+        <ChartSummary text={chartSummary(points, range.label, currency, rate)} />
       </section>
 
       <dl className="stats">
         <div>
-          <dt>Market cap <InfoTip term="marketCap" label="market cap" /></dt>
+          <dt>Market cap <InfoTip term="marketCap" label="market cap" detail={`${coin.symbol}: ${formatPrice(coin.price, currency, rate)} × ${formatTokens(coin.marketCap / coin.price)} tokens circulating ≈ ${formatCompact(coin.marketCap, currency, rate)}.`} /></dt>
           <dd className="num">{formatCompact(coin.marketCap, currency, rate)}</dd>
         </div>
         <div>
-          <dt>FDV <InfoTip term="fdv" label="FDV" /></dt>
+          <dt>FDV <InfoTip term="fdv" label="FDV" detail={`${coin.symbol}'s FDV is ${(coin.fdv / coin.marketCap).toFixed(1)}× its market cap: ${Math.round((coin.marketCap / coin.fdv) * 100)}% of all tokens are circulating today.`} /></dt>
           <dd className="num">{formatCompact(coin.fdv, currency, rate)}</dd>
         </div>
         <div>
-          <dt>24h volume <InfoTip term="volume" label="24h volume" /></dt>
+          <dt>24h volume <InfoTip term="volume" label="24h volume" detail={`${formatCompact(coin.volume24h, currency, rate)} traded in 24h, ${((coin.volume24h / coin.marketCap) * 100).toFixed(1)}% of ${coin.symbol}'s market cap.`} /></dt>
           <dd className="num">{formatCompact(coin.volume24h, currency, rate)}</dd>
         </div>
         <div>
@@ -223,6 +219,8 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
         <h2 id="about-title" className="subsection-title">About {coin.name}</h2>
         <p className="about">{research.about}</p>
       </section>
+
+      <SimilarCoins coin={coin} />
     </>
   );
 }

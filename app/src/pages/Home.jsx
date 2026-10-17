@@ -6,6 +6,7 @@ import Icon from "../components/Icon.jsx";
 import InvestorStack from "../components/InvestorStack.jsx";
 import Onboarding from "../components/Onboarding.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
+import SimilarCoins from "../components/SimilarCoins.jsx";
 import UnlockCard from "../components/UnlockCard.jsx";
 import { initialCoins, marketPulse } from "../data/coins.js";
 import { saleStatus, tokenSales } from "../data/directory.js";
@@ -61,6 +62,8 @@ export default function Home() {
   const rate = rateFor(settings.currency, coins);
   const currency = settings.currency;
   const unlocksFailed = params.get("simulate") === "error";
+  // After the 5th visit, at most once per 30 days, accounts only (20-feedback.md).
+  const feedbackDue = session.kind === "user" && app.visits >= 5 && now - app.feedbackPromptDismissed > 30 * 86_400_000;
 
   useEffect(() => {
     document.title = "CPA · Cryptocurrency Portfolio App";
@@ -108,6 +111,16 @@ export default function Home() {
 
   return (
     <div className="home">
+      {feedbackDue && (
+        <aside className="card feedback-prompt" aria-label="Feedback">
+          <span>How's CPA working for you?</span>
+          <Link to="/feedback" className="button-secondary compact">Share feedback</Link>
+          <button className="icon-button small" onClick={app.dismissFeedbackPrompt} aria-label="Dismiss for 30 days">
+            <Icon name="close" />
+          </button>
+        </aside>
+      )}
+
       <header className="home-head">
         <h1>{greeting(session, new Date(now))}</h1>
         <p className="page-sub num">
@@ -282,6 +295,10 @@ export default function Home() {
             ))}
           </ul>
         </section>
+      )}
+
+      {(recent[0] ?? (session.kind !== "guest" ? listCoins[0] : null)) && (
+        <SimilarCoins coin={recent[0] ?? listCoins[0]} title={`Similar to ${(recent[0] ?? listCoins[0]).symbol}`} />
       )}
 
       <section className="card learn-card" aria-labelledby="home-learn">
