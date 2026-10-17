@@ -1,11 +1,12 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell.jsx";
+import CoinDetail from "./pages/CoinDetail.jsx";
 import Market from "./pages/Market.jsx";
 import Placeholder, { NotFound } from "./pages/Placeholder.jsx";
 import { pages } from "./routes.js";
 
 // Pages built so far; everything else renders its Phase 0 placeholder.
-const built = { "/market": Market };
+const built = { "/market": Market, "/coins/:slug": CoinDetail };
 
 export default function App() {
   return (

@@ -91,3 +91,28 @@ export function relativeTime(timestamp, now = Date.now()) {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
 }
+
+// Token amounts: 92.65M, 2.50B, 18.0K.
+export function formatTokens(value) {
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+  return value.toFixed(0);
+}
+
+// Live countdown: "in 12d 06h", "in 3h 20m", "in 45s".
+export function formatCountdown(target, now = Date.now()) {
+  const ms = target - now;
+  if (ms <= 0) return "now";
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((ms % 3_600_000) / 60_000);
+  const pad = (n) => String(n).padStart(2, "0");
+  if (days > 0) return `in ${days}d ${pad(hours)}h`;
+  if (hours > 0) return `in ${hours}h ${pad(minutes)}m`;
+  return `in ${minutes}m ${pad(Math.floor((ms % 60_000) / 1000))}s`;
+}
+
+export const formatDate = (value) =>
+  new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

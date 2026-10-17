@@ -62,7 +62,7 @@ const known = [
   ["polygon", "Polygon", "POL", 0.6841, 1.18, 5.1e9, "Layer 2", "violet"],
   ["aptos", "Aptos", "APT", 8.93, 6.12, 4.1e9, "Layer 1", "teal"],
   ["render", "Render", "RNDR", 9.48, 7.85, 3.7e9, "AI", "red"],
-  ["arbitrum", "Arbitrum", "ARB", 0.8462, -3.18, 2.9e9, "Layer 2", "blue"],
+  ["arbitrum", "Arbitrum", "ARB", 0.8462, -3.18, 2.442e9, "Layer 2", "blue"],
   ["optimism", "Optimism", "OP", 2.31, -1.92, 2.7e9, "Layer 2", "red"],
   ["sui", "Sui", "SUI", 1.08, 9.24, 2.8e9, "Layer 1", "blue"],
   ["injective", "Injective", "INJ", 24.36, 4.11, 2.3e9, "DeFi", "blue"],
@@ -76,9 +76,9 @@ const known = [
 
 // Invented projects (shared with Fundraising / Unlocks specs) plus filler, to reach 140 rows.
 const invented = [
-  ["orbit-l2", "Orbit L2", "ORB", "Layer 2", 6],
+  ["orbit-l2", "Orbit L2", "ORB", "Layer 2", 567],
   ["lumen-protocol", "Lumen Protocol", "LUM", "DeFi", 12],
-  ["driftnet", "Driftnet", "DRFT", "AI", 4],
+  ["driftnet", "Driftnet", "DRF", "DeFi", 4],
   ["kestrel-chain", "Kestrel Chain", "KST", "Layer 1", 21],
   ["tidepool", "Tidepool", "TIDE", "DeFi", 27],
   ["quarry-ai", "Quarry AI", "QRY", "AI", 9],
@@ -93,7 +93,7 @@ function fillerName() {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, tint, listedDaysAgo }, rank) {
+function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, tint, listedDaysAgo, fdv, volume24h }, rank) {
   const stable = category === "Stablecoin";
   const volatility = stable ? 0.02 : between(0.6, 2.2);
   const fixed = wireframe[slug];
@@ -111,8 +111,8 @@ function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, 
     change24h,
     change7d,
     marketCap,
-    fdv: marketCap / circulatingShare,
-    volume24h: marketCap * (stable ? between(0.25, 0.6) : between(0.015, 0.12)),
+    fdv: fdv ?? marketCap / circulatingShare,
+    volume24h: volume24h ?? marketCap * (stable ? between(0.25, 0.6) : between(0.015, 0.12)),
     listedDaysAgo: listedDaysAgo ?? Math.round(between(200, 4000)),
     spark: fixed ? wireframeSpark(fixed.spark) : makeSpark(change7d, volatility),
   };
@@ -123,6 +123,13 @@ function buildCoins() {
     slug, name, symbol, price, change24h, marketCap, category, tint,
   }));
 
+  // Fixed figures used across the page specs (Coin detail, Fundraising, Fund profile).
+  const specFigures = {
+    "orbit-l2": { price: 1.24, change24h: 3.4, marketCap: 842.5e6, fdv: 3.1e9, volume24h: 64.2e6, tint: "violet" },
+    driftnet: { price: 0.42, change24h: -2.1, marketCap: 126e6, tint: "teal" },
+    "lumen-protocol": { price: 0.86, change24h: 5.12, marketCap: 64e6, tint: "yellow" },
+  };
+
   invented.forEach(([slug, name, symbol, category, listedDaysAgo]) => {
     rows.push({
       slug, name, symbol, category, listedDaysAgo,
@@ -130,6 +137,7 @@ function buildCoins() {
       change24h: between(-9, 14),
       marketCap: between(4e7, 9e8),
       tint: tints[Math.floor(random() * tints.length)],
+      ...specFigures[slug],
     });
   });
 

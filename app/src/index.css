@@ -3,6 +3,7 @@
 @import "./styles/tokens.css";
 @import "./styles/shell.css";
 @import "./styles/market.css";
+@import "./styles/detail.css";
 
 *,
 *::before,

@@ -6,18 +6,27 @@ import { keys, readJson, writeJson } from "../lib/storage.js";
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
 // "user" is a signed-up account whose data is saved to localStorage.
 
-const guestData = () => ({ watchlist: ["bitcoin"], settings: defaultSettings });
-const demoData = () => ({ watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"], settings: defaultSettings });
+const emptyData = { watchlist: [], settings: defaultSettings, recentCoins: [], votes: {}, reminders: {}, reminderTimings: ["1h"] };
+const guestData = () => ({ ...emptyData, watchlist: ["bitcoin"] });
+const demoData = () => ({ ...emptyData, watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"] });
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 function loadInitial() {
+  // Saved data may be missing or hand-edited; fall back to a guest session rather than crash.
   const saved = readJson(keys.session);
-  const account = saved?.userId && (readJson(keys.accounts, []) ?? []).find((item) => item.id === saved.userId);
+  const accounts = readJson(keys.accounts, []);
+  const account = saved?.userId && Array.isArray(accounts) ? accounts.find((item) => item?.id === saved.userId) : null;
   if (!account) return { session: { kind: "guest" }, data: guestData() };
-  const stored = readJson(keys.user(account.id), {}) ?? {};
+  const rawStored = readJson(keys.user(account.id), {});
+  const stored = rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {};
+  if (!Array.isArray(stored.watchlist)) delete stored.watchlist;
+  if (!Array.isArray(stored.recentCoins)) delete stored.recentCoins;
   return {
     session: { kind: "user", userId: account.id, name: account.name, email: account.email },
     data: {
-      watchlist: stored.watchlist ?? [],
+      ...emptyData,
+      ...stored,
       settings: { ...defaultSettings, ...stored.settings, market: { ...defaultSettings.market, ...stored.settings?.market } },
     },
   };
@@ -92,7 +101,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (session.kind !== "user") return;
     const stored = readJson(keys.user(session.userId), {}) ?? {};
-    writeJson(keys.user(session.userId), { ...stored, watchlist: data.watchlist, settings: data.settings });
+    writeJson(keys.user(session.userId), { ...stored, ...data });
   }, [session, data]);
 
   // Reflect display settings on <html> so CSS tokens can respond.
@@ -154,6 +163,45 @@ export function AppProvider({ children }) {
     [requireAuth, showToast],
   );
 
+  // Recently viewed coins: newest first, de-duplicated, max 10 (US-P03.1).
+  const addRecentCoin = useCallback((coinId) => {
+    setData((current) =>
+      current.recentCoins[0] === coinId
+        ? current
+        : { ...current, recentCoins: [coinId, ...current.recentCoins.filter((id) => id !== coinId)].slice(0, 10) },
+    );
+  }, []);
+
+  // One sentiment vote per coin per day (US-P03.2); guests see results only.
+  const castVote = useCallback(
+    (coin, vote) =>
+      requireAuth(`Sign in to vote on ${coin.name}`, () => {
+        setData((current) => ({ ...current, votes: { ...current.votes, [coin.id]: { vote, day: today() } } }));
+        showToast(`Vote recorded: ${vote === "bullish" ? "Bullish" : "Bearish"} on ${coin.symbol}`);
+      }),
+    [requireAuth, showToast],
+  );
+
+  const voteFor = useCallback((coinId) => {
+    const entry = data.votes[coinId];
+    return entry?.day === today() ? entry.vote : null;
+  }, [data.votes]);
+
+  // Unlock reminders (US-4.2): timings default to the last choice.
+  const setReminder = useCallback(
+    (unlock, timings) =>
+      requireAuth(`Sign in to set a reminder for the ${unlock.symbol} unlock`, () => {
+        setData((current) => {
+          const reminders = { ...current.reminders };
+          if (timings.length) reminders[unlock.id] = { timings };
+          else delete reminders[unlock.id];
+          return { ...current, reminders, reminderTimings: timings.length ? timings : current.reminderTimings };
+        });
+        showToast(timings.length ? `Reminder set for the ${unlock.symbol} unlock` : `Reminder removed for the ${unlock.symbol} unlock`);
+      }),
+    [requireAuth, showToast],
+  );
+
   const updateSettings = useCallback((patch) => {
     setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
   }, []);
@@ -170,6 +218,13 @@ export function AppProvider({ children }) {
       session,
       watchlist: data.watchlist,
       settings: data.settings,
+      recentCoins: data.recentCoins,
+      reminders: data.reminders,
+      reminderTimings: data.reminderTimings,
+      addRecentCoin,
+      castVote,
+      voteFor,
+      setReminder,
       authPrompt,
       dismissAuthPrompt: () => {
         pendingAction.current = null;
@@ -184,7 +239,7 @@ export function AppProvider({ children }) {
       toasts,
       showToast,
     }),
-    [session, data, authPrompt, requireAuth, startDemo, endDemo, toggleWatch, updateSettings, updateMarketSettings, toasts, showToast],
+    [session, data, authPrompt, requireAuth, startDemo, endDemo, toggleWatch, addRecentCoin, castVote, voteFor, setReminder, updateSettings, updateMarketSettings, toasts, showToast],
   );
 
   return (

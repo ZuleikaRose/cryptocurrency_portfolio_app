@@ -30,8 +30,11 @@ export function NotFound() {
   return (
     <section className="placeholder" aria-labelledby="page-title">
       <h1 id="page-title">Page not found</h1>
-      <p className="placeholder-copy">This address doesn't match any page in CPA.</p>
-      <Link to="/market" className="button-secondary">Go to the market</Link>
+      <p className="placeholder-copy">This address doesn't match any page or coin in CPA.</p>
+      <div className="placeholder-actions">
+        <Link to="/search" className="button-secondary">Search coins</Link>
+        <Link to="/market" className="button-secondary">Go to the market</Link>
+      </div>
     </section>
   );
 }
