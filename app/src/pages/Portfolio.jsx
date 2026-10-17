@@ -12,7 +12,7 @@ import { amountHeld, computeHoldings, priceAt, summarize, transactionTypes, valu
 import { chartSummary } from "../lib/chart.js";
 import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
-import { NotFound } from "./Placeholder.jsx";
+import NotFound from "./NotFound.jsx";
 
 const ranges = ["24h", "7D", "1M", "3M", "1Y", "ALL"];
 const MASK = "••••";

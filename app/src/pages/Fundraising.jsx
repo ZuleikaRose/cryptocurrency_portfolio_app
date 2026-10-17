@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
+import { ErrorBanner, SkeletonCards } from "../components/LoadState.jsx";
 import InvestorStack from "../components/InvestorStack.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds, funds, roundSectors, roundTypeList, TODAY } from "../data/research.js";
 import { direction, formatCompact, formatDate, formatPercent, relativeTime } from "../lib/format.js";
+import { useFirstLoad, useSimulatedError } from "../lib/hooks.js";
 import { shareCard } from "../lib/share.js";
 import { normalizeFundraisingFilters, useApp } from "../state/context.js";
 
@@ -136,6 +138,8 @@ export default function Fundraising() {
   const now = TODAY.getTime();
   const view = params.get("view") === "funds" ? "funds" : "rounds";
   const filters = settings.fundraising;
+  const loading = useFirstLoad("fundraising");
+  const [failed, retry] = useSimulatedError();
   const setFilters = (patch) => updateSettings({ fundraising: { ...filters, ...patch } });
 
   useEffect(() => {
@@ -260,52 +264,60 @@ export default function Fundraising() {
             </ul>
           )}
 
-          <p className="result-count" role="status">{rounds.length} rounds</p>
-          {rounds.length === 0 ? (
-            <div className="empty-state">
-              <p>No rounds match these filters.</p>
-              <button className="button-secondary" onClick={() => setFilters({ sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "" })}>
-                Reset filters
-              </button>
-            </div>
+          {failed ? (
+            <ErrorBanner what="funding rounds" onRetry={retry} />
+          ) : loading ? (
+            <SkeletonCards count={4} label="funding rounds" />
           ) : (
-            <ul className="round-feed">
-              {rounds.map((round) => {
-                const following = followedProjects.includes(round.project);
-                return (
-                  <li key={round.id} className="card round-card">
-                    <div className="round-head">
-                      <span className="square-logo" aria-hidden="true">{round.project[0]}</span>
-                      {round.coinId ? (
-                        <Link to={`/coins/${round.coinId}?tab=funding`} className="round-title">{round.project}</Link>
-                      ) : (
-                        <button className="round-title link-button" onClick={() => setRoundSheet(round)}>{round.project}</button>
-                      )}
-                      <span className="tag tag-fundraising">{round.type}</span>
-                      <span className="tag">{round.sector}</span>
-                    </div>
-                    <p className="num">
-                      <strong>{formatCompact(round.amount)}</strong> raised · Val. {round.valuation ? formatCompact(round.valuation) : "undisclosed"}
-                    </p>
-                    <p className="muted-line num">
-                      {formatDate(round.date)} · {relativeTime(round.date.getTime(), now)}
-                    </p>
-                    <div className="round-foot">
-                      <InvestorStack round={round} />
-                      <span className="muted-inline">Lead: {fundById(round.leads[0])?.name}</span>
-                      <span className="round-actions">
-                        <button className="icon-button small" onClick={() => onShare(round)} aria-label={`Share ${round.project} ${round.type} round`}>
-                          <Icon name="share" />
-                        </button>
-                        <button className={following ? "chip toggle on" : "chip toggle"} aria-pressed={following} onClick={() => toggleFollowProject(round.project)}>
-                          {following ? "Following" : "Follow"}
-                        </button>
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <p className="result-count" role="status">{rounds.length} rounds</p>
+              {rounds.length === 0 ? (
+                <div className="empty-state">
+                  <p>No rounds match these filters.</p>
+                  <button className="button-secondary" onClick={() => setFilters({ sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "" })}>
+                    Reset filters
+                  </button>
+                </div>
+              ) : (
+                <ul className="round-feed">
+                  {rounds.map((round) => {
+                    const following = followedProjects.includes(round.project);
+                    return (
+                      <li key={round.id} className="card round-card">
+                        <div className="round-head">
+                          <span className="square-logo" aria-hidden="true">{round.project[0]}</span>
+                          {round.coinId ? (
+                            <Link to={`/coins/${round.coinId}?tab=funding`} className="round-title">{round.project}</Link>
+                          ) : (
+                            <button className="round-title link-button" onClick={() => setRoundSheet(round)}>{round.project}</button>
+                          )}
+                          <span className="tag tag-fundraising">{round.type}</span>
+                          <span className="tag">{round.sector}</span>
+                        </div>
+                        <p className="num">
+                          <strong>{formatCompact(round.amount)}</strong> raised · Val. {round.valuation ? formatCompact(round.valuation) : "undisclosed"}
+                        </p>
+                        <p className="muted-line num">
+                          {formatDate(round.date)} · {relativeTime(round.date.getTime(), now)}
+                        </p>
+                        <div className="round-foot">
+                          <InvestorStack round={round} />
+                          <span className="muted-inline">Lead: {fundById(round.leads[0])?.name}</span>
+                          <span className="round-actions">
+                            <button className="icon-button small" onClick={() => onShare(round)} aria-label={`Share ${round.project} ${round.type} round`}>
+                              <Icon name="share" />
+                            </button>
+                            <button className={following ? "chip toggle on" : "chip toggle"} aria-pressed={following} onClick={() => toggleFollowProject(round.project)}>
+                              {following ? "Following" : "Follow"}
+                            </button>
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
         </>
       )}

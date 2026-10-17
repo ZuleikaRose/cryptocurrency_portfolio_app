@@ -79,22 +79,25 @@ export default function TechRequirements() {
       <h1>Technical requirements</h1>
       <section className="card setup-card" aria-labelledby="setup-title" aria-busy={checking || !checks}>
         <h2 id="setup-title">Your setup</h2>
-        {checking || !checks ? (
-          <p role="status">Checking…</p>
-        ) : (
-          <ul className="setup-list" role="status">
-            {checks.map((check) => (
-              <li key={check.text} className={check.ok ? "ok" : check.info ? "info" : check.warn ? "warn" : "bad"}>
-                <span aria-hidden="true">{check.ok ? "✓" : check.info ? "ⓘ" : check.warn ? "⚠" : "✗"}</span>
-                <span>
-                  <span className="visually-hidden">{check.ok ? "Passed: " : check.info ? "Note: " : "Problem: "}</span>
-                  {check.text}
-                  {check.link && <> <Link to={check.link.to}>{check.link.label}</Link></>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* One live region that stays mounted, so the result is announced when it replaces "Checking…". */}
+        <div role="status">
+          {checking || !checks ? (
+            <p>Checking…</p>
+          ) : (
+            <ul className="setup-list">
+              {checks.map((check) => (
+                <li key={check.text} className={check.ok ? "ok" : check.info ? "info" : check.warn ? "warn" : "bad"}>
+                  <span aria-hidden="true">{check.ok ? "✓" : check.info ? "ⓘ" : check.warn ? "⚠" : "✗"}</span>
+                  <span>
+                    <span className="visually-hidden">{check.ok ? "Passed: " : check.info ? "Note: " : "Problem: "}</span>
+                    {check.text}
+                    {check.link && <> <Link to={check.link.to}>{check.link.label}</Link></>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <button className="button-secondary compact" onClick={rerun} disabled={checking}>Run check again</button>
       </section>
 

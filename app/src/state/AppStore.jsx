@@ -484,7 +484,8 @@ export function AppProvider({ children }) {
   );
 
   // Search overlay and recent searches (US-2.5, US-P04.2).
-  const openSearch = useCallback((scope = "all") => setSearch({ open: true, scope }), []);
+  // `query` prefills the box (Not found opens search with the last path segment).
+  const openSearch = useCallback((scope = "all", query = "") => setSearch((current) => ({ open: true, scope, query, opened: (current.opened ?? 0) + 1 })), []);
   const closeSearch = useCallback(() => setSearch((current) => ({ ...current, open: false })), []);
   const addRecentSearch = useCallback((query) => {
     const text = query.trim();

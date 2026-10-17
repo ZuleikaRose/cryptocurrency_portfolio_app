@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
+import { SkeletonDetail } from "../components/LoadState.jsx";
 import SimilarCoins from "../components/SimilarCoins.jsx";
 import InfoTip from "../components/InfoTip.jsx";
 import PriceChart from "../components/PriceChart.jsx";
@@ -23,10 +24,10 @@ import {
   rateFor,
   relativeTime,
 } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useFirstLoad, useNow } from "../lib/hooks.js";
 import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
-import { NotFound } from "./Placeholder.jsx";
+import NotFound from "./NotFound.jsx";
 
 const tabs = [
   { id: "overview", label: "Overview" },
@@ -372,6 +373,7 @@ export default function CoinDetail() {
   const [reminderSheet, setReminderSheet] = useState(null);
   const [copied, setCopied] = useState(false);
   const now = useNow(1000);
+  const loading = useFirstLoad(`coin:${slug}`);
 
   const coin = coins.find((item) => item.id === slug);
   const research = coin ? researchFor(coin) : null;
@@ -386,6 +388,14 @@ export default function CoinDetail() {
   }, [coin?.id, addRecentCoin]);
 
   if (!coin) return <NotFound />;
+  if (loading) {
+    return (
+      <article className="coin-detail">
+        <h1 className="visually-hidden">{coin.name}</h1>
+        <SkeletonDetail label={coin.name} />
+      </article>
+    );
+  }
 
   const currency = settings.currency;
   const rate = rateFor(currency, coins);

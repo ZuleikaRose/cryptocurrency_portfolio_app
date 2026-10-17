@@ -11,15 +11,15 @@
   --line: #272a32;
   --line-soft: #1d2027;
   --text: #f4f5f8;
-  --muted: #8a909c;
-  --subtle: #6a707c;
+  --muted: #a1a7b2;
+  --subtle: #858b97;
   --accent: #8b7cf8;
   --accent-pressed: #7666f0;
   --accent-soft: #242037;
   --on-accent: #0b0c10;
   --raw-green: #55d6a7;
   --raw-red: #f1727f;
-  --neutral: #8a909c;
+  --neutral: #a1a7b2;
   --warning: #f5a524;
   --info: #8b7cf8;
   --halo: radial-gradient(circle at 50% 0%, #191724 0, var(--bg-page) 38%);
@@ -35,17 +35,17 @@
   --line: #e3e8ef;
   --line-soft: #edf0f4;
   --text: #0b0f19;
-  --muted: #5b6779;
-  --subtle: #6b7686;
-  --accent: #6a58e8;
-  --accent-pressed: #5643d6;
+  --muted: #4a5568;
+  --subtle: #586375;
+  --accent: #5643d6;
+  --accent-pressed: #4632c4;
   --accent-soft: #eeebfd;
   --on-accent: #ffffff;
-  --raw-green: #0e9f6e;
-  --raw-red: #d92d20;
-  --neutral: #5b6779;
-  --warning: #b7791f;
-  --info: #6a58e8;
+  --raw-green: #05764f;
+  --raw-red: #b42318;
+  --neutral: #4a5568;
+  --warning: #8a5a0f;
+  --info: #5643d6;
   --halo: radial-gradient(circle at 50% 0%, #e4e0fb 0, var(--bg-page) 40%);
   --shadow-frame: 0 24px 70px #0b0f1922;
 }
@@ -54,6 +54,7 @@
 :root { --up: var(--raw-green); --down: var(--raw-red); }
 :root[data-colors="swapped"] { --up: var(--raw-red); --down: var(--raw-green); }
 :root[data-colors="cb-safe"] { --up: #4c8dff; --down: #f08a24; }
+:root[data-theme="light"][data-colors="cb-safe"] { --up: #1d5fd6; --down: #a8510b; }
 
 :root {
   --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
+import { ErrorBanner } from "../components/LoadState.jsx";
 import { categories, marketPulse } from "../data/coins.js";
 import { exchanges, saleStatus, tokenSales } from "../data/directory.js";
 import { promoStatus, promotions } from "../data/promotions.js";
 import { funds } from "../data/research.js";
 import { direction, formatCompact, formatPercent, rateFor } from "../lib/format.js";
+import { useFirstLoad, useSimulatedError } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 
 // Category accents (style guide §3.3); others fall back to the brand accent.
@@ -18,6 +20,8 @@ export default function Explore() {
   const navigate = useNavigate();
   const location = useLocation();
   const rate = rateFor(settings.currency, coins);
+  const loading = useFirstLoad("explore");
+  const [failed, retry] = useSimulatedError();
 
   useEffect(() => {
     document.title = "Explore · CPA";
@@ -86,19 +90,30 @@ export default function Explore() {
             See all <Icon name="chevron" />
           </Link>
         </div>
-        <ul className="category-carousel" tabIndex={0} aria-label="Categories (scrolls sideways)">
-          {tiles.map((tile) => (
-            <li key={tile.category}>
-              <Link to={`/market?category=${encodeURIComponent(tile.category)}`} className="category-tile" style={{ "--cat": categoryColors[tile.category] ?? "var(--accent)" }}>
-                <strong>{tile.category}</strong>
-                <span className="num">{formatCompact(tile.cap, settings.currency, rate)}</span>
-                <span className={`num ${direction(tile.change)}`}>
-                  {direction(tile.change) === "up" ? "▲" : "▼"} {formatPercent(tile.change)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {failed ? (
+          <ErrorBanner what="categories" onRetry={retry} />
+        ) : loading ? (
+          <>
+            <p className="visually-hidden" role="status">Loading categories…</p>
+            <ul className="category-carousel" aria-hidden="true">
+              {[0, 1, 2, 3].map((index) => <li key={index}><span className="category-tile skeleton" /></li>)}
+            </ul>
+          </>
+        ) : (
+          <ul className="category-carousel" tabIndex={0} aria-label="Categories (scrolls sideways)">
+            {tiles.map((tile) => (
+              <li key={tile.category}>
+                <Link to={`/market?category=${encodeURIComponent(tile.category)}`} className="category-tile" style={{ "--cat": categoryColors[tile.category] ?? "var(--accent)" }}>
+                  <strong>{tile.category}</strong>
+                  <span className="num">{formatCompact(tile.cap, settings.currency, rate)}</span>
+                  <span className={`num ${direction(tile.change)}`}>
+                    {direction(tile.change) === "up" ? "▲" : "▼"} {formatPercent(tile.change)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section id="market-pulse" aria-labelledby="pulse-title" className="pulse-detail">

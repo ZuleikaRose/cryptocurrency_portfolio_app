@@ -49,7 +49,7 @@ main.content, .sheet-body { zoom: var(--a11y-zoom, 1); }
   outline-offset: 3px;
   background: var(--accent-soft);
 }
-:root[data-strong-focus="on"] :focus-visible,
+:root[data-strong-focus="on"] :focus-visible:not(main),
 :root[data-strong-focus="on"] .switch input:focus-visible + .switch-track {
   outline: 3px solid var(--accent) !important;
   outline-offset: 2px !important;
@@ -146,6 +146,8 @@ main.content, .sheet-body { zoom: var(--a11y-zoom, 1); }
 }
 :root[data-text-large="on"] :is(.chart, .chart-frame, .chart-surface, .card, .input, .unlock-card, .pulse-card) { min-width: 0; max-width: 100%; }
 :root[data-text-large="on"] :is(.display-value, .market-value, .home-figure, .dominance, .countdown, h1, h2) { overflow-wrap: anywhere; }
+/* Headline figures are already large: cap them near 46px after zoom so a price never breaks mid-number. */
+:root[data-text-large="on"] :is(.display-value, .market-value) { font-size: calc(46px / var(--a11y-zoom, 1)); line-height: 1.15; }
 :root[data-text-large="on"] .password-checks li { grid-column: auto; }
 :root[data-text-large="on"] .detail-actions > * { flex: 1 1 100%; }
 :root[data-text-large="on"] .detail-actions { grid-template-columns: minmax(0, 1fr); }

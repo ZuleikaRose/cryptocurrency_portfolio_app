@@ -35,6 +35,7 @@
 }
 .tag-fundraising { border-color: color-mix(in srgb, var(--cat-fundraising) 55%, transparent); color: var(--cat-fundraising); background: color-mix(in srgb, var(--cat-fundraising) 10%, transparent); }
 :root[data-theme="dark"] .tag-fundraising { color: #b9a4fb; }
+:root[data-theme="light"] .tag-fundraising { color: #6d28d9; }
 
 .detail-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
 .detail-actions .button-primary { margin-top: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
@@ -202,7 +203,6 @@
 .sheet-heading { margin: 8px 0 4px; font-size: 17px; }
 .check-row { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--line-soft); font-size: 15px; }
 .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
-.placeholder-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
 /* Text-style buttons (Back, Copy, Chart summary) have no box. */
 button.link-button { border: 0; background: transparent; padding: 0 4px; cursor: pointer; }

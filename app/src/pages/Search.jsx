@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import CoinRow from "../components/CoinRow.jsx";
+import CoinRow, { SkeletonRows } from "../components/CoinRow.jsx";
 import Icon from "../components/Icon.jsx";
 import { ResultLabel } from "../components/SearchOverlay.jsx";
 import { resultPath, searchAll } from "../data/directory.js";
@@ -38,6 +38,8 @@ export default function Search() {
   const { settings, watchlist, toggleWatch, addRecentSearch, recentSearches, clearRecentSearches } = useApp();
   const [input, setInput] = useState(params.get("q") ?? "");
   const query = useDebounced(input);
+  // Between keystroke and debounced search: 3 skeleton rows per group (04-search.md).
+  const searching = input.trim().length >= 2 && input.trim() !== query.trim();
 
   // A new ?q= from outside (e.g. the ⌘K overlay) replaces the box text.
   const urlQuery = params.get("q") ?? "";
@@ -103,7 +105,7 @@ export default function Search() {
         )}
       </div>
 
-      {query.trim().length < 2 ? (
+      {query.trim().length < 2 && !searching ? (
         <div className="search-empty">
           {recentSearches.length > 0 && (
             <section>
@@ -159,54 +161,68 @@ export default function Search() {
             </select>
           </label>
 
-          {total === 0 && (
-            <div className="empty-state">
-              <p>No matches for “{query.trim()}”. Check the spelling or try a ticker.</p>
-              <div className="chip-row">
-                {TRENDING.map((ticker) => (
-                  <button key={ticker} className="chip" onClick={() => setInput(ticker)}>{ticker}</button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {groups.map((group) => (
-            <section key={group.key} aria-labelledby={`results-${group.key}`} className="result-group" onClickCapture={remember}>
-              <h2 id={`results-${group.key}`} className="subsection-title">{groupTitles[group.key]}</h2>
-              {group.key === "coins" ? (
-                <div className="coin-list">
-                  {group.hits.map((hit) => (
-                    <CoinRow
-                      key={hit.id}
-                      coin={hit.coin}
-                      starred={watchlist.includes(hit.id)}
-                      onStar={toggleWatch}
-                      currency={settings.currency}
-                      rate={rate}
-                      footer={
-                        <span className="num">
-                          {hit.verified ? <span className="verified-text">✓ Verified</span> : <span className="unverified">⚠ Unverified</span>} · MCap{" "}
-                          {formatCompact(hit.coin.marketCap, settings.currency, rate)}
-                          {hit.contract && <> · <span className="mono">{shortAddress(hit.contract)}</span></>}
-                        </span>
-                      }
-                    />
-                  ))}
+          {searching ? (
+            <>
+              <p className="visually-hidden" role="status">Searching…</p>
+              {["Coins", "Exchanges"].map((title) => (
+                <section key={title} className="result-group" aria-hidden="true">
+                  <h2 className="subsection-title">{title}</h2>
+                  <div className="coin-list"><SkeletonRows count={3} /></div>
+                </section>
+              ))}
+            </>
+          ) : (
+            <>
+              {total === 0 && (
+                <div className="empty-state">
+                  <p>No matches for “{query.trim()}”. Check the spelling or try a ticker.</p>
+                  <div className="chip-row">
+                    {TRENDING.map((ticker) => (
+                      <button key={ticker} className="chip" onClick={() => setInput(ticker)}>{ticker}</button>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <ul className="result-list">
-                  {group.hits.map((hit) => (
-                    <li key={hit.id}>
-                      <Link to={resultPath(hit)} className="search-option">
-                        <ResultLabel hit={hit} />
-                        <Icon name="chevron" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
               )}
-            </section>
-          ))}
+
+              {groups.map((group) => (
+                <section key={group.key} aria-labelledby={`results-${group.key}`} className="result-group" onClickCapture={remember}>
+                  <h2 id={`results-${group.key}`} className="subsection-title">{groupTitles[group.key]}</h2>
+                  {group.key === "coins" ? (
+                    <div className="coin-list">
+                      {group.hits.map((hit) => (
+                        <CoinRow
+                          key={hit.id}
+                          coin={hit.coin}
+                          starred={watchlist.includes(hit.id)}
+                          onStar={toggleWatch}
+                          currency={settings.currency}
+                          rate={rate}
+                          footer={
+                            <span className="num">
+                              {hit.verified ? <span className="verified-text">✓ Verified</span> : <span className="unverified">⚠ Unverified</span>} · MCap{" "}
+                              {formatCompact(hit.coin.marketCap, settings.currency, rate)}
+                              {hit.contract && <> · <span className="mono">{shortAddress(hit.contract)}</span></>}
+                            </span>
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="result-list">
+                      {group.hits.map((hit) => (
+                        <li key={hit.id}>
+                          <Link to={resultPath(hit)} className="search-option">
+                            <ResultLabel hit={hit} />
+                            <Icon name="chevron" />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ))}
+            </>
+          )}
         </>
       )}
     </div>

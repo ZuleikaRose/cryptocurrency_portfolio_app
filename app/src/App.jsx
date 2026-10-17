@@ -25,10 +25,10 @@ import Promotions from "./pages/Promotions.jsx";
 import ReportIssue from "./pages/ReportIssue.jsx";
 import Support from "./pages/Support.jsx";
 import TechRequirements from "./pages/TechRequirements.jsx";
-import Placeholder, { NotFound } from "./pages/Placeholder.jsx";
+import NotFound from "./pages/NotFound.jsx";
 import { pages } from "./routes.js";
 
-// Pages built so far; everything else renders its Phase 0 placeholder.
+// Route path → page component; the paths and titles live in routes.js.
 const built = {
   "/": Home,
   "/alerts": Alerts,
@@ -68,7 +68,7 @@ export default function App() {
       <Route element={<AppShell />}>
         {pages.map((page) => {
           const Page = built[page.path];
-          const element = Page ? <Page /> : <Placeholder page={page} />;
+          const element = <Page />;
           return page.path === "/" ? (
             <Route key={page.path} index element={element} />
           ) : (

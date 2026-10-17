@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
-import CoinRow, { ProTable } from "../components/CoinRow.jsx";
+import CoinRow, { ProTable, SkeletonRows } from "../components/CoinRow.jsx";
 import Icon from "../components/Icon.jsx";
 import { researchFor } from "../data/research.js";
 import { direction, formatCountdown, formatPercent, rateFor, relativeTime } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useFirstLoad, useNow, useSimulatedError } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const sorts = [
@@ -70,10 +70,12 @@ function EditList({ coins, onMove, onRemove }) {
 
 export default function Watchlist() {
   const { session, settings, watchlist, toggleWatch, moveWatch, removeWatch, updateSettings, updateMarketSettings, requireAuth, openSearch } = useApp();
-  const { coins, lastUpdated, flashes, tick } = useMarket();
+  const { coins, lastUpdated, flashes, tick, refresh } = useMarket();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const now = useNow(15_000);
+  const loading = useFirstLoad("watchlist");
+  const [failed, clearFailure] = useSimulatedError();
 
   useEffect(() => {
     document.title = "Watchlist · CPA";
@@ -126,7 +128,27 @@ export default function Watchlist() {
         </div>
       )}
 
-      {ordered.length === 0 ? (
+      {failed && (
+        <div className="banner banner-error" role="alert">
+          <span>We couldn't load prices. Showing data from {relativeTime(lastUpdated, now)}.</span>
+          <button
+            className="button-tertiary"
+            onClick={() => {
+              clearFailure();
+              refresh();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {loading && ordered.length > 0 ? (
+        <>
+          <p className="visually-hidden" role="status">Loading your watchlist…</p>
+          <div className="coin-list" aria-hidden="true"><SkeletonRows count={Math.min(ordered.length, 6)} /></div>
+        </>
+      ) : ordered.length === 0 ? (
         <div className="empty-state">
           <Icon name="star" className="empty-icon" />
           <p>Add coins to your watchlist to see them here.</p>

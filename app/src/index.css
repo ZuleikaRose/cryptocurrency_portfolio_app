@@ -20,6 +20,9 @@
 *::after { box-sizing: border-box; }
 
 html {
+  /* Keyboard focus and anchor jumps stop clear of the sticky header and bottom nav (WCAG 2.4.11). */
+  scroll-padding-top: calc(var(--topbar-h) + 8px);
+  scroll-padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.45;

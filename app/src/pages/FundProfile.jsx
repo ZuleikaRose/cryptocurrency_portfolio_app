@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
+import { SkeletonDetail } from "../components/LoadState.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds } from "../data/research.js";
 import { direction, formatCompact, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
+import { useFirstLoad } from "../lib/hooks.js";
 import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
-import { NotFound } from "./Placeholder.jsx";
+import NotFound from "./NotFound.jsx";
 
 const frequencies = [
   { id: "instant", label: "Instant", short: "Instant" },
@@ -22,12 +24,21 @@ export default function FundProfile() {
   const { coins } = useMarket();
   const [menuOpen, setMenuOpen] = useState(false);
   const fund = fundById(slug);
+  const loading = useFirstLoad(`fund:${slug}`);
 
   useEffect(() => {
     if (fund) document.title = `${fund.name} · CPA`;
   }, [fund]);
 
   if (!fund) return <NotFound />;
+  if (loading) {
+    return (
+      <div className="fund-profile">
+        <h1 className="visually-hidden">{fund.name}</h1>
+        <SkeletonDetail label={fund.name} />
+      </div>
+    );
+  }
 
   const rate = rateFor(settings.currency, coins);
   const deals = fundingRounds.filter((round) => round.investors.includes(fund.id)).sort((a, b) => b.date - a.date);

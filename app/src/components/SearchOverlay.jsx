@@ -60,6 +60,12 @@ export default function SearchOverlay() {
   const { coins } = useMarket();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  // Each open may carry a prefill; apply it once per open.
+  const [appliedOpen, setAppliedOpen] = useState(0);
+  if (search.open && search.opened !== appliedOpen) {
+    setAppliedOpen(search.opened);
+    setQuery(search.query ?? "");
+  }
   const [active, setActive] = useState(0);
   const debounced = useDebounced(query);
 

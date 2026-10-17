@@ -113,7 +113,7 @@ mark { padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--
 /* Legal documents */
 .draft-note { border-color: color-mix(in srgb, var(--warning) 55%, transparent); color: var(--warning); font-size: 13px; font-weight: 600; }
 .doc-toc ol { display: grid; gap: 6px; margin: 0; padding-left: 20px; font-size: 14px; }
-.doc-toc a { color: var(--accent); }
+.doc-toc a { display: inline-block; min-height: 24px; padding: 2px 0; color: var(--accent); }
 .doc-page .info-section p { color: var(--muted); font-size: 14px; }
 .in-short { display: grid; gap: 8px; }
 .in-short h2 { margin: 0; font-size: 16px; }
@@ -123,3 +123,17 @@ mark { padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--
 .similar { display: grid; gap: 8px; }
 .similar .subsection-title { margin: 0; }
 .similar .chip .num { margin-left: 4px; font-size: 12px; }
+
+/* Not found */
+.not-found { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 8px; }
+.not-found h1 { margin: 0; }
+.not-found h1:focus { outline: none; }
+.not-found .page-sub { margin: 0; }
+.not-found-art { width: 96px; height: 72px; margin: 8px auto 4px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.not-found-path { margin: 0; color: var(--accent); font-size: 13px; overflow-wrap: anywhere; }
+.not-found .search-field { margin: 4px 0 0; }
+.did-you-mean { margin: 0; font-size: 14px; }
+.not-found .button-primary { display: grid; place-items: center; margin-top: 4px; text-decoration: none; }
+.not-found-links { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+.not-found-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); }
+.not-found > .link-button { justify-self: start; }

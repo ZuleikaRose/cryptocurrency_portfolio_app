@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "../components/Icon.jsx";
+import { SkeletonCards } from "../components/LoadState.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
 import UnlockCard from "../components/UnlockCard.jsx";
 import { unlockEvents } from "../data/research.js";
 import { formatCompact, formatDate, rateFor } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useFirstLoad, useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const DAY_MS = 86_400_000;
@@ -147,6 +148,7 @@ export default function Unlocks() {
 
   // One-second clock: countdowns show seconds inside the last hour (08-unlocks.md).
   const now = useNow(1000);
+  const loading = useFirstLoad("unlocks");
   const [from, to] = rangeBounds(prefs.range, custom, now);
   const rate = rateFor(settings.currency, coins);
 
@@ -245,7 +247,9 @@ export default function Unlocks() {
         </button>
       )}
 
-      {events.length === 0 ? (
+      {loading ? (
+        <SkeletonCards count={3} label="unlocks" />
+      ) : events.length === 0 ? (
         <div className="empty-state">
           <Icon name="calendarLock" className="empty-icon" />
           <p>No unlocks in this range.</p>

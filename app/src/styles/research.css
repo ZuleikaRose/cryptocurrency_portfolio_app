@@ -6,6 +6,7 @@
 .square-logo.small { width: 24px; height: 24px; border-radius: 6px; font-size: 11px; }
 .square-logo.large { width: 48px; height: 48px; border-radius: 12px; font-size: 20px; }
 .tag-sales { border-color: color-mix(in srgb, var(--cat-sales) 55%, transparent); color: var(--cat-sales); background: color-mix(in srgb, var(--cat-sales) 10%, transparent); }
+:root[data-theme="light"] .tag-sales { color: #0e7490; }
 .lead-tag { border-color: var(--accent); color: var(--accent); }
 .danger-text { color: var(--down); }
 .link-button.inline { display: inline; min-height: 0; padding: 0; color: var(--accent); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }

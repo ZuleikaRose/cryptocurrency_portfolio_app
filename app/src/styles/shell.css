@@ -69,6 +69,8 @@
 .icon { width: 20px; height: 20px; }
 
 .content { flex: 1; padding: 24px 18px 28px; outline: none; }
+/* Focus moves to <main> on route changes; it isn't a control, so it shows no ring. */
+main.content:focus-visible { outline: none; }
 
 /* Bottom nav: wireframe tabs + style-guide tabs, no "More" (7 items). */
 .bottom-nav {
@@ -165,12 +167,6 @@
 .menu-link .icon { width: 16px; height: 16px; color: var(--subtle); }
 .menu-link:hover .icon { color: var(--accent); }
 
-/* Phase 0 placeholders */
-.placeholder { display: grid; gap: 10px; padding-top: 8px; }
-.placeholder-copy { color: var(--muted); }
-.placeholder-detail { color: var(--accent); }
-.placeholder-meta { color: var(--subtle); font-size: 12px; }
-.placeholder-meta code { font-family: var(--font-mono); font-size: 12px; }
 .button-secondary {
   justify-self: start;
   min-height: 44px;
@@ -196,6 +192,9 @@
   }
   .topbar { border-radius: var(--r-frame) var(--r-frame) 0 0; }
   .bottom-nav { bottom: 24px; border-radius: 0 0 var(--r-frame) var(--r-frame); }
+  /* Covers the gap under the framed nav so scrolled content doesn't show beneath it. */
+  .bottom-nav::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 24px; background: var(--bg-page); }
+  :root { scroll-padding-top: calc(var(--topbar-h) + 32px); scroll-padding-bottom: calc(var(--nav-h) + 32px); }
 }
 
 /* Buttons (style guide §7.3) */

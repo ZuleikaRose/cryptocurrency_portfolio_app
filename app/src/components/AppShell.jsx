@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
@@ -103,6 +103,22 @@ export default function AppShell() {
     if (!location.hash) window.scrollTo(0, 0);
   }, [location.pathname, location.hash]);
 
+  // Route changes are silent in a single-page app, so announce the new page title and move
+  // focus to the content, unless the page already focused something there (search box, form field).
+  const [announcement, setAnnouncement] = useState("");
+  const firstPath = useRef(location.pathname);
+  useEffect(() => {
+    if (location.pathname === firstPath.current) return undefined;
+    firstPath.current = null;
+    // After closing sheets have restored their focus, and after the page has set document.title.
+    const id = window.setTimeout(() => {
+      setAnnouncement(document.title.replace(/ · CPA$/, ""));
+      const main = document.getElementById("main");
+      if (main && !main.contains(document.activeElement) && !document.querySelector(".sheet-layer")) main.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [location.pathname]);
+
   // ⌘K / Ctrl+K, or "/" outside a text field, opens search from anywhere (US-2.5).
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -130,6 +146,7 @@ export default function AppShell() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to content</a>
+      <p className="visually-hidden" aria-live="polite" aria-atomic="true">{announcement}</p>
       <div className="phone">
         <TopBar onOpenMenu={() => setMenuOpen(true)} onOpenA11y={() => setA11yOpen(true)} onOpenSearch={() => openSearch()} />
         <DemoBanner />
