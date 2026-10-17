@@ -1,5 +1,5 @@
 // Exchanges and token sales (sample data, invented names), plus the in-memory search index.
-import { funds, researchFor, seeded } from "./research.js";
+import { funds, researchFor, seeded, TODAY } from "./research.js";
 
 export const exchanges = [
   { id: "binance", name: "Binance", type: "Centralized", volume24h: 14.2e9 },
@@ -13,19 +13,48 @@ export const exchanges = [
   { id: "orbx", name: "OrbX Exchange", type: "Centralized", volume24h: 210.4e6 },
 ];
 
-const day = (text) => new Date(`${text}T14:00:00Z`);
+// Token sales (09-token-sales.md). Dates are relative to today so every tab has content.
+const DAY_MS = 86_400_000;
+const fromToday = (days) => new Date(TODAY.getTime() + days * DAY_MS);
+const sale = (id, name, symbol, type, launchpad, startDays, lengthDays, raise, price, fdv, extra = {}) => ({
+  id, name, symbol, type, launchpad, start: fromToday(startDays), end: fromToday(startDays + lengthDays), raise, price, fdv, ...extra,
+});
 
-// Token sales (09-token-sales.md). Status is derived from today's date.
-export const tokenSales = [
-  { id: "nimbus-ai", name: "Nimbus AI", symbol: "NIM", type: "IDO", launchpad: "Polar Pad", start: day("2026-10-22"), end: day("2026-10-24"), raise: 1.5e6, price: 0.045, fdv: 45e6 },
-  { id: "orbiter", name: "Orbiter", symbol: "ORBT", type: "IEO", launchpad: "OrbX Launch", start: day("2026-11-02"), end: day("2026-11-04"), raise: 3e6, price: 0.12, fdv: 120e6 },
-  { id: "tessel", name: "Tessel", symbol: "TSL", type: "ICO", launchpad: "Direct", start: day("2026-11-10"), end: day("2026-11-30"), raise: 8e6, price: 0.3, fdv: 300e6 },
-  { id: "quill-rwa", name: "Quill RWA", symbol: "QRW", type: "IDO", launchpad: "Polar Pad", start: day("2026-11-18"), end: day("2026-11-19"), raise: 2.2e6, price: 0.08, fdv: 80e6 },
-  { id: "verdant", name: "Verdant", symbol: "VRD", type: "IDO", launchpad: "Polar Pad", start: day("2026-10-15"), end: day("2026-10-19"), raise: 1.8e6, price: 0.06, fdv: 60e6 },
-  { id: "halcyon", name: "Halcyon", symbol: "HLC", type: "IEO", launchpad: "OrbX Launch", start: day("2026-10-16"), end: day("2026-10-20"), raise: 4e6, price: 0.2, fdv: 200e6 },
-  { id: "driftnet-ido", name: "Driftnet", symbol: "DRF", coinId: "driftnet", type: "IDO", launchpad: "Polar Pad", start: day("2026-10-08"), end: day("2026-10-10"), raise: 1.2e6, price: 0.12, fdv: 48e6, athRoi: 7.1 },
-  { id: "kelp", name: "Kelp", symbol: "KLP", type: "IDO", launchpad: "Polar Pad", start: day("2026-03-02"), end: day("2026-03-04"), raise: 0.9e6, price: 0.5, fdv: 50e6, currentPrice: 0.11, athRoi: 1.8 },
+const listedSales = [
+  sale("nimbus-ai", "Nimbus AI", "NIM", "IDO", "Polar Pad", 5, 2, 1.5e6, 0.045, 45e6),
+  sale("orbiter", "Orbiter", "ORBT", "IEO", "OrbX Launch", 16, 2, 3e6, 0.12, 120e6),
+  sale("tessel", "Tessel", "TSL", "ICO", "Direct", 24, 20, 8e6, 0.3, 300e6),
+  sale("quill-rwa", "Quill RWA", "QRW", "IDO", "Polar Pad", 32, 1, 2.2e6, 0.08, 80e6),
+  sale("verdant", "Verdant", "VRD", "IDO", "Polar Pad", -2, 4, 1.8e6, 0.06, 60e6, { sold: 0.68 }),
+  sale("halcyon", "Halcyon", "HLC", "IEO", "OrbX Launch", -1, 4, 4e6, 0.2, 200e6, { sold: 0.41 }),
+  sale("driftnet-ido", "Driftnet", "DRF", "IDO", "Polar Pad", -9, 2, 1.2e6, 0.12, 48e6, { coinId: "driftnet", athRoi: 7.1 }),
+  sale("kelp", "Kelp", "KLP", "IDO", "Polar Pad", -229, 2, 0.9e6, 0.5, 50e6, { currentPrice: 0.11, athRoi: 1.8 }),
 ];
+
+// Older completed sales give launchpads a track record (average / median ROI).
+const pastStems = ["Aster", "Brook", "Cairn", "Dune", "Ember", "Fable", "Garnet", "Harbor", "Iris", "Jasper", "Kernel", "Lumen", "Maple", "Nectar", "Onyx", "Pylon", "Quarry", "Rill", "Spire", "Thorn"];
+const launchpadNames = ["Polar Pad", "OrbX Launch", "Direct"];
+function pastSales() {
+  const random = seeded("sales:past");
+  return pastStems.flatMap((stem, index) =>
+    launchpadNames.slice(0, index % 3 === 2 ? 1 : 2).map((launchpad, j) => {
+      const price = 0.02 + random() * 0.5;
+      const roi = Math.exp((random() - 0.45) * 2.4);
+      const symbol = `${stem.slice(0, 3).toUpperCase()}${j ? "X" : ""}`;
+      return sale(`${stem.toLowerCase()}-${j}`, `${stem}${j ? " X" : ""}`, symbol, ["IDO", "IEO", "ICO"][Math.floor(random() * 3)], launchpad,
+        -(40 + Math.floor(random() * 600)), 2, (0.5 + random() * 4) * 1e6, price, price * (6e8 + random() * 6e8),
+        { currentPrice: price * roi, athRoi: roi * (1.2 + random() * 3) });
+    }),
+  );
+}
+
+export const tokenSales = [...listedSales, ...pastSales()];
+
+// Current price of a past sale's token: the live coin when it has one, else the sample figure.
+export function saleCurrentPrice(item, coins) {
+  if (item.coinId) return coins.find((coin) => coin.id === item.coinId)?.price ?? item.currentPrice ?? null;
+  return item.currentPrice ?? null;
+}
 
 export function saleStatus(sale, now = Date.now()) {
   if (now < sale.start.getTime()) return "upcoming";
@@ -60,7 +89,7 @@ export function searchAll(query, coins) {
     .filter((fund) => score(fund.name) > 0)
     .map((fund) => ({ kind: "fund", id: fund.id, fund, views: popularity(fund.id) }));
   const exchangeHits = exchanges
-    .filter((exchange) => score(exchange.name) > 0)
+    .filter((exchange) => score(exchange.name) > 0 || "exchanges".startsWith(q))
     .map((exchange) => ({ kind: "exchange", id: exchange.id, exchange, views: popularity(exchange.id) }));
   const saleHits = tokenSales
     .filter((sale) => score(sale.name) > 0 || score(sale.symbol) > 0)

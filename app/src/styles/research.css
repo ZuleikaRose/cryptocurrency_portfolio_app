@@ -1,0 +1,141 @@
+/* Explore, Fundraising, Fund profile, Unlocks, Token sales (phase 4) */
+
+/* minmax(0, 1fr): wide children (carousels, tables) scroll inside instead of widening the page. */
+.explore, .fundraising, .fund-profile, .unlocks, .token-sales { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.explore .section-title { margin: 8px 1px 10px; }
+.square-logo.small { width: 24px; height: 24px; border-radius: 6px; font-size: 11px; }
+.square-logo.large { width: 48px; height: 48px; border-radius: 12px; font-size: 20px; }
+.tag-sales { border-color: color-mix(in srgb, var(--cat-sales) 55%, transparent); color: var(--cat-sales); background: color-mix(in srgb, var(--cat-sales) 10%, transparent); }
+.lead-tag { border-color: var(--accent); color: var(--accent); }
+.danger-text { color: var(--down); }
+button.link-button.inline { display: inline; min-height: 0; padding: 0; color: var(--accent); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.sheet-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; margin-top: 20px; }
+.sheet-actions .button-primary { margin-top: 0; }
+.sheet-actions .button-secondary { min-height: 48px; padding: 0 16px; }
+.chip.toggle { background: transparent; border-color: var(--line); color: var(--muted); }
+.chip.toggle.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.toggle-row { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.custom-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.progress { height: 8px; overflow: hidden; border-radius: 4px; background: var(--line-soft); }
+.progress span { display: block; height: 100%; border-radius: 4px; background: var(--cat-unlocks); }
+.sales-progress span { background: var(--cat-sales); }
+.info-card { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); }
+.info-card .icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--info); margin-top: 1px; }
+
+/* Explore */
+.category-carousel {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 132px; gap: 10px;
+  margin: 0 -18px; padding: 2px 18px 8px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 18px;
+  scrollbar-width: thin;
+}
+.category-carousel li { scroll-snap-align: start; }
+.category-tile {
+  display: grid; gap: 4px;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--cat);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 13px;
+}
+.category-tile strong { font-size: 14px; }
+.category-tile:hover { border-color: color-mix(in srgb, var(--cat) 60%, var(--line)); }
+.pulse-detail { scroll-margin-top: calc(var(--topbar-h) + 12px); }
+.pulse-detail .card { display: grid; gap: 10px; }
+.pulse-row { display: flex; justify-content: space-between; font-size: 14px; }
+.pulse-row span { color: var(--muted); }
+.mini-bars { display: flex; align-items: flex-end; gap: 6px; height: 44px; }
+.mini-bars span { flex: 1; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--accent) 70%, transparent); }
+.mini-bars span:last-child { background: var(--accent); }
+.discover-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.discover-tile { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.discover-tile .icon { width: 20px; height: 20px; color: var(--accent); }
+.discover-tile strong { color: var(--text); font-size: 14px; }
+.discover-tile:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.accordion { display: grid; border-top: 1px solid var(--line-soft); }
+.accordion details { border-bottom: 1px solid var(--line-soft); }
+.accordion summary { min-height: 48px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; list-style: none; }
+.accordion summary::-webkit-details-marker { display: none; }
+.accordion summary .icon { width: 16px; height: 16px; color: var(--accent); }
+.accordion details[open] summary { font-weight: 600; }
+.accordion p { margin: 0 0 14px 24px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.search-option > .icon:first-child { width: 18px; height: 18px; margin-left: 0; color: var(--accent); }
+
+/* Unlocks */
+.unlock-cards, .round-feed, .fund-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.unlock-card-head { display: flex; align-items: center; gap: 10px; }
+.unlock-title { flex: 1; min-width: 0; font-size: 14px; }
+.unlock-title:hover strong { color: var(--accent); }
+.large-unlock { color: var(--warning); font-size: 13px; font-weight: 600; }
+.unlock-card .button-secondary { justify-self: start; }
+.selected-day { justify-self: start; }
+
+.calendar { display: grid; gap: 8px; }
+.calendar-head { display: flex; align-items: center; justify-content: space-between; }
+.calendar-head .subsection-title { margin: 0; }
+.calendar-grid { display: grid; gap: 4px; }
+.calendar-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.calendar-dow { padding: 4px 0; color: var(--subtle); font-size: 11px; text-align: center; }
+.calendar-day {
+  position: relative;
+  width: 100%; min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.calendar-day.today { border-color: var(--line); font-weight: 700; }
+.calendar-day.selected { border-color: var(--accent); background: var(--accent-soft); }
+.calendar-dot { position: absolute; left: 50%; bottom: 6px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--cat-unlocks); }
+
+/* Fundraising */
+.saved-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.saved-chip { display: inline-flex; align-items: center; }
+.saved-chip .icon-button { width: 32px; height: 32px; color: var(--muted); }
+.add-chip { border-style: dashed; background: transparent; color: var(--muted); }
+.count-badge { margin-left: 6px; padding: 1px 7px; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; }
+.round-card { display: grid; gap: 6px; font-size: 14px; }
+.round-card .round-head { flex-wrap: wrap; gap: 8px; }
+.round-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 650; text-align: left; color: var(--text); }
+button.round-title { padding: 0; min-height: 0; text-decoration: none; }
+.round-title:hover { color: var(--accent); }
+.round-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.round-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.investor-stack { display: inline-flex; align-items: center; }
+.investor-stack .square-logo + .square-logo { margin-left: -6px; }
+.investor-stack .square-logo { box-shadow: 0 0 0 2px var(--surface); }
+.investor-stack .more { margin-left: 4px; color: var(--muted); font-size: 12px; }
+
+/* Fund profile */
+.stat-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.stat-tiles > div { padding: 12px; border: 1px solid var(--line-soft); border-radius: var(--r-md); background: var(--surface); }
+.stat-tiles dd { margin: 0; font-size: 18px; font-weight: 700; }
+.stat-tiles dt { color: var(--muted); font-size: 12px; }
+.bar-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.bar-list li { display: grid; grid-template-columns: 96px 1fr 40px; align-items: center; gap: 8px; }
+.bar-list .bar { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
+.bar-list .bar span { display: block; height: 100%; background: var(--accent); }
+.bar-list .num { text-align: right; color: var(--muted); }
+.deal-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.deal-list li { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.deal-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.deal-main strong { font-weight: 600; }
+.deal-side { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.deal-list a { color: var(--accent); }
+.token-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.token-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--line); border-radius: var(--r-pill); font-size: 13px; }
+.token-chip .coin-logo { width: 26px; height: 26px; font-size: 11px; }
+
+/* Token sales */
+.sale-list { display: grid; gap: 10px; }
+.sale-card { display: grid; gap: 6px; font-size: 14px; }
+.sale-head { display: flex; align-items: center; gap: 10px; }
+.sale-name { flex: 1; min-width: 0; margin: 0; font-size: 15px; }
+.sale-name a:hover { color: var(--accent); }
+.sale-card .button-secondary { justify-self: start; }
+.token-sales .list-controls { flex-wrap: wrap; }

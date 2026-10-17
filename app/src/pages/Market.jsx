@@ -295,6 +295,18 @@ export default function Market() {
     return () => window.clearTimeout(id);
   }, []);
 
+  // Explore's category tiles link here with ?category=…; apply it once, then tidy the URL.
+  const categoryParam = params.get("category");
+  useEffect(() => {
+    if (!categoryParam) return;
+    const match = categories.find((item) => item.toLowerCase() === categoryParam.toLowerCase());
+    if (match) updateMarketSettings({ category: match, view: "coins" });
+    const next = new URLSearchParams(params);
+    next.delete("category");
+    next.set("view", "coins");
+    setParams(next, { replace: true });
+  }, [categoryParam, params, setParams, updateMarketSettings]);
+
   const rows = useMemo(() => selectRows(coins, view, market, watchlist), [coins, view, market, watchlist]);
   const totalCap = marketPulse.totalMarketCap * (coins.reduce((sum, coin) => sum + coin.marketCap, 0) / initialCapTotal);
   const totalChange = marketPulse.totalChange24h + (totalCap / marketPulse.totalMarketCap - 1) * 100;

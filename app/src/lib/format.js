@@ -101,15 +101,15 @@ export function formatTokens(value) {
   return value.toFixed(0);
 }
 
-// Live countdown: "in 12d 06h", "in 3h 20m", "in 45s".
-export function formatCountdown(target, now = Date.now()) {
+// Live countdown: "in 12d 06h", "in 3h 20m", "in 45m 10s"; `withMinutes` adds "05m" to day-long countdowns.
+export function formatCountdown(target, now = Date.now(), withMinutes = false) {
   const ms = target - now;
   if (ms <= 0) return "now";
   const days = Math.floor(ms / 86_400_000);
   const hours = Math.floor((ms % 86_400_000) / 3_600_000);
   const minutes = Math.floor((ms % 3_600_000) / 60_000);
   const pad = (n) => String(n).padStart(2, "0");
-  if (days > 0) return `in ${days}d ${pad(hours)}h`;
+  if (days > 0) return withMinutes ? `in ${days}d ${pad(hours)}h ${pad(minutes)}m` : `in ${days}d ${pad(hours)}h`;
   if (hours > 0) return `in ${hours}h ${pad(minutes)}m`;
   return `in ${minutes}m ${pad(Math.floor((ms % 60_000) / 1000))}s`;
 }

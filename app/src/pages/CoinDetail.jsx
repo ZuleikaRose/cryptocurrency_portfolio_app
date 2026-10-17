@@ -4,6 +4,7 @@ import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
 import InfoTip from "../components/InfoTip.jsx";
 import PriceChart from "../components/PriceChart.jsx";
+import ReminderSheet from "../components/ReminderSheet.jsx";
 import { chartSummary } from "../lib/chart.js";
 import Sheet from "../components/Sheet.jsx";
 import SupplyBar from "../components/SupplyBar.jsx";
@@ -21,6 +22,7 @@ import {
   relativeTime,
 } from "../lib/format.js";
 import { useNow } from "../lib/hooks.js";
+import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
 import { NotFound } from "./Placeholder.jsx";
 
@@ -33,58 +35,6 @@ const tabs = [
 
 const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
-
-// Share card (US-8.2): a branded PNG with source and timestamp, via Web Share or download.
-async function shareCoin(coin, priceText, changeText) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 630;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas is not available");
-  ctx.fillStyle = "#0b0c10";
-  ctx.fillRect(0, 0, 1200, 630);
-  ctx.fillStyle = "#f4f5f8";
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(72, 64, 64, 64, 18);
-  else ctx.rect(72, 64, 64, 64);
-  ctx.fill();
-  ctx.fillStyle = "#0b0c10";
-  ctx.font = "800 40px Inter, sans-serif";
-  ctx.fillText("C", 90, 110);
-  ctx.fillStyle = "#f4f5f8";
-  ctx.font = "800 34px Inter, sans-serif";
-  ctx.fillText("CPA", 156, 108);
-  ctx.font = "600 56px Inter, sans-serif";
-  ctx.fillText(`${coin.name} · ${coin.symbol}`, 72, 270);
-  ctx.font = "700 112px Inter, sans-serif";
-  ctx.fillText(priceText, 72, 400);
-  ctx.fillStyle = coin.change24h >= 0 ? "#55d6a7" : "#f1727f";
-  ctx.font = "600 48px Inter, sans-serif";
-  ctx.fillText(`${changeText} in 24h`, 72, 470);
-  ctx.fillStyle = "#8a909c";
-  ctx.font = "400 26px Inter, sans-serif";
-  ctx.fillText(`Source: CPA sample data · ${new Date().toLocaleString("en-US")} · Not financial advice`, 72, 560);
-  ctx.fillText(window.location.href, 72, 596);
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!blob) throw new Error("Couldn't create the image");
-  const file = new File([blob], `cpa-${coin.symbol.toLowerCase()}.png`, { type: "image/png" });
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: `${coin.name} on CPA`, url: window.location.href });
-      return "shared";
-    } catch {
-      return "cancelled";
-    }
-  }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  URL.revokeObjectURL(url);
-  return "downloaded";
-}
 
 function Overview({ coin, research, currency, rate, onMarker, onRemind, reminders, vote, onVote, now }) {
   const [rangeId, setRangeId] = useState("1M");
@@ -416,7 +366,7 @@ export default function CoinDetail() {
   const navigate = useNavigate();
   const { coins, lastUpdated } = useMarket();
   const app = useApp();
-  const { settings, watchlist, toggleWatch, addRecentCoin, requireAuth, voteFor, castVote, reminders, reminderTimings, setReminder, showToast } = app;
+  const { settings, watchlist, toggleWatch, addRecentCoin, requireAuth, voteFor, castVote, reminders, showToast } = app;
   const [eventSheet, setEventSheet] = useState(null);
   const [reminderSheet, setReminderSheet] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -459,12 +409,15 @@ export default function CoinDetail() {
   };
 
   const onShare = async () => {
-    try {
-      const result = await shareCoin(coin, formatPrice(coin.price, currency, rate), formatPercent(coin.change24h));
-      if (result === "downloaded") showToast(`Share card for ${coin.symbol} downloaded`);
-    } catch {
-      showToast("Couldn't create the share card in this browser. Copy the page link instead.");
-    }
+    const result = await shareCard({
+      fileName: `cpa-${coin.symbol.toLowerCase()}`,
+      title: `${coin.name} · ${coin.symbol}`,
+      headline: formatPrice(coin.price, currency, rate),
+      detail: `${formatPercent(coin.change24h)} in 24h`,
+      detailTone: coin.change24h >= 0 ? "up" : "down",
+    });
+    if (result === "downloaded") showToast(`Share card for ${coin.symbol} downloaded`);
+    if (result === "failed") showToast("Couldn't create the share card in this browser. Copy the page link instead.");
   };
 
   const panel = { coin, research, currency, rate };
@@ -561,7 +514,9 @@ export default function CoinDetail() {
             now={now}
             onMarker={setEventSheet}
             reminders={reminders}
-            onRemind={(unlock) => requireAuth(`Sign in to set a reminder for the ${coin.symbol} unlock`, () => setReminderSheet(unlock))}
+            onRemind={(unlock) =>
+              requireAuth(`Sign in to set a reminder for the ${coin.symbol} unlock`, () => setReminderSheet({ ...unlock, kind: "unlock", name: coin.name }))
+            }
             vote={voteFor(coin.id)}
             onVote={(choice) => castVote(coin, choice)}
           />
@@ -591,48 +546,7 @@ export default function CoinDetail() {
         {eventSheet?.kind === "listing" && <p className="sheet-note">{coin.name} listed on {formatDate(eventSheet.time)}.</p>}
       </Sheet>
 
-      <ReminderSheet
-        key={reminderSheet?.id ?? "none"}
-        unlock={reminderSheet}
-        coin={coin}
-        existing={reminderSheet ? reminders[reminderSheet.id]?.timings : null}
-        defaults={reminderTimings}
-        onClose={() => setReminderSheet(null)}
-        onSave={(timings) => {
-          setReminder(reminderSheet, timings);
-          setReminderSheet(null);
-        }}
-      />
+      <ReminderSheet key={reminderSheet?.id ?? "none"} item={reminderSheet} onClose={() => setReminderSheet(null)} />
     </article>
-  );
-}
-
-// "Remind me" sheet (US-4.2): 1 hour, 24 hours, or both; defaults to the last choice.
-function ReminderSheet({ unlock, coin, existing, defaults, onClose, onSave }) {
-  const [timings, setTimings] = useState(existing ?? defaults);
-  const toggle = (value) => setTimings((current) => (current.includes(value) ? current.filter((item) => item !== value) : [...current, value]));
-  return (
-    <Sheet open={Boolean(unlock)} onClose={onClose} title="Remind me" side="bottom">
-      {unlock && (
-        <>
-          <h3 className="sheet-heading">Remind me about the {coin.symbol} unlock</h3>
-          <p className="sheet-note num">
-            {formatDate(unlock.date)} · {formatTokens(unlock.amount)} {coin.symbol}
-          </p>
-          {[
-            ["1h", "1 hour before"],
-            ["24h", "24 hours before"],
-          ].map(([value, label]) => (
-            <label key={value} className="check-row">
-              <input type="checkbox" checked={timings.includes(value)} onChange={() => toggle(value)} />
-              {label}
-            </label>
-          ))}
-          <button className="button-primary" onClick={() => onSave(timings)} disabled={!timings.length && !existing}>
-            {timings.length ? "Set reminder" : existing ? "Remove reminder" : "Set reminder"}
-          </button>
-        </>
-      )}
-    </Sheet>
   );
 }

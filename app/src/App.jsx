@@ -1,9 +1,14 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell.jsx";
 import CoinDetail from "./pages/CoinDetail.jsx";
+import Explore from "./pages/Explore.jsx";
+import Fundraising from "./pages/Fundraising.jsx";
+import FundProfile from "./pages/FundProfile.jsx";
 import Market from "./pages/Market.jsx";
 import Portfolio, { Holding } from "./pages/Portfolio.jsx";
 import Search from "./pages/Search.jsx";
+import TokenSales from "./pages/TokenSales.jsx";
+import Unlocks from "./pages/Unlocks.jsx";
 import Watchlist from "./pages/Watchlist.jsx";
 import Placeholder, { NotFound } from "./pages/Placeholder.jsx";
 import { pages } from "./routes.js";
@@ -16,6 +21,11 @@ const built = {
   "/watchlist": Watchlist,
   "/portfolio": Portfolio,
   "/portfolio/:slug": Holding,
+  "/explore": Explore,
+  "/fundraising": Fundraising,
+  "/funds/:slug": FundProfile,
+  "/unlocks": Unlocks,
+  "/token-sales": TokenSales,
 };
 
 export default function App() {

@@ -31,24 +31,93 @@ const addMonths = (base, months) => {
   return next;
 };
 
+const DAY_MS = 86_400_000;
+const daysAgo = (days) => new Date(TODAY.getTime() - days * DAY_MS);
+
 // Funds (Fund profile, Fundraising). All invented.
-export const funds = [
+const coreFunds = [
   { id: "northstar-capital", name: "Northstar Capital", tier: 1, type: "Venture fund", founded: 2017, deals: 142, deals30d: 9, deployed: 1.08e9, sectors: [["AI", 31], ["DeFi", 24], ["Layer 2", 15], ["Infrastructure", 12], ["Gaming", 8]] },
   { id: "hashgrove-ventures", name: "Hashgrove Ventures", tier: 2, type: "Venture fund", founded: 2019, deals: 87, deals30d: 5, deployed: 412e6, sectors: [["DeFi", 34], ["Layer 2", 22], ["AI", 18], ["RWA", 10]] },
   { id: "orbital-partners", name: "Orbital Partners", tier: 2, type: "Venture fund", founded: 2020, deals: 64, deals30d: 3, deployed: 268e6, sectors: [["Layer 2", 30], ["Infrastructure", 28], ["Gaming", 14]] },
   { id: "polar-labs-fund", name: "Polar Labs Fund", tier: 3, type: "Accelerator", founded: 2021, deals: 51, deals30d: 4, deployed: 96e6, sectors: [["AI", 26], ["Gaming", 21], ["DeFi", 19]] },
 ];
+const moreFundNames = [
+  ["Meridian Digital", 2, "Venture fund", 2018], ["Lattice Ventures", 2, "Venture fund", 2019], ["Bluefin Capital", 3, "Hedge fund", 2020],
+  ["Cinder Labs", 3, "Accelerator", 2022], ["Halo Ridge Partners", 2, "Venture fund", 2018], ["Tundra Ventures", 3, "Venture fund", 2021],
+  ["Saltmarsh Capital", 3, "Family office", 2016], ["Keystone Crypto", 1, "Venture fund", 2015], ["Ember Collective", 3, "DAO", 2022],
+  ["Quartz Ventures", 2, "Venture fund", 2020], ["Atlas Grid Fund", 2, "Corporate VC", 2019], ["Vantage Node", 3, "Angel syndicate", 2023],
+];
+const fundSectors = ["AI", "DeFi", "Layer 2", "Infrastructure", "Gaming", "RWA", "Layer 1"];
+export const funds = [
+  ...coreFunds,
+  ...moreFundNames.map(([name, tier, type, founded]) => {
+    const random = seeded(`fund:${name}`);
+    const picks = [...fundSectors].sort(() => random() - 0.5).slice(0, 4);
+    const weights = picks.map(() => 10 + random() * 30);
+    return {
+      id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      name,
+      tier,
+      type,
+      founded,
+      deals: 12 + Math.floor(random() * 90),
+      deals30d: Math.floor(random() * 6),
+      deployed: (40 + random() * 600) * 1e6,
+      sectors: picks.map((sector, index) => [sector, Math.round(weights[index])]).sort((a, b) => b[1] - a[1]),
+    };
+  }),
+];
 export const fundById = (id) => funds.find((fund) => fund.id === id);
 
-// Funding rounds for invented projects (newest first when displayed).
-export const fundingRounds = [
-  { id: "orb-seed", coinId: "orbit-l2", type: "Seed", date: date("2024-01-12"), amount: 6e6, valuation: 40e6, tokenPrice: 0.08, leads: ["northstar-capital"], investors: ["northstar-capital", "polar-labs-fund"] },
-  { id: "orb-a", coinId: "orbit-l2", type: "Series A", date: date("2025-09-04"), amount: 28.5e6, valuation: 450e6, tokenPrice: 0.18, leads: ["hashgrove-ventures"], investors: ["hashgrove-ventures", "northstar-capital", "orbital-partners"] },
-  { id: "orb-strategic", coinId: "orbit-l2", type: "Strategic", date: date("2026-10-13"), amount: 5e6, valuation: null, tokenPrice: null, leads: ["orbital-partners"], investors: ["orbital-partners"] },
-  { id: "lum-seed", coinId: "lumen-protocol", type: "Seed", date: date("2026-10-15"), amount: 12e6, valuation: 80e6, tokenPrice: 0.12, leads: ["northstar-capital"], investors: ["northstar-capital", "hashgrove-ventures", "polar-labs-fund", "orbital-partners"] },
-  { id: "drf-seed", coinId: "driftnet", type: "Seed", date: date("2025-02-20"), amount: 4.2e6, valuation: 32e6, tokenPrice: 0.05, leads: ["polar-labs-fund"], investors: ["polar-labs-fund"] },
-  { id: "drf-a", coinId: "driftnet", type: "Series A", date: date("2026-10-14"), amount: 28.5e6, valuation: 210e6, tokenPrice: 0.3, leads: ["northstar-capital"], investors: ["northstar-capital", "orbital-partners"] },
+// Funding rounds. Curated ones tie into coins; the rest are invented projects without tokens yet.
+const curatedRounds = [
+  { id: "orb-seed", coinId: "orbit-l2", project: "Orbit L2", sector: "Layer 2", type: "Seed", date: date("2024-01-12"), amount: 6e6, valuation: 40e6, tokenPrice: 0.08, leads: ["northstar-capital"], investors: ["northstar-capital", "polar-labs-fund"] },
+  { id: "orb-a", coinId: "orbit-l2", project: "Orbit L2", sector: "Layer 2", type: "Series A", date: date("2025-09-04"), amount: 28.5e6, valuation: 450e6, tokenPrice: 0.18, leads: ["hashgrove-ventures"], investors: ["hashgrove-ventures", "northstar-capital", "orbital-partners"] },
+  { id: "orb-strategic", coinId: "orbit-l2", project: "Orbit L2", sector: "Layer 2", type: "Strategic", date: daysAgo(4), amount: 5e6, valuation: null, tokenPrice: null, leads: ["orbital-partners"], investors: ["orbital-partners"] },
+  { id: "lum-seed", coinId: "lumen-protocol", project: "Lumen Protocol", sector: "AI", type: "Seed", date: daysAgo(2), amount: 12e6, valuation: 80e6, tokenPrice: 0.12, leads: ["northstar-capital"], investors: ["northstar-capital", "hashgrove-ventures", "polar-labs-fund", "orbital-partners", "meridian-digital"] },
+  { id: "drf-seed", coinId: "driftnet", project: "Driftnet", sector: "DeFi", type: "Seed", date: date("2025-02-20"), amount: 4.2e6, valuation: 32e6, tokenPrice: 0.05, leads: ["polar-labs-fund"], investors: ["polar-labs-fund"] },
+  { id: "drf-a", coinId: "driftnet", project: "Driftnet", sector: "DeFi", type: "Series A", date: daysAgo(3), amount: 28.5e6, valuation: 210e6, tokenPrice: 0.3, leads: ["northstar-capital"], investors: ["northstar-capital", "orbital-partners"] },
 ];
+
+const projectStems = ["Arc", "Beacon", "Cobalt", "Delta", "Echo", "Flux", "Glide", "Helix", "Index", "Juno", "Kite", "Loom", "Mosaic", "Nova", "Opal", "Prism", "Quanta", "Relay", "Sable", "Tessera", "Umbra", "Vela", "Wisp", "Xeno", "Yield", "Zephyr"];
+const projectSuffixes = ["Labs", "Protocol", "Network", "Finance", "AI", "Chain", "Markets", "Systems"];
+const roundTypes = ["Pre-seed", "Seed", "Seed", "Series A", "Series A", "Series B", "Strategic"];
+
+function generatedRounds() {
+  const random = seeded("rounds:v1");
+  const out = [];
+  for (let i = 0; i < 64; i += 1) {
+    const type = roundTypes[Math.floor(random() * roundTypes.length)];
+    const base = { "Pre-seed": 1.2e6, Seed: 4e6, "Series A": 14e6, "Series B": 32e6, Strategic: 6e6 }[type];
+    const amount = Math.round(base * Math.exp((random() - 0.5) * 1.4) / 1e5) * 1e5;
+    const investorCount = 1 + Math.floor(random() * 5);
+    const investors = [...funds].sort(() => random() - 0.5).slice(0, investorCount).map((fund) => fund.id);
+    const name = `${projectStems[Math.floor(random() * projectStems.length)]} ${projectSuffixes[Math.floor(random() * projectSuffixes.length)]}`;
+    out.push({
+      id: `round-${i}`,
+      coinId: null,
+      project: name,
+      sector: fundSectors[Math.floor(random() * fundSectors.length)],
+      type,
+      date: daysAgo(1 + Math.floor(random() * 89)),
+      amount,
+      valuation: random() > 0.3 ? Math.round((amount * (6 + random() * 12)) / 1e6) * 1e6 : null,
+      tokenPrice: null,
+      leads: investors.slice(0, 1),
+      investors,
+    });
+  }
+  return out;
+}
+
+export const fundingRounds = [...curatedRounds, ...generatedRounds()];
+export const roundSectors = fundSectors;
+export const roundTypeList = ["Pre-seed", "Seed", "Series A", "Series B", "Strategic"];
+
+// One-off scheduled unlocks outside a vesting schedule (08-unlocks.md example).
+const scheduledUnlocks = {
+  solana: [{ daysFromNow: 5.45, amount: 2.1e6, allocations: ["Staking rewards"] }],
+};
 
 // Allocation colours for vesting charts; amber stays reserved for unlock events.
 export const allocationColors = {
@@ -92,22 +161,23 @@ const knownContracts = {
   orbcash: "0x44be7a1c3d9e2f60b8a5c4d1e7f2a3b9c6d809d2",
 };
 
-const NO_VESTING = new Set(["Stablecoin", "Meme"]);
+const GENERATED_VESTING = new Set(["chainlink", "uniswap", "polygon", "render", "optimism", "injective", "fetch-ai", "immutable", "aave", "ondo"]);
 const NATIVE = new Set(["bitcoin", "ethereum", "bnb", "solana", "xrp", "dogecoin", "toncoin", "cardano", "avalanche", "tron", "polkadot", "bitcoin-cash", "near", "litecoin", "internet-computer", "aptos", "sui", "celestia"]);
 
 function vestingFor(coin) {
   if (vestingOverrides[coin.id]) return vestingOverrides[coin.id];
-  if (NO_VESTING.has(coin.category) || coin.listedDaysAgo > 1800 || ["bitcoin", "ethereum", "bnb", "xrp", "dogecoin", "litecoin", "bitcoin-cash", "cardano", "tron"].includes(coin.id)) return null;
+  // Generated schedules only for a set of established tokens; others have none on record.
+  if (!GENERATED_VESTING.has(coin.id)) return null;
   const random = seeded(`vesting:${coin.id}`);
-  const day = 1 + Math.floor(random() * 27);
+  const day = 1 + Math.floor(random() * 7);
   return {
     total: coin.fdv / coin.price,
     tge: new Date(TODAY.getTime() - coin.listedDaysAgo * 86_400_000),
     allocations: [
-      { name: "Team", share: 0.2, tge: 0, cliff: 12, months: 36, day },
-      { name: "Investors", share: 0.17, tge: 0, cliff: 12, months: 24, day },
-      { name: "Ecosystem", share: 0.33, tge: 0.05, cliff: 0, months: 48, day },
-      { name: "Community", share: 0.3, tge: 0.2, cliff: 0, months: 36, day },
+      { name: "Team", share: 0.2, tge: 0, cliff: 12, months: 48, day },
+      { name: "Investors", share: 0.17, tge: 0, cliff: 12, months: 36, day: day + 7 },
+      { name: "Ecosystem", share: 0.33, tge: 0.05, cliff: 0, months: 60, day: day + 14 },
+      { name: "Community", share: 0.3, tge: 0.2, cliff: 0, months: 48, day: day + 21 },
     ],
   };
 }
@@ -154,6 +224,12 @@ export function researchFor(coin) {
         upcoming.push({ id: `${coin.id}-${event.date.toISOString().slice(0, 10)}`, coinId: coin.id, symbol: coin.symbol, date: event.date, amount: event.amount, allocations: [event.allocation] });
       }
     });
+
+  (scheduledUnlocks[coin.id] ?? []).forEach((item) => {
+    const when = new Date(TODAY.getTime() + item.daysFromNow * DAY_MS);
+    upcoming.push({ id: `${coin.id}-${when.toISOString().slice(0, 10)}`, coinId: coin.id, symbol: coin.symbol, date: when, amount: item.amount, allocations: item.allocations });
+  });
+  upcoming.sort((a, b) => a.date - b.date);
 
   const exchanges = ["Binance", "Coinbase", "OKX", "Bybit", "Kraken", "Uniswap v3", "KuCoin", "Gate"];
   const quotes = coin.category === "Stablecoin" ? ["USD", "EUR"] : ["USDT", "USD", "USDC"];

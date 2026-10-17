@@ -77,10 +77,10 @@ export default function AppShell() {
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeA11y = useCallback(() => setA11yOpen(false), []);
 
-  // New page: start at the top.
+  // New page: start at the top, unless the link targets an anchor (e.g. /explore#market-pulse).
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+    if (!location.hash) window.scrollTo(0, 0);
+  }, [location.pathname, location.hash]);
 
   // ⌘K / Ctrl+K, or "/" outside a text field, opens search from anywhere (US-2.5).
   useEffect(() => {

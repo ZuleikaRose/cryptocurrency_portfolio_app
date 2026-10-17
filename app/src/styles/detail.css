@@ -1,6 +1,6 @@
 /* Coin detail (03-coin-detail.md) */
 
-.coin-detail { display: grid; gap: 16px; }
+.coin-detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .detail-toolbar { display: flex; align-items: center; justify-content: space-between; margin-top: -8px; }
 .back { gap: 4px; font-size: 14px; }
 .icon.flip { transform: scaleX(-1); }
@@ -49,7 +49,7 @@
 .button-primary:disabled { opacity: 0.45; cursor: default; }
 
 .detail-tabs { margin-top: 0; }
-.coin-panel { display: grid; gap: 20px; }
+.coin-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 
 .card { padding: 16px; border: 1px solid var(--line-soft); border-radius: var(--r-lg); background: var(--surface); }
 .subsection-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 16px; line-height: 22px; font-weight: 650; }

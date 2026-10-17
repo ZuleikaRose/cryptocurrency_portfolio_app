@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppContext, MarketContext, defaultSettings } from "./context.js";
+import { AppContext, MarketContext, defaultSettings, normalizeFundraisingFilters, normalizeUnlockPrefs } from "./context.js";
 import { initialCoins } from "../data/coins.js";
 import { keys, readJson, writeJson } from "../lib/storage.js";
 
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
 // "user" is a signed-up account whose data is saved to localStorage.
 
-const emptyData = { watchlist: [], settings: defaultSettings, recentCoins: [], recentSearches: [], votes: {}, reminders: {}, reminderTimings: ["1h"], transactions: [] };
+const emptyData = {
+  watchlist: [],
+  settings: defaultSettings,
+  recentCoins: [],
+  recentSearches: [],
+  votes: {},
+  reminders: {},
+  reminderTimings: ["1h"],
+  notificationsAsked: false,
+  transactions: [],
+  follows: {},
+  followedProjects: [],
+  savedFilters: [],
+};
 const guestData = () => ({ ...emptyData, watchlist: ["bitcoin"] });
 // Demo portfolio from 11-portfolio.md: totals $36,058.99, +28.26% all-time at sample prices.
 const demoTransactions = [
@@ -38,15 +51,23 @@ function loadInitial() {
   if (!account) return { session: { kind: "guest" }, data: guestData() };
   const rawStored = readJson(keys.user(account.id), {});
   const stored = rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {};
-  ["watchlist", "recentCoins", "recentSearches", "transactions"].forEach((key) => {
+  ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters"].forEach((key) => {
     if (!Array.isArray(stored[key])) delete stored[key];
   });
   // Drop malformed entries rather than let one bad record break a page.
-  ["watchlist", "recentCoins", "recentSearches"].forEach((key) => {
+  ["watchlist", "recentCoins", "recentSearches", "followedProjects"].forEach((key) => {
     if (stored[key]) stored[key] = stored[key].filter((item) => typeof item === "string");
   });
   if (stored.transactions) stored.transactions = stored.transactions.filter(isValidTransaction);
-  ["votes", "reminders"].forEach((key) => {
+  if (stored.savedFilters) stored.savedFilters = stored.savedFilters.filter((item) => item && typeof item.name === "string" && item.filters && typeof item.filters === "object");
+  if (stored.savedFilters) {
+    stored.savedFilters = stored.savedFilters.slice(0, 10).map((item) => ({
+      id: typeof item.id === "string" ? item.id : newId("filter"),
+      name: item.name.slice(0, 30),
+      filters: normalizeFundraisingFilters(item.filters),
+    }));
+  }
+  ["votes", "reminders", "follows"].forEach((key) => {
     if (stored[key] && (typeof stored[key] !== "object" || Array.isArray(stored[key]))) delete stored[key];
   });
   return {
@@ -54,7 +75,17 @@ function loadInitial() {
     data: {
       ...emptyData,
       ...stored,
-      settings: { ...defaultSettings, ...stored.settings, market: { ...defaultSettings.market, ...stored.settings?.market } },
+      settings: {
+        ...defaultSettings,
+        ...stored.settings,
+        market: { ...defaultSettings.market, ...stored.settings?.market },
+        unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
+        fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
+      },
+      reminders: Object.fromEntries(
+        Object.entries(stored.reminders ?? {}).filter(([, item]) => item && Array.isArray(item.timings) && typeof item.symbol === "string"),
+      ),
+      follows: Object.fromEntries(Object.entries(stored.follows ?? {}).filter(([, frequency]) => ["instant", "daily", "weekly"].includes(frequency))),
     },
   };
 }
@@ -229,17 +260,22 @@ export function AppProvider({ children }) {
     return entry?.day === today() ? entry.vote : null;
   }, [data.votes]);
 
-  // Unlock reminders (US-4.2): timings default to the last choice.
+  // Reminders for unlocks (US-4.2) and token sales (US-P09.1); timings default to the last choice.
+  // `item` = { id, kind: "unlock" | "sale", symbol, name, date }.
   const setReminder = useCallback(
-    (unlock, timings) =>
-      requireAuth(`Sign in to set a reminder for the ${unlock.symbol} unlock`, () => {
+    (item, timings) =>
+      requireAuth(`Sign in to set a reminder for ${item.symbol}`, () => {
+        const label = item.kind === "sale" ? `${item.symbol} token sale` : `${item.symbol} unlock`;
         setData((current) => {
           const reminders = { ...current.reminders };
-          if (timings.length) reminders[unlock.id] = { timings };
-          else delete reminders[unlock.id];
-          return { ...current, reminders, reminderTimings: timings.length ? timings : current.reminderTimings };
+          if (timings.length) {
+            reminders[item.id] = { timings, kind: item.kind ?? "unlock", symbol: item.symbol, name: item.name ?? item.symbol, date: new Date(item.date).toISOString(), label };
+          } else {
+            delete reminders[item.id];
+          }
+          return { ...current, reminders, reminderTimings: timings.length ? timings : current.reminderTimings, notificationsAsked: true };
         });
-        showToast(timings.length ? `Reminder set for the ${unlock.symbol} unlock` : `Reminder removed for the ${unlock.symbol} unlock`);
+        showToast(timings.length ? `Reminder set for the ${label}` : `Reminder removed for the ${label}`);
       }),
     [requireAuth, showToast],
   );
@@ -302,6 +338,60 @@ export function AppProvider({ children }) {
     [showToast],
   );
 
+  // Follow a fund with a digest frequency (US-5.4); null unfollows.
+  const setFollow = useCallback(
+    (fund, frequency) =>
+      requireAuth(`Sign in to follow ${fund.name}`, () => {
+        setData((current) => {
+          const follows = { ...current.follows };
+          if (frequency) follows[fund.id] = frequency;
+          else delete follows[fund.id];
+          return { ...current, follows };
+        });
+        const names = { instant: "Instant", daily: "Daily digest", weekly: "Weekly digest" };
+        showToast(frequency ? `Following ${fund.name} · ${names[frequency]}` : `Unfollowed ${fund.name}`);
+      }),
+    [requireAuth, showToast],
+  );
+
+  const toggleFollowProject = useCallback(
+    (project) => {
+      const following = dataRef.current.followedProjects.includes(project);
+      requireAuth(`Sign in to follow ${project}`, () => {
+        setData((current) => ({
+          ...current,
+          followedProjects: following ? current.followedProjects.filter((name) => name !== project) : [...new Set([...current.followedProjects, project])],
+        }));
+        showToast(following ? `Unfollowed ${project}` : `Following ${project}`);
+      });
+    },
+    [requireAuth, showToast],
+  );
+
+  // Saved Fundraising filters (US-5.2): max 10, renamable, deletable.
+  const saveFilter = useCallback(
+    (name, filters) => {
+      if (dataRef.current.savedFilters.length >= 10) {
+        showToast("You can save up to 10 filters.");
+        return false;
+      }
+      setData((current) => ({ ...current, savedFilters: [{ id: newId("filter"), name, filters }, ...current.savedFilters] }));
+      showToast(`Saved filter “${name}”`);
+      return true;
+    },
+    [showToast],
+  );
+  const renameFilter = useCallback((id, name) => {
+    setData((current) => ({ ...current, savedFilters: current.savedFilters.map((item) => (item.id === id ? { ...item, name } : item)) }));
+  }, []);
+  const deleteFilter = useCallback(
+    (id) => {
+      setData((current) => ({ ...current, savedFilters: current.savedFilters.filter((item) => item.id !== id) }));
+      showToast("Saved filter deleted");
+    },
+    [showToast],
+  );
+
   const updateSettings = useCallback((patch) => {
     setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
   }, []);
@@ -334,6 +424,15 @@ export function AppProvider({ children }) {
       dismissToast,
       reminders: data.reminders,
       reminderTimings: data.reminderTimings,
+      notificationsAsked: data.notificationsAsked,
+      follows: data.follows,
+      followedProjects: data.followedProjects,
+      savedFilters: data.savedFilters,
+      setFollow,
+      toggleFollowProject,
+      saveFilter,
+      renameFilter,
+      deleteFilter,
       addRecentCoin,
       castVote,
       voteFor,
@@ -352,7 +451,7 @@ export function AppProvider({ children }) {
       toasts,
       showToast,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast],
   );
 
   return (

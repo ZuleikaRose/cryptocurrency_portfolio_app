@@ -18,7 +18,7 @@ export const pages = [
   { path: "/search", title: "Search", phase: 3, doc: "04-search.md" },
   { path: "/explore", title: "Explore", phase: 4, doc: "05-explore.md" },
   { path: "/fundraising", title: "Fundraising", phase: 4, doc: "06-fundraising.md" },
-  { path: "/funds/:slug", title: "Fund profile", phase: 4, doc: "07-fund-profile.md", sample: "/funds/coinbase-ventures" },
+  { path: "/funds/:slug", title: "Fund profile", phase: 4, doc: "07-fund-profile.md", sample: "/funds/northstar-capital" },
   { path: "/unlocks", title: "Token unlocks", phase: 4, doc: "08-unlocks.md" },
   { path: "/token-sales", title: "Token sales", phase: 4, doc: "09-token-sales.md", group: "explore" },
   { path: "/watchlist", title: "Watchlist", phase: 3, doc: "10-watchlist.md" },

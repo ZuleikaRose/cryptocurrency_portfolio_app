@@ -111,7 +111,7 @@ button.chip { cursor: pointer; }
 
 /* Portfolio */
 .display-value { font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -0.8px; }
-.portfolio { display: grid; gap: 18px; }
+.portfolio { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .portfolio-summary { display: grid; gap: 4px; }
 .portfolio .chart-card .segmented { justify-self: start; }
 .donut { display: flex; align-items: center; gap: 20px; margin: 0; }

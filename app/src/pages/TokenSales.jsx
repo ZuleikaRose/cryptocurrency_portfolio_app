@@ -1,0 +1,219 @@
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import Icon from "../components/Icon.jsx";
+import ReminderSheet from "../components/ReminderSheet.jsx";
+import Sheet from "../components/Sheet.jsx";
+import { saleCurrentPrice, saleStatus, tokenSales } from "../data/directory.js";
+import { formatCompact, formatDate, formatPrice, rateFor } from "../lib/format.js";
+import { useNow } from "../lib/hooks.js";
+import { useApp, useMarket } from "../state/context.js";
+
+const statuses = [
+  { id: "upcoming", label: "Upcoming" },
+  { id: "active", label: "Active" },
+  { id: "past", label: "Past" },
+];
+const types = ["All", "ICO", "IEO", "IDO"];
+const DAY_MS = 86_400_000;
+
+function relativeDays(target, now) {
+  const days = Math.round((target - now) / DAY_MS);
+  if (days === 0) return "today";
+  return days > 0 ? `in ${days}d` : `${-days}d ago`;
+}
+
+const roiText = (value) => `${value >= 1 ? "▲" : "▼"} ${value.toFixed(2)}x`;
+
+function Disclaimer() {
+  return (
+    <p className="card info-card" role="note">
+      <Icon name="info" /> Past ROI doesn't predict future results. Not financial advice.
+    </p>
+  );
+}
+
+// Launchpad track record (US-5.5): count, average and median ROI, best and worst.
+function launchpadStats(name, coins) {
+  const rows = tokenSales
+    .filter((sale) => sale.launchpad === name && saleStatus(sale) === "past")
+    .map((sale) => ({ sale, roi: (saleCurrentPrice(sale, coins) ?? sale.price) / sale.price }))
+    .sort((a, b) => a.roi - b.roi);
+  if (!rows.length) return null;
+  return {
+    count: rows.length,
+    average: rows.reduce((sum, row) => sum + row.roi, 0) / rows.length,
+    median: rows[Math.floor(rows.length / 2)].roi,
+    best: rows[rows.length - 1],
+    worst: rows[0],
+  };
+}
+
+export default function TokenSales() {
+  const [params, setParams] = useSearchParams();
+  const { settings, reminders, requireAuth } = useApp();
+  const { coins } = useMarket();
+  const [type, setType] = useState("All");
+  const [launchpad, setLaunchpad] = useState("All");
+  const [padSheet, setPadSheet] = useState(null);
+  const [reminderItem, setReminderItem] = useState(null);
+  const now = useNow(60_000);
+  const rate = rateFor(settings.currency, coins);
+  const status = statuses.some((item) => item.id === params.get("status")) ? params.get("status") : "upcoming";
+
+  useEffect(() => {
+    document.title = "Token sales · CPA";
+  }, []);
+
+  const counts = Object.fromEntries(statuses.map((item) => [item.id, tokenSales.filter((sale) => saleStatus(sale, now) === item.id).length]));
+  const launchpads = ["All", ...new Set(tokenSales.map((sale) => sale.launchpad))];
+  const sales = tokenSales
+    .filter((sale) => saleStatus(sale, now) === status)
+    .filter((sale) => type === "All" || sale.type === type)
+    .filter((sale) => launchpad === "All" || sale.launchpad === launchpad)
+    .sort((a, b) => (status === "past" ? b.end - a.end : a.start - b.start));
+  const stats = padSheet ? launchpadStats(padSheet, coins) : null;
+
+  const setStatus = (id) => {
+    const next = new URLSearchParams(params);
+    next.set("status", id);
+    setParams(next, { replace: true });
+  };
+
+  return (
+    <div className="token-sales">
+      <Link to="/explore" className="link-button back">
+        <Icon name="chevron" className="icon flip" /> Explore
+      </Link>
+      <h1>Token sales</h1>
+
+      <div className="filters" role="tablist" aria-label="Sale status">
+        {statuses.map((item) => (
+          <button
+            key={item.id}
+            role="tab"
+            aria-selected={status === item.id}
+            aria-controls="sales-panel"
+            className={status === item.id ? "filter active" : "filter"}
+            onClick={() => setStatus(item.id)}
+          >
+            {item.label} <span className="num">{counts[item.id]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="list-controls">
+        <div className="segmented" role="group" aria-label="Sale type">
+          {types.map((item) => (
+            <button key={item} className={type === item ? "segment active" : "segment"} aria-pressed={type === item} onClick={() => setType(item)}>
+              {item}
+            </button>
+          ))}
+        </div>
+        <label className="inline-select">
+          <span className="visually-hidden">Launchpad</span>
+          <select className="select" value={launchpad} onChange={(event) => setLaunchpad(event.target.value)}>
+            {launchpads.map((item) => (
+              <option key={item} value={item}>{item === "All" ? "All launchpads" : item}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <section id="sales-panel" role="tabpanel" className="sale-list">
+        {status === "past" && <Disclaimer />}
+        {sales.length === 0 ? (
+          <div className="empty-state">
+            <p>{status === "active" ? "No active sales right now." : "No sales match these filters."}</p>
+            <button
+              className="button-secondary"
+              onClick={() => {
+                setType("All");
+                setLaunchpad("All");
+                setStatus("upcoming");
+              }}
+            >
+              See upcoming
+            </button>
+          </div>
+        ) : (
+          sales.map((sale) => {
+            const current = saleCurrentPrice(sale, coins);
+            const roi = current ? current / sale.price : null;
+            const reminded = Boolean(reminders[sale.id]);
+            return (
+              <article key={sale.id} className="card sale-card">
+                <div className="sale-head">
+                  <span className="square-logo" aria-hidden="true">{sale.name[0]}</span>
+                  <h2 className="sale-name">
+                    {sale.coinId ? <Link to={`/coins/${sale.coinId}`}>{sale.name}</Link> : sale.name} <span className="ticker">{sale.symbol}</span>
+                  </h2>
+                  <span className="tag tag-sales">{sale.type}</span>
+                </div>
+                <p className="muted-line num">
+                  {sale.launchpad === "Direct" ? (
+                    "Direct sale"
+                  ) : (
+                    <button className="link-button inline" onClick={() => setPadSheet(sale.launchpad)}>{sale.launchpad}</button>
+                  )}{" "}
+                  · {status === "past" ? `Ended ${formatDate(sale.end)}` : status === "active" ? `Ends ${formatDate(sale.end)} · ${relativeDays(sale.end, now)}` : `Starts ${formatDate(sale.start)} · ${relativeDays(sale.start, now)}`}
+                </p>
+
+                {status === "past" ? (
+                  <p className="num">
+                    Sale {formatPrice(sale.price, settings.currency, rate)} → {current ? formatPrice(current, settings.currency, rate) : "—"}{" "}
+                    {roi && <span className={roi >= 1 ? "up" : "down"}>ROI {roiText(roi)}</span>}
+                    {sale.athRoi && <span className="muted-inline"> · ATH {sale.athRoi.toFixed(2)}x</span>}
+                  </p>
+                ) : (
+                  <p className="num">
+                    Raise {formatCompact(sale.raise, settings.currency, rate)} · Price {formatPrice(sale.price, settings.currency, rate)} · FDV {formatCompact(sale.fdv, settings.currency, rate)}
+                  </p>
+                )}
+
+                {status === "active" && (
+                  <>
+                    <div className="progress sales-progress" role="progressbar" aria-valuenow={Math.round((sale.sold ?? 0) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${sale.name} sale progress`}>
+                      <span style={{ width: `${(sale.sold ?? 0) * 100}%` }} />
+                    </div>
+                    <p className="muted-line num">{Math.round((sale.sold ?? 0) * 100)}% sold</p>
+                  </>
+                )}
+
+                {status === "upcoming" && (
+                  <button
+                    className={reminded ? "button-secondary compact reminder-set" : "button-secondary compact"}
+                    onClick={() =>
+                      requireAuth(`Sign in to set a reminder for the ${sale.symbol} sale`, () =>
+                        setReminderItem({ id: sale.id, kind: "sale", symbol: sale.symbol, name: sale.name, date: sale.start }),
+                      )
+                    }
+                  >
+                    <Icon name={reminded ? "check" : "bell"} /> {reminded ? "Reminder set" : "Remind me"}
+                  </button>
+                )}
+              </article>
+            );
+          })
+        )}
+        {status === "past" ? <Disclaimer /> : <p className="disclaimer">Not financial advice. Token sales are CPA sample data; check every sale's terms yourself.</p>}
+      </section>
+
+      <Sheet open={Boolean(padSheet)} onClose={() => setPadSheet(null)} title={padSheet ?? "Launchpad"} side="bottom">
+        {stats ? (
+          <>
+            <dl className="stats">
+              <div><dt>Past sales</dt><dd className="num">{stats.count}</dd></div>
+              <div><dt>Average ROI</dt><dd className={`num ${stats.average >= 1 ? "up" : "down"}`}>{stats.average.toFixed(2)}x</dd></div>
+              <div><dt>Median ROI</dt><dd className={`num ${stats.median >= 1 ? "up" : "down"}`}>{stats.median.toFixed(2)}x</dd></div>
+              <div><dt>Best · worst</dt><dd className="num">{stats.best.sale.symbol} {stats.best.roi.toFixed(2)}x · {stats.worst.sale.symbol} {stats.worst.roi.toFixed(2)}x</dd></div>
+            </dl>
+            <p className="sheet-note">Past ROI doesn't predict future results. Not financial advice.</p>
+          </>
+        ) : (
+          <p className="sheet-note">No completed sales on record for {padSheet}.</p>
+        )}
+      </Sheet>
+      <ReminderSheet key={reminderItem?.id ?? "none"} item={reminderItem} onClose={() => setReminderItem(null)} />
+    </div>
+  );
+}
