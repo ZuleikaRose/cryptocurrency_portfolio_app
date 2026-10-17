@@ -5,5 +5,17 @@ __pycache__/
 # VS Code Code Runner scratch file
 tempCodeRunnerFile.py
 
-# Local secrets (e.g. CMC_API_KEY)
+# Local secrets (e.g. CRYPTORANK_API_KEY)
 .env
+.env.*
+!.env.example
+
+# Node / Vite
+node_modules/
+dist/
+
+# Playwright / MCP screenshots
+.playwright-mcp/
+
+# Local plugin learning data
+.cto-toolkit/
