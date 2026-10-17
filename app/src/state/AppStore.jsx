@@ -6,7 +6,9 @@ import { researchFor } from "../data/research.js";
 import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets } from "../lib/alerts.js";
 import { formatDate } from "../lib/format.js";
 import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
-import { keys, readJson, writeJson } from "../lib/storage.js";
+import { CryptoUnavailableError, accountById, clearFailures, createAccount, findAccount, lockState, newPasswordRecord, recordFailure, updateAccount, verifyPassword } from "../lib/auth.js";
+import { emptyBilling, normalizeBilling, settleBilling } from "../lib/billing.js";
+import { keys, readJson, removeKey, writeJson } from "../lib/storage.js";
 
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
 // "user" is a signed-up account whose data is saved to localStorage.
@@ -29,6 +31,7 @@ const emptyData = {
   lastDigest: 0,
   onboarded: false,
   interests: { coins: [], sectors: [] },
+  billing: emptyBilling,
 };
 const guestData = () => ({ ...emptyData, watchlist: ["bitcoin"] });
 // Demo portfolio from 11-portfolio.md: totals $36,058.99, +28.26% all-time at sample prices.
@@ -37,6 +40,21 @@ const demoTransactions = [
   { id: "demo-eth", coinId: "ethereum", type: "buy", amount: 3.2, price: 2950, fee: 0, date: "2025-06-02T15:00:00.000Z", note: "" },
   { id: "demo-sol", coinId: "solana", type: "buy", amount: 40, price: 140, fee: 0, date: "2025-08-19T15:00:00.000Z", note: "" },
 ];
+// Demo plan from 16-account-settings.md: Pro monthly, billed on the 3rd, Visa test card.
+function demoBilling() {
+  const now = new Date();
+  const last = new Date(now.getFullYear(), now.getMonth() - (now.getDate() >= 3 ? 0 : 1), 3, 12);
+  const next = new Date(last.getFullYear(), last.getMonth() + 1, 3, 12);
+  return {
+    ...emptyBilling,
+    plan: "pro-monthly",
+    billingDay: 3,
+    nextBilling: next.toISOString(),
+    history: [{ date: last.toISOString(), amount: 9.99, description: "Pro monthly", status: "Paid" }],
+    methods: [{ id: "demo-card", type: "card", brand: "Visa", last4: "4242", exp: "08/28", default: true }],
+  };
+}
+
 // Demo alerts from 12-alerts.md: two price alerts, the ARB unlock reminder, and a few notifications.
 function demoAlertData() {
   const now = Date.now();
@@ -64,6 +82,7 @@ const demoData = () => ({
   watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"],
   transactions: demoTransactions,
   onboarded: true,
+  billing: demoBilling(),
   ...demoAlertData(),
 });
 let idCounter = 0;
@@ -102,9 +121,13 @@ const isValidNotification = (note) =>
 function loadInitial() {
   // Saved data may be missing or hand-edited; fall back to a guest session rather than crash.
   const saved = readJson(keys.session);
-  const accounts = readJson(keys.accounts, []);
-  const account = saved?.userId && Array.isArray(accounts) ? accounts.find((item) => item?.id === saved.userId) : null;
-  if (!account) return { session: { kind: "guest" }, data: guestData() };
+  const account = typeof saved?.userId === "string" ? accountById(saved.userId) : null;
+  if (!account || account.status === "deleted") return { session: { kind: "guest" }, data: guestData() };
+  return loadAccount(account);
+}
+
+// A signed-up account's saved data, validated and normalised.
+function loadAccount(account) {
   const rawStored = readJson(keys.user(account.id), {});
   const stored = rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {};
   ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications"].forEach((key) => {
@@ -158,12 +181,21 @@ function loadInitial() {
           .filter(([, item]) => item && Array.isArray(item.timings) && typeof item.symbol === "string" && !Number.isNaN(new Date(item.date).getTime()))
           .map(([id, item]) => [id, { ...item, fired: Array.isArray(item.fired) ? item.fired : [], paused: item.paused === true }]),
       ),
+      billing: settleBilling(normalizeBilling(stored.billing)),
       follows: Object.fromEntries(Object.entries(stored.follows ?? {}).filter(([, frequency]) => ["instant", "daily", "weekly"].includes(frequency))),
     },
   };
 }
 
+// Password work needs Web Crypto; report its absence as { error: "crypto" } instead of a stuck form.
+const cryptoSafe = (task) =>
+  task().catch((error) => {
+    if (error instanceof CryptoUnavailableError) return { error: "crypto" };
+    throw error;
+  });
+
 const TICK_MS = 30_000;
+const PENDING_TTL_MS = 15 * 60_000;
 
 function MarketProvider({ autoRefresh, children }) {
   const [coins, setCoins] = useState(initialCoins);
@@ -243,9 +275,10 @@ export function AppProvider({ children }) {
   // Complete the action a guest started once they have a session (US-1.1).
   useEffect(() => {
     if (session.kind === "guest" || !pendingAction.current) return;
-    const action = pendingAction.current;
+    const { action, at } = pendingAction.current;
     pendingAction.current = null;
-    action();
+    // A sign-in abandoned long ago shouldn't replay an old tap.
+    if (Date.now() - at < PENDING_TTL_MS) action();
   }, [session.kind]);
 
   // Persist signed-up accounts only. If the browser refuses (storage full or blocked),
@@ -290,7 +323,7 @@ export function AppProvider({ children }) {
   const requireAuth = useCallback(
     (reason, action) => {
       if (session.kind === "guest") {
-        pendingAction.current = action;
+        pendingAction.current = { action, at: Date.now() };
         setAuthPrompt({ reason });
       } else {
         action();
@@ -307,7 +340,7 @@ export function AppProvider({ children }) {
 
   const endDemo = useCallback(() => {
     setSession({ kind: "guest" });
-    setData(guestData());
+    setData({ ...guestData(), onboarded: true });
   }, []);
 
   // The intent (add or remove) is fixed when the user taps, so an action finished
@@ -553,7 +586,7 @@ export function AppProvider({ children }) {
       let { lastDigest } = current;
       const digestAt = digestTime(new Date(now));
       if (now >= digestAt && lastDigest < digestAt) {
-        if (lastDigest > 0) {
+        if (lastDigest > 0 && current.settings.weeklyDigest) {
           notes.push({
             id: newId("note"), kind: "digest", title: "Your weekly digest",
             detail: `${current.watchlist.length} coins on your watchlist · ${Object.keys(current.follows).length} funds followed`,
@@ -638,6 +671,149 @@ export function AppProvider({ children }) {
     }));
   }, []);
 
+  // --- Accounts (13–16 specs) ---
+
+  const [accessibilityOpen, setAccessibilityOpen] = useState(false);
+
+  const enterAccount = useCallback((account, data) => {
+    // The account works for this tab either way; say so if it won't survive a refresh.
+    if (!writeJson(keys.session, { userId: account.id, createdAt: new Date().toISOString() })) {
+      notifyRef.current?.("Couldn't save your sign-in on this device. You'll be signed out when you refresh.");
+    }
+    dataRef.current = data;
+    setData(data);
+    setSession({ kind: "user", userId: account.id, name: account.name, email: account.email });
+    setAuthPrompt(null);
+  }, []);
+
+  // Guest stars, history and picks carry over into the new account (US-P13.1); demo data never does.
+  const signUp = useCallback(
+    ({ name, email, password }) =>
+      cryptoSafe(async () => {
+        if (findAccount(email)) return { error: "exists" };
+        const account = await createAccount({ name, email, password });
+        if (!account) return { error: "storage" };
+        const guest = session.kind === "guest" ? dataRef.current : guestData();
+        const data = {
+          ...emptyData,
+          settings: guest.settings,
+          watchlist: guest.watchlist,
+          recentCoins: guest.recentCoins,
+          recentSearches: guest.recentSearches,
+          interests: guest.interests,
+          onboarded: guest.onboarded,
+        };
+        // The persist effect saves `data` once the session is set, and warns if storage refuses.
+        enterAccount(account, data);
+        showToast("Account created");
+        return { ok: true };
+      }),
+    [session.kind, enterAccount, showToast],
+  );
+
+  // Never says whether the email or the password was wrong; a deleted account is only
+  // revealed after the correct password.
+  const logIn = useCallback(
+    (email, password) =>
+      cryptoSafe(async () => {
+        const lock = lockState();
+        if (lock.lockedUntil > Date.now()) return { error: "locked", until: lock.lockedUntil };
+        const account = findAccount(email);
+        const ok = account ? await verifyPassword(account, password) : (await newPasswordRecord(password), false);
+        if (!ok) {
+          const next = recordFailure();
+          return next.lockedUntil > Date.now() ? { error: "locked", until: next.lockedUntil } : { error: "invalid" };
+        }
+        clearFailures();
+        if (account.status === "deleted") return { error: "deleted" };
+        const loaded = loadAccount(account);
+        enterAccount(account, loaded.data);
+        showToast(`Welcome back, ${account.name.split(" ")[0]}`);
+        return { ok: true };
+      }),
+    [enterAccount, showToast],
+  );
+
+  const logOut = useCallback(() => {
+    if (!removeKey(keys.session)) {
+      notifyRef.current?.("Couldn't clear your sign-in on this device. You may be signed back in when you refresh.");
+    }
+    pendingAction.current = null;
+    setAuthPrompt(null);
+    setSearch({ open: false, scope: "all" });
+    setAccessibilityOpen(false);
+    const guest = { ...guestData(), onboarded: true };
+    dataRef.current = guest;
+    setData(guest);
+    setSession({ kind: "guest" });
+  }, []);
+
+  // Logging out in another tab signs this one out on its next storage event (US-P15.4).
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key === keys.session && !event.newValue && session.kind === "user") logOut();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [session.kind, logOut]);
+
+  const updateProfile = useCallback(
+    ({ name, email }) => {
+      if (session.kind !== "user") {
+        setSession((current) => ({ ...current, name: name.trim() }));
+        return { ok: true };
+      }
+      const existing = findAccount(email);
+      if (existing && existing.id !== session.userId) return { error: "exists" };
+      const account = updateAccount(session.userId, { name: name.trim(), email: email.trim().toLowerCase() });
+      if (!account) return { error: "storage" };
+      setSession((current) => ({ ...current, name: account.name, email: account.email }));
+      return { ok: true };
+    },
+    [session],
+  );
+
+  const changePassword = useCallback(
+    (currentPassword, nextPassword) =>
+      cryptoSafe(async () => {
+        const account = accountById(session.userId);
+        if (!account || !(await verifyPassword(account, currentPassword))) return { error: "wrong" };
+        return updateAccount(account.id, await newPasswordRecord(nextPassword)) ? { ok: true } : { error: "storage" };
+      }),
+    [session.userId],
+  );
+
+  const setBilling = useCallback(
+    (update) => {
+      setData((current) => ({ ...current, billing: typeof update === "function" ? update(current.billing) : update }));
+    },
+    [],
+  );
+  // Mirror the plan onto the account record (cpa:v1:accounts.plan). Billing in the user data
+  // is the source of truth; a failed mirror gets the same one-time storage warning.
+  useEffect(() => {
+    if (session.kind !== "user" || updateAccount(session.userId, { plan: data.billing.plan })) return;
+    if (!saveWarned.current) {
+      saveWarned.current = true;
+      notifyRef.current?.("Couldn't save your changes on this device. They'll be lost when you close the tab.");
+    }
+  }, [session, data.billing.plan]);
+
+  // Deleting removes access only; data stays until a support data-removal ticket (US-9.6).
+  const deleteAccount = useCallback(
+    (password) =>
+      cryptoSafe(async () => {
+        const account = accountById(session.userId);
+        if (!account || !(await verifyPassword(account, password))) return { error: "wrong" };
+        // If the status can't be saved, the account isn't deleted: say so rather than show the deleted page.
+        if (!updateAccount(account.id, { status: "deleted", deletedAt: new Date().toISOString() })) return { error: "storage" };
+        return { ok: true }; // /account-deleted ends the session after Settings unmounts.
+      }),
+    [session.userId],
+  );
+
+  const clearRecentCoins = useCallback(() => setData((current) => ({ ...current, recentCoins: [] })), []);
+
   const updateSettings = useCallback((patch) => {
     setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
   }, []);
@@ -684,8 +860,9 @@ export function AppProvider({ children }) {
       voteFor,
       setReminder,
       authPrompt,
-      dismissAuthPrompt: () => {
-        pendingAction.current = null;
+      // keepPending: the guest went to Log in / Create account; finish their action after.
+      dismissAuthPrompt: (keepPending = false) => {
+        if (!keepPending) pendingAction.current = null;
         setAuthPrompt(null);
       },
       requireAuth,
@@ -710,8 +887,20 @@ export function AppProvider({ children }) {
       onboarded: data.onboarded,
       interests: data.interests,
       completeOnboarding,
+      billing: data.billing,
+      setBilling,
+      signUp,
+      logIn,
+      logOut,
+      updateProfile,
+      changePassword,
+      deleteAccount,
+      clearRecentCoins,
+      accessibilityOpen,
+      setAccessibilityOpen,
+      exportData: () => data,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen],
   );
 
   return (

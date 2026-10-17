@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sheet from "./Sheet.jsx";
 import { categories } from "../data/coins.js";
 import { useApp, useMarket } from "../state/context.js";
 
 // First-visit onboarding (01-home.md, US-1.3): three cards, then an optional interest picker.
-// No auto-advance: the cards wait for Next, so nothing moves on its own.
+// Cards advance every 6 s only when "Auto-advance onboarding cards" is on and motion isn't reduced.
 const cards = [
   {
     title: "Markets",
@@ -34,7 +34,7 @@ const cards = [
 ];
 
 export default function Onboarding() {
-  const { onboarded, completeOnboarding } = useApp();
+  const { onboarded, completeOnboarding, settings } = useApp();
   const { coins } = useMarket();
   const [step, setStep] = useState(0);
   const [picks, setPicks] = useState({ coins: [], sectors: [] });
@@ -46,6 +46,13 @@ export default function Onboarding() {
       [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value],
     }));
   const skip = () => completeOnboarding(null);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || settings.stopAnimations;
+    if (onboarded || !settings.autoAdvance || reduced || step >= cards.length - 1) return undefined;
+    const id = window.setTimeout(() => setStep((current) => Math.min(current + 1, cards.length - 1)), 6000);
+    return () => window.clearTimeout(id);
+  }, [onboarded, settings.autoAdvance, settings.stopAnimations, step]);
   const picking = step === cards.length;
   const card = cards[step];
 

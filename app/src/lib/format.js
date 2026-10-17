@@ -6,15 +6,18 @@ const MINUS = "−";
 export const currencies = {
   USD: { code: "USD", symbol: "$", fiat: true },
   EUR: { code: "EUR", symbol: "€", fiat: true },
+  GBP: { code: "GBP", symbol: "£", fiat: true },
   BTC: { code: "BTC", symbol: "₿", fiat: false },
   ETH: { code: "ETH", symbol: "Ξ", fiat: false },
 };
 
 const EUR_PER_USD = 0.92;
+const GBP_PER_USD = 0.79;
 
 // Units of `currency` per 1 USD; crypto rates follow the live BTC/ETH prices.
 export function rateFor(currency, coins) {
   if (currency === "EUR") return EUR_PER_USD;
+  if (currency === "GBP") return GBP_PER_USD;
   if (currency === "BTC") return 1 / (coins.find((coin) => coin.symbol === "BTC")?.price ?? 1);
   if (currency === "ETH") return 1 / (coins.find((coin) => coin.symbol === "ETH")?.price ?? 1);
   return 1;
@@ -76,7 +79,7 @@ export function spokenPercent(value) {
 
 export function spokenPrice(usd, currency = "USD", rate = 1) {
   const value = usd * rate;
-  const names = { USD: "dollars", EUR: "euros", BTC: "bitcoin", ETH: "ether" };
+  const names = { USD: "dollars", EUR: "euros", GBP: "pounds", BTC: "bitcoin", ETH: "ether" };
   const amount = Math.abs(value) >= 1 ? value.toFixed(2) : value.toPrecision(4);
   return `${Number(amount).toLocaleString("en-US", { maximumFractionDigits: 8 })} ${names[currency] ?? currency}`;
 }

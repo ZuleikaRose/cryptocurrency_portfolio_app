@@ -29,10 +29,12 @@ export function writeJson(key, value) {
   }
 }
 
+// Returns false when the browser refused (the key may still be there).
 export function removeKey(key) {
   try {
     window.localStorage.removeItem(key);
+    return true;
   } catch {
-    // Storage unavailable: nothing to remove.
+    return false;
   }
 }

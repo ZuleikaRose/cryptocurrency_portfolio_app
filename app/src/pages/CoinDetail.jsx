@@ -37,7 +37,8 @@ const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}
 
 
 function Overview({ coin, research, currency, rate, onMarker, onRemind, reminders, vote, onVote, now }) {
-  const [rangeId, setRangeId] = useState("1M");
+  const { settings } = useApp();
+  const [rangeId, setRangeId] = useState(() => (ranges.some((item) => item.id === settings.chartRange) ? settings.chartRange : "1M"));
   const [mode, setMode] = useState("line");
   const [showMarkers, setShowMarkers] = useState(true);
   const [showSummary, setShowSummary] = useState(false);
@@ -128,9 +129,11 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <span className="switch-track" aria-hidden="true" />
             Event markers
           </label>
-          <button className="link-button" aria-expanded={showSummary} onClick={() => setShowSummary((value) => !value)}>
-            Chart summary <Icon name="chevronDown" />
-          </button>
+          {settings.chartSummaries && (
+            <button className="link-button" aria-expanded={showSummary} onClick={() => setShowSummary((value) => !value)}>
+              Chart summary <Icon name="chevronDown" />
+            </button>
+          )}
         </div>
         {showMarkers && (
           <p className="marker-legend">
@@ -138,7 +141,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <span className="marker-key marker-listing">L</span> Listing
           </p>
         )}
-        {showSummary && <p className="chart-summary">{chartSummary(points, range.label, currency, rate)}</p>}
+        {showSummary && settings.chartSummaries && <p className="chart-summary">{chartSummary(points, range.label, currency, rate)}</p>}
       </section>
 
       <dl className="stats">

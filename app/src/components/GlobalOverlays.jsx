@@ -37,7 +37,7 @@ export function SignInSheet() {
   const next = encodeURIComponent(location.pathname + location.search);
 
   const goTo = (path) => {
-    dismissAuthPrompt();
+    dismissAuthPrompt(true);
     navigate(`${path}?next=${next}`);
   };
 

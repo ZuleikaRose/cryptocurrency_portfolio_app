@@ -83,11 +83,16 @@ function SiteFooter() {
 
 export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [a11yOpen, setA11yOpen] = useState(false);
+
   const location = useLocation();
-  const { openSearch } = useApp();
+  const { openSearch, session, accessibilityOpen: a11yOpen, setAccessibilityOpen: setA11yOpen } = useApp();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
-  const closeA11y = useCallback(() => setA11yOpen(false), []);
+  const closeA11y = useCallback(() => setA11yOpen(false), [setA11yOpen]);
+  // Signed-in and demo users see Log out instead of Log in; guests don't see Log out.
+  const menuPages = (group) =>
+    pagesInGroup(group.id)
+      .filter((page) => !(page.path === "/login" && session.kind !== "guest"))
+      .concat(group.id === "account" && session.kind !== "guest" ? [{ path: "/logout", title: session.kind === "demo" ? "End demo" : "Log out" }] : []);
 
   // New page: start at the top, unless the link targets an anchor (e.g. /explore#market-pulse).
   useEffect(() => {
@@ -129,7 +134,7 @@ export default function AppShell() {
           <section key={group.id} className="menu-group">
             <h3>{group.title}</h3>
             <ul>
-              {pagesInGroup(group.id).map((page) => (
+              {menuPages(group).map((page) => (
                 <li key={page.path}>
                   <Link to={page.path} className="menu-link" onClick={closeMenu}>
                     {page.title}
