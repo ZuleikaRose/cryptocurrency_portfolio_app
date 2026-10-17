@@ -1,0 +1,90 @@
+/* Design tokens. Dark is the default (style guide §3); values follow the Figma wireframe,
+   with the style guide's light palette and semantic colours layered on top. */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-page: #08090c;
+  --bg: #0b0c10;
+  --surface: #111318;
+  --surface-raised: #17191f;
+  --line: #272a32;
+  --line-soft: #1d2027;
+  --text: #f4f5f8;
+  --muted: #8a909c;
+  --subtle: #6a707c;
+  --accent: #8b7cf8;
+  --accent-pressed: #7666f0;
+  --accent-soft: #242037;
+  --on-accent: #0b0c10;
+  --raw-green: #55d6a7;
+  --raw-red: #f1727f;
+  --neutral: #8a909c;
+  --warning: #f5a524;
+  --info: #8b7cf8;
+  --halo: radial-gradient(circle at 50% 0%, #191724 0, var(--bg-page) 38%);
+  --shadow-frame: 0 24px 70px #00000066;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-page: #eef0f4;
+  --bg: #ffffff;
+  --surface: #f5f7fa;
+  --surface-raised: #ffffff;
+  --line: #e3e8ef;
+  --line-soft: #edf0f4;
+  --text: #0b0f19;
+  --muted: #5b6779;
+  --subtle: #6b7686;
+  --accent: #6a58e8;
+  --accent-pressed: #5643d6;
+  --accent-soft: #eeebfd;
+  --on-accent: #ffffff;
+  --raw-green: #0e9f6e;
+  --raw-red: #d92d20;
+  --neutral: #5b6779;
+  --warning: #b7791f;
+  --info: #6a58e8;
+  --halo: radial-gradient(circle at 50% 0%, #e4e0fb 0, var(--bg-page) 40%);
+  --shadow-frame: 0 24px 70px #0b0f1922;
+}
+
+/* Colour conventions (US-9.2): swap up/down, or colour-blind safe blue/orange. */
+:root { --up: var(--raw-green); --down: var(--raw-red); }
+:root[data-colors="swapped"] { --up: var(--raw-red); --down: var(--raw-green); }
+:root[data-colors="cb-safe"] { --up: #4c8dff; --down: #f08a24; }
+
+:root {
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Category accents (style guide §3.3) */
+  --cat-fundraising: #8b5cf6;
+  --cat-unlocks: #f5a524;
+  --cat-sales: #06b6d4;
+  --cat-defi: #22c55e;
+  --cat-ai: #ec4899;
+  --cat-layer: #3d7bff;
+
+  /* 4pt spacing scale */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-12: 48px;
+
+  --r-pill: 999px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 14px;
+  --r-sheet: 20px;
+  --r-frame: 24px;
+
+  --shell-width: 440px;
+  --topbar-h: 64px;
+  --nav-h: 68px;
+
+  /* Motion (style guide §8) */
+  --dur-micro: 150ms;
+  --dur-screen: 250ms;
+  --dur-sheet: 350ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+}
