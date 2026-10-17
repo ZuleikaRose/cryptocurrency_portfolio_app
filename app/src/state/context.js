@@ -8,6 +8,7 @@ export const defaultSettings = {
   stopAnimations: false,
   hideBalances: false,
   watchlistSort: "mine",
+  quietHours: { enabled: false, start: "22:00", end: "07:00" },
   market: { view: "coins", sort: "rank", dir: "asc", category: "All", density: "simple", gainersWindow: "24h" },
   unlocks: { range: "week", watchlistOnly: false, minOne: false, sort: "share", view: "list" },
   fundraising: { sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "", sort: "newest" },

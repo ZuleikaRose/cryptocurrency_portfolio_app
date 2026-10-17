@@ -1,22 +1,13 @@
 import { useState } from "react";
 import Sheet from "./Sheet.jsx";
 import { formatDate, formatTokens } from "../lib/format.js";
+import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useApp } from "../state/context.js";
 
 const timingOptions = [
   ["1h", "1 hour before"],
   ["24h", "24 hours before"],
 ];
-
-// Ask the browser for permission; any failure (unsupported, blocked, old API) just means in-app only.
-async function requestNotifications() {
-  try {
-    if (!("Notification" in window)) return "unsupported";
-    return await Notification.requestPermission();
-  } catch {
-    return "denied";
-  }
-}
 
 // "Remind me" sheet (US-4.2, US-P09.1). `item` = { id, kind, symbol, name, date, amount? }.
 // Mount with key={item.id} so the timings reset per item.
@@ -35,7 +26,7 @@ export default function ReminderSheet({ item, onClose }) {
 
   // First reminder ever: explain before the browser prompt (US-1.4). Declining still saves.
   const onSet = () => {
-    const needsAsk = timings.length && !notificationsAsked && "Notification" in window && Notification.permission === "default";
+    const needsAsk = timings.length && !notificationsAsked && notificationPermission() === "default";
     if (needsAsk) setStep("explain");
     else save();
   };

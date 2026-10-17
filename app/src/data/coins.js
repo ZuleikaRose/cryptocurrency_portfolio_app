@@ -174,6 +174,7 @@ export const initialCoins = buildCoins();
 export const marketPulse = {
   totalMarketCap: 2.67e12,
   totalChange24h: 1.34,
+  totalVolume24h: 98.4e9,
   fearGreed: 72,
   fearGreedYesterday: 69,
   btcDominance: 52.8,

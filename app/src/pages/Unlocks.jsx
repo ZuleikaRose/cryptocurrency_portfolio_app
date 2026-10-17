@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
-import { researchFor } from "../data/research.js";
-import { formatCompact, formatCountdown, formatDate, formatTokens, rateFor } from "../lib/format.js";
+import UnlockCard from "../components/UnlockCard.jsx";
+import { unlockEvents } from "../data/research.js";
+import { formatCompact, formatDate, rateFor } from "../lib/format.js";
 import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 
@@ -144,22 +143,7 @@ export default function Unlocks() {
     document.title = "Token unlocks · CPA";
   }, []);
 
-  // Every upcoming unlock across coins, with $ value at today's price.
-  const allEvents = useMemo(
-    () =>
-      coins.flatMap((coin) => {
-        const research = researchFor(coin);
-        const unlockedPct = research.supply.total ? ((research.supply.total - research.supply.locked) / research.supply.total) * 100 : 0;
-        return research.upcomingUnlocks.map((unlock) => ({
-          ...unlock,
-          coin,
-          share: (unlock.amount / research.supply.circulating) * 100,
-          usd: unlock.amount * coin.price,
-          unlockedPct,
-        }));
-      }),
-    [coins],
-  );
+  const allEvents = useMemo(() => unlockEvents(coins), [coins]);
 
   // One-second clock: countdowns show seconds inside the last hour (08-unlocks.md).
   const now = useNow(1000);
@@ -277,41 +261,9 @@ export default function Unlocks() {
         </div>
       ) : (
         <ul className="unlock-cards">
-          {events.map((event) => {
-            const large = event.share > 2;
-            const reminded = Boolean(reminders[event.id]);
-            return (
-              <li key={event.id} className={large ? "card unlock-card warning" : "card unlock-card"}>
-                <div className="unlock-card-head">
-                  <CoinLogo coin={event.coin} />
-                  <Link to={`/coins/${event.coin.id}?tab=tokenomics`} className="unlock-title">
-                    <strong>{event.symbol}</strong> · {event.coin.name}
-                  </Link>
-                  <span className="countdown num">{formatCountdown(event.date.getTime(), now, true)}</span>
-                </div>
-                {large && <p className="large-unlock">⚠ Large unlock</p>}
-                <p className="num">
-                  {formatTokens(event.amount)} {event.symbol} · {formatCompact(event.usd, settings.currency, rate)} · {event.share.toFixed(2)}% of circ. supply
-                </p>
-                <div
-                  className="progress"
-                  role="progressbar"
-                  aria-valuenow={Math.round(event.unlockedPct)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${event.coin.name} supply unlocked`}
-                >
-                  <span style={{ width: `${event.unlockedPct}%` }} />
-                </div>
-                <p className="muted-line num">
-                  {Math.round(event.unlockedPct)}% unlocked · {formatDate(event.date)} · {event.allocations.join(", ")}
-                </p>
-                <button className={reminded ? "button-secondary compact reminder-set" : "button-secondary compact"} onClick={() => remind(event)}>
-                  <Icon name={reminded ? "check" : "bell"} /> {reminded ? "Reminder set" : "Remind me"}
-                </button>
-              </li>
-            );
-          })}
+          {events.map((event) => (
+            <UnlockCard key={event.id} event={event} now={now} currency={settings.currency} rate={rate} reminded={Boolean(reminders[event.id])} onRemind={remind} />
+          ))}
         </ul>
       )}
 

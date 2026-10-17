@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell.jsx";
+import Alerts from "./pages/Alerts.jsx";
 import CoinDetail from "./pages/CoinDetail.jsx";
 import Explore from "./pages/Explore.jsx";
 import Fundraising from "./pages/Fundraising.jsx";
 import FundProfile from "./pages/FundProfile.jsx";
+import Home from "./pages/Home.jsx";
 import Market from "./pages/Market.jsx";
 import Portfolio, { Holding } from "./pages/Portfolio.jsx";
 import Search from "./pages/Search.jsx";
@@ -14,7 +16,7 @@ import Placeholder, { NotFound } from "./pages/Placeholder.jsx";
 import { pages } from "./routes.js";
 
 // Pages built so far; everything else renders its Phase 0 placeholder.
-const built = {
+const built = { "/": Home, "/alerts": Alerts,
   "/market": Market,
   "/coins/:slug": CoinDetail,
   "/search": Search,

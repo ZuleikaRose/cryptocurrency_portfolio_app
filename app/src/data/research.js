@@ -345,3 +345,18 @@ export function toCandles(points, count = 30) {
   }
   return candles;
 }
+
+// Every upcoming unlock across coins, with its $ value at today's price (Unlocks, Home).
+export function unlockEvents(coins) {
+  return coins.flatMap((coin) => {
+    const research = researchFor(coin);
+    const unlockedPct = research.supply.total ? ((research.supply.total - research.supply.locked) / research.supply.total) * 100 : 0;
+    return research.upcomingUnlocks.map((unlock) => ({
+      ...unlock,
+      coin,
+      share: (unlock.amount / research.supply.circulating) * 100,
+      usd: unlock.amount * coin.price,
+      unlockedPct,
+    }));
+  });
+}

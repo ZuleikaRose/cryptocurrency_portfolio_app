@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
+import InvestorStack from "../components/InvestorStack.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds, funds, roundSectors, roundTypeList, TODAY } from "../data/research.js";
 import { direction, formatCompact, formatDate, formatPercent, relativeTime } from "../lib/format.js";
@@ -121,18 +122,6 @@ function FilterSheet({ open, onClose, filters, onApply, now }) {
         </button>
       </div>
     </Sheet>
-  );
-}
-
-function InvestorStack({ round }) {
-  const shown = round.investors.slice(0, 3);
-  return (
-    <span className="investor-stack" aria-label={`Investors: ${round.investors.map((id) => fundById(id)?.name).join(", ")}`}>
-      {shown.map((id) => (
-        <span key={id} className="square-logo small" title={fundById(id)?.name} aria-hidden="true">{fundById(id)?.name[0]}</span>
-      ))}
-      {round.investors.length > 3 && <span className="more" aria-hidden="true">+{round.investors.length - 3}</span>}
-    </span>
   );
 }
 

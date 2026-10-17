@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { DemoBanner, SignInSheet, Toasts } from "./GlobalOverlays.jsx";
@@ -8,6 +8,8 @@ import { useApp } from "../state/context.js";
 import { menuGroups, pagesInGroup, tabs } from "../routes.js";
 
 function TopBar({ onOpenMenu, onOpenA11y, onOpenSearch }) {
+  const { session, unreadCount, requireAuth } = useApp();
+  const navigate = useNavigate();
   return (
     <header className="topbar">
       <Link to="/" className="brand" aria-label="CPA, Cryptocurrency Portfolio App — home">
@@ -21,8 +23,18 @@ function TopBar({ onOpenMenu, onOpenA11y, onOpenSearch }) {
         <button className="icon-button" onClick={onOpenA11y} aria-label="Accessibility menu">
           <Icon name="accessibility" />
         </button>
-        <Link to="/alerts" className="icon-button" aria-label="Alerts">
+        <Link
+          to="/alerts"
+          className="icon-button bell-button"
+          aria-label={unreadCount ? `Alerts, ${unreadCount} unread` : "Alerts"}
+          onClick={(event) => {
+            if (session.kind !== "guest") return;
+            event.preventDefault();
+            requireAuth("Sign in to see your alerts", () => navigate("/alerts"));
+          }}
+        >
           <Icon name="bell" />
+          {unreadCount > 0 && <span className="bell-badge num" aria-hidden="true">{unreadCount > 99 ? "99+" : unreadCount}</span>}
         </Link>
         <button className="icon-button" onClick={onOpenMenu} aria-label="Open menu">
           <Icon name="menu" />

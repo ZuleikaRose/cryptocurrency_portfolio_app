@@ -8,7 +8,7 @@
 .tag-sales { border-color: color-mix(in srgb, var(--cat-sales) 55%, transparent); color: var(--cat-sales); background: color-mix(in srgb, var(--cat-sales) 10%, transparent); }
 .lead-tag { border-color: var(--accent); color: var(--accent); }
 .danger-text { color: var(--down); }
-button.link-button.inline { display: inline; min-height: 0; padding: 0; color: var(--accent); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.link-button.inline { display: inline; min-height: 0; padding: 0; color: var(--accent); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .sheet-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; margin-top: 20px; }
 .sheet-actions .button-primary { margin-top: 0; }
 .sheet-actions .button-secondary { min-height: 48px; padding: 0 16px; }

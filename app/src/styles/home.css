@@ -1,0 +1,115 @@
+/* Home, Alerts, onboarding (phase 5) */
+
+.home, .alerts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.home .section-title { margin: 12px 1px 2px; }
+.home .section-title h2 { margin: 0; font-size: 18px; }
+.home-head h1 { margin: 0; }
+.home-head .page-sub { margin: 4px 0 0; }
+.home-subtitle { margin: 12px 0 10px; }
+
+/* Snapshot cards are links to /market and /explore */
+.home-pulse { display: grid; align-content: start; gap: 4px; color: var(--text); text-decoration: none; }
+.home-pulse:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.home-pulse .gauge-row { margin-top: 6px; }
+.home-figure { margin-top: 10px; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.home-pulse small { color: var(--subtle); font-size: 11px; }
+
+/* Movers: horizontal cards that scroll inside the column */
+.mover-carousel {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 104px; gap: 10px;
+  margin: 0 -18px; padding: 2px 18px 8px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 18px;
+  scrollbar-width: thin;
+}
+.mover-carousel li { scroll-snap-align: start; }
+.mover-card {
+  display: grid; justify-items: start; gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 13px;
+}
+.mover-card strong { font-size: 14px; }
+.mover-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.mover-card .coin-logo { width: 28px; height: 28px; }
+
+/* Funding rounds: two-line rows */
+.home-rounds { display: grid; margin: 0; padding: 0; list-style: none; }
+.home-rounds li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.home-round-main { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.home-round-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.home-round-line a:hover strong { color: var(--accent); }
+.home-round-side { display: grid; gap: 4px; text-align: right; }
+.home-round-side span { color: var(--subtle); font-size: 12px; }
+
+.recent-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.recent-chips .chip { gap: 6px; padding-left: 4px; }
+.recent-chips .coin-logo { width: 22px; height: 22px; font-size: 10px; }
+.learn-card { display: grid; gap: 6px; }
+.learn-card .subsection-title { margin: 0; }
+.learn-card .subsection-title .icon { width: 16px; height: 16px; color: var(--info); }
+.learn-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+/* Onboarding sheet */
+.onboarding { display: grid; gap: 12px; }
+.onboarding-art { width: 72px; height: 72px; margin: 4px auto 0; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.onboarding .sheet-heading { margin: 0; text-align: center; }
+.onboarding > .sheet-note { margin: 0; text-align: center; }
+.onboarding-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.step-dots { display: inline-flex; gap: 6px; margin-right: auto; }
+.step-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.step-dots span.active { background: var(--accent); }
+.button-primary.compact-primary { width: auto; min-height: 44px; margin-top: 0; padding: 0 22px; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Bell badge */
+.bell-button { position: relative; }
+.bell-badge {
+  position: absolute; top: 6px; right: 5px;
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--down);
+  color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 17px; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* Alerts */
+.alerts .filters { margin: 0; }
+.alerts .banner-info { margin: 0; }
+.alerts-panel { display: grid; gap: 8px; }
+.note-group .section-row { margin: 8px 0 4px; }
+.note-list, .alert-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.note-item { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 6px 8px 0; border-bottom: 1px solid var(--line-soft); color: var(--text); }
+.note-item:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.note-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; border: 1.5px solid var(--line); }
+.note-item.unread .note-dot { border-color: var(--accent); background: var(--accent); }
+.note-main { min-width: 0; display: grid; gap: 3px; }
+.note-main strong { font-size: 14px; font-weight: 500; }
+.note-item.unread .note-main strong { font-weight: 650; }
+.note-main > span { color: var(--subtle); font-size: 12px; }
+
+.alert-row { display: flex; align-items: center; gap: 8px; min-height: 64px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.alert-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.alert-main strong { font-size: 14px; }
+.alert-main a:hover strong { color: var(--accent); }
+.alert-main > span { color: var(--subtle); font-size: 12px; }
+.alert-row.paused .alert-main, .alert-row.paused .coin-logo { opacity: 0.55; }
+.alert-row .switch { min-width: 82px; }
+.alert-row .select { min-height: 36px; max-width: 132px; }
+.alert-types { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Fieldsets default to min-width: min-content; let the sheet form shrink to the phone width. */
+.tx-form { grid-template-columns: minmax(0, 1fr); }
+.tx-form .field-group { min-width: 0; }
+.tx-form select.input { width: 100%; text-overflow: ellipsis; }
+.tx-form .segmented { display: flex; flex-wrap: wrap; }
+.tx-form .segmented .segment { flex: 1 1 auto; }
+
+/* While a bottom sheet is open, toasts move to the top so they never cover the sheet's buttons. */
+body:has(.sheet-layer.sheet-bottom) .toast-region { top: calc(var(--topbar-h) + 12px); bottom: auto; }
