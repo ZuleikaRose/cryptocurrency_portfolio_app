@@ -48,7 +48,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 ## Data model rules
 
 - **Schema changes:** add a new file to `supabase/migrations/` (apply it with the Supabase MCP `apply_migration`, then save the file under the version it records). Never edit an applied migration.
-- **Keep the references in step:** mirror the change in `schema.sql` and update `drawsql.png`, so both still describe every table. Keep the README's table count and group list correct.
+- **Keep the references in step:** mirror the change in `schema.sql` and regenerate `drawsql.png` (`npm run diagram` in `tools/diagram/`; add new tables to a group in `erd.py`), so both still describe every table. Keep the README's table count and group list correct.
 - **Every user table:** RLS on, policies scoped to `(select auth.uid()) = user_id`, a covering index on every foreign key, and a mapping in `lib/cloud.js` (with load and save) when the app stores it.
 - **Reference tables:** read-only to `anon` and `authenticated`; only the seed script or server code (the `cryptorank-sync` Edge Function) writes them. Re-run `npm run seed` in `supabase/` after changing `app/src/data/`.
 - **After DDL:** run the security and performance advisors (`get_advisors`) and fix or explain every warning.

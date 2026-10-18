@@ -145,7 +145,7 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 
 ![Entity-relationship diagram of the CPA schema: 48 tables in 8 groups](drawsql.png)
 
-`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
+`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram; regenerate it with `npm run diagram` in `tools/diagram/`. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
 
 | Group | Tables | Holds |
 |---|---|---|
@@ -193,6 +193,7 @@ app_outline/          style guide, user journeys, user stories, page specs, wire
 supabase/             migrations, seed script, cryptorank-sync Edge Function, CLI config (config.toml)
 schema.sql            portable PostgreSQL schema for every feature (48 tables)
 drawsql.png           entity-relationship diagram of schema.sql
+tools/diagram/        regenerates drawsql.png from schema.sql (npm run diagram)
 lookup.py             CryptoRank v3 lookup (needs CRYPTORANK_API_KEY)
 prompt.md             the original build brief and its clarifications
 CLAUDE.md             working rules for Claude Code in this repo
