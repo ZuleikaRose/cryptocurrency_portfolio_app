@@ -8,6 +8,8 @@ export default function Logout() {
   const { session, logOut, endDemo } = useApp();
   const navigate = useNavigate();
   const [done, setDone] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   useEffect(() => {
     document.title = "Log out · CPA";
@@ -34,6 +36,13 @@ export default function Logout() {
   if (session.kind === "guest") return <Navigate to="/" replace />;
 
   const demo = session.kind === "demo";
+  const finishLogOut = async (discard = false) => {
+    setSaving(true);
+    const result = await logOut({ discard });
+    setSaving(false);
+    if (result.ok) setDone("user");
+    else setSaveFailed(true);
+  };
   return (
     <div className="auth-page">
       <h1>{demo ? "End the demo?" : "Log out of CPA?"}</h1>
@@ -45,15 +54,27 @@ export default function Logout() {
           <p>Your watchlist, portfolio, alerts, and settings stay saved to your account. Alerts won't fire while you're logged out.</p>
         </>
       )}
+      {saveFailed && (
+        <>
+          <p className="form-alert" role="alert">We couldn't save your changes. Retry, or discard unsaved changes before logging out.</p>
+          <button className="button-secondary" disabled={saving} onClick={() => finishLogOut(true)}>
+            Discard unsaved changes and log out
+          </button>
+        </>
+      )}
       <button
         className="button-primary"
+        disabled={saving}
         onClick={() => {
-          setDone(demo ? "demo" : "user");
-          if (demo) endDemo();
-          else logOut();
+          if (demo) {
+            endDemo();
+            setDone("demo");
+          } else {
+            finishLogOut();
+          }
         }}
       >
-        {demo ? "End demo" : "Log out"}
+        {saving ? "Saving…" : saveFailed && !demo ? "Retry and log out" : demo ? "End demo" : "Log out"}
       </button>
       <button className="button-tertiary centered" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}>
         Cancel
@@ -69,7 +90,7 @@ export function AccountDeleted() {
   }, []);
   // Arriving here from Settings: end the session of the account that was just deleted.
   useEffect(() => {
-    if (session.kind === "user" && session.deleted) logOut();
+    if (session.kind === "user" && session.deleted) logOut({ discard: true });
   }, [session, logOut]);
   return (
     <div className="auth-page">
