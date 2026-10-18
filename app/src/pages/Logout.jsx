@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
-import { accountById } from "../lib/auth.js";
 import { useApp } from "../state/context.js";
 
 // Log out (15-logout.md): confirm, then a done view. Guests are sent home.
@@ -22,12 +21,12 @@ export default function Logout() {
           <Icon name="check" className="icon confirm-icon" />
           <h1>You're logged out</h1>
         </div>
-        <p className="page-sub">Your watchlist, portfolio, and alerts are saved in this browser for next time.</p>
+        <p className="page-sub">Your watchlist, portfolio, and alerts are saved to your account for next time.</p>
         <Link to="/login" className="button-primary">Log in</Link>
         <Link to="/" className="button-tertiary centered">Continue browsing as guest</Link>
         <p className="info-card">
           <Icon name="info" />
-          <span>On a shared computer? Delete your account data from Settings first.</span>
+          <span>This browser no longer holds your session. Your data stays in your account, not on this device.</span>
         </p>
       </div>
     );
@@ -43,7 +42,7 @@ export default function Logout() {
       ) : (
         <>
           <p className="page-sub">Signed in as {session.email}</p>
-          <p>Your watchlist, portfolio, alerts, and settings stay saved in this browser. Alerts won't fire while you're logged out.</p>
+          <p>Your watchlist, portfolio, alerts, and settings stay saved to your account. Alerts won't fire while you're logged out.</p>
         </>
       )}
       <button
@@ -70,14 +69,14 @@ export function AccountDeleted() {
   }, []);
   // Arriving here from Settings: end the session of the account that was just deleted.
   useEffect(() => {
-    if (session.kind === "user" && accountById(session.userId)?.status === "deleted") logOut();
+    if (session.kind === "user" && session.deleted) logOut();
   }, [session, logOut]);
   return (
     <div className="auth-page">
       <h1>Your account is deleted</h1>
-      <p>You no longer have access. Your data is kept until you ask us to remove it.</p>
-      <p>Contact support to submit a data-removal ticket.</p>
-      <Link to="/support?topic=data-removal" className="button-primary">Contact support</Link>
+      <p>You no longer have access. Your data is kept until you remove it.</p>
+      <p>To remove it, log in with this account's email and password, then choose Remove my data.</p>
+      <Link to="/login" className="button-primary">Log in to remove data</Link>
       <Link to="/" className="button-tertiary centered">Continue browsing as guest</Link>
     </div>
   );

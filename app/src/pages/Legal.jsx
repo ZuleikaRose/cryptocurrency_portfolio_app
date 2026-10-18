@@ -10,7 +10,7 @@ export default function Terms() {
     { id: "who-we-are", title: "Who we are", body: p("CPA (Cryptocurrency Portfolio App) helps you follow coins, token unlocks, funding rounds and your own portfolio. These terms apply whenever you use CPA.") },
     { id: "eligibility", title: "Eligibility", body: p("You must be 18 or older to create an account, subscribe or join the affiliate program.") },
     { id: "using-cpa", title: "Using CPA", body: p("You may browse CPA without an account. Some features, such as alerts and a saved portfolio, need an account or the private demo.") },
-    { id: "accounts", title: "Accounts and security", body: p("Your account is stored in this browser's local storage, not on a server. You're responsible for the device and browser you use. Use a password you don't use anywhere else.") },
+    { id: "accounts", title: "Accounts and security", body: p("Your account and its data are stored on CPA's servers, hosted by Supabase. Sign-in and passwords are handled by Supabase Auth; CPA never sees or stores your password. Use a password you don't use anywhere else.") },
     { id: "subscriptions", title: "Subscriptions, billing changes and refunds", body: p("CPA Pro costs $9.99 a month or $95.88 a year. You can change your billing date, pause for up to 3 months, or cancel at any time in Settings. After cancelling you keep Pro until the end of the period you paid for. Billing in this version is simulated; no money is charged.") },
     { id: "promotions", title: "Promotions and points", body: p("Promo codes are one use per account and can't be combined. CPA points have no cash value, can't be transferred and are not a token.") },
     { id: "affiliates", title: "Affiliate program", body: <p>Affiliates follow the separate <Link to="/affiliate">affiliate terms</Link>, including the ban on promising returns.</p> },
@@ -18,7 +18,7 @@ export default function Terms() {
     { id: "accuracy", title: "Data accuracy", body: p("Prices, unlocks and funding rounds in this version are sample data. Data may be delayed, incomplete or wrong. Check important information with the original source.") },
     { id: "acceptable-use", title: "Acceptable use", body: p("Don't misuse CPA: no attempts to break it, scrape it at scale, or use it to mislead others.") },
     { id: "ip", title: "Intellectual property", body: p("The CPA name, logo and app design belong to CPA. Coin names and logos belong to their owners.") },
-    { id: "deletion", title: "Account deletion and data removal", body: <p>You can delete your account in Settings once any subscription is cancelled. Deleting removes access; to remove your data too, send a data-removal request through <Link to="/support?topic=data-removal">Customer support</Link>.</p> },
+    { id: "deletion", title: "Account deletion and data removal", body: <p>You can delete your account in Settings once any subscription is cancelled. Deleting removes access; to remove your data too, <Link to="/login">log in</Link> to the deleted account and choose Remove my data. <Link to="/support">Customer support</Link> can also help.</p> },
     { id: "liability", title: "Limitation of liability", body: p("CPA is provided as is. To the extent the law allows, CPA isn't liable for losses that come from relying on information in the app.") },
     { id: "changes", title: "Changes to these terms", body: p("We'll show the new date at the top when these terms change. Continuing to use CPA means you accept the updated terms.") },
     { id: "contact", title: "Contact", body: <p>Questions? Use <Link to="/support">Customer support</Link>.</p> },
@@ -26,30 +26,27 @@ export default function Terms() {
   return <DocPage title="Terms of service" draft sections={sections} />;
 }
 
-// Every key CPA writes (00-app-shell.md persistence model).
+// Every key CPA writes in the browser (00-app-shell.md persistence model). Account data
+// lives in the database, not in these keys.
 const storageKeys = [
-  ["cpa:v1:accounts", "Account records: name, email, salted password hash, plan, status"],
-  ["cpa:v1:session", "Which account is signed in on this browser"],
-  ["cpa:v1:user:<id>", "Your data and settings (see the table above)"],
-  ["cpa:v1:resetTokens", "Hashed password-reset links, removed after a day"],
-  ["cpa:v1:supportLog", "Completed data-removal requests: id, topic, date, status only"],
+  ["cpa:v1:auth", "Your sign-in session for this browser, set by Supabase Auth and removed when you log out"],
   ["cpa:v1:probe", "Written and deleted at once by the setup check"],
 ];
 
 export function Privacy() {
   const collected = [
-    ["Name, email, salted password hash", "Your account", "This browser"],
-    ["Plan and simulated billing: card brand, last 4 digits, expiry", "Subscription", "This browser"],
-    ["Watchlists and starred coins", "Tracking coins", "This browser"],
-    ["Portfolio transactions", "Portfolio and P&L", "This browser"],
-    ["Alerts, reminders, notifications, follows", "Alerts", "This browser"],
-    ["Recently viewed coins", "Home and Search", "This browser"],
-    ["Coin sentiment votes", "One vote a day", "This browser"],
-    ["Search queries and saved filters", "Recent searches", "This browser"],
-    ["Settings and accessibility preferences", "Your experience", "This browser"],
-    ["Feedback, tickets and bug reports (with optional screenshot)", "Support", "This browser"],
-    ["Promo codes, points and affiliate link", "Promotions", "This browser"],
-    ["Visit count", "Feedback prompt timing", "This browser"],
+    ["Name and email (passwords are handled by Supabase Auth)", "Your account", "CPA servers"],
+    ["Plan and simulated billing: card brand, last 4 digits, expiry", "Subscription", "Your account"],
+    ["Watchlists and starred coins", "Tracking coins", "Your account"],
+    ["Portfolio transactions", "Portfolio and P&L", "Your account"],
+    ["Alerts, reminders, notifications, follows", "Alerts", "Your account"],
+    ["Recently viewed coins", "Home and Search", "Your account"],
+    ["Coin sentiment votes", "One vote a day", "Your account"],
+    ["Search queries and saved filters", "Recent searches", "Your account"],
+    ["Settings and accessibility preferences", "Your experience", "Your account"],
+    ["Feedback, tickets and bug reports (with optional screenshot)", "Support", "Your account"],
+    ["Promo codes, points and affiliate link", "Promotions", "Your account"],
+    ["Visit count", "Feedback prompt timing", "Your account"],
     ["Device info for the setup check and bug reports", "Troubleshooting", "Not stored, unless you include it in a report"],
     ["Usage analytics (off by default)", "Improving CPA", "This browser only"],
   ];
@@ -68,7 +65,7 @@ export function Privacy() {
         </table>
       ),
     },
-    { id: "permissions", title: "Permissions", body: p("Notifications: asked only when you set your first alert or reminder, after an explanation. Local storage: to keep an account. Clipboard: only when you tap Copy.") },
+    { id: "permissions", title: "Permissions", body: p("Notifications: asked only when you set your first alert or reminder, after an explanation. Local storage: to keep you signed in on this browser. Clipboard: only when you tap Copy.") },
     {
       id: "your-choices",
       title: "Your choices",
@@ -78,7 +75,7 @@ export function Privacy() {
           <li><Link to="/settings#privacy">Export your data as JSON</Link></li>
           <li><Link to="/settings#privacy">Turn usage analytics on or off</Link></li>
           <li><Link to="/settings#danger-zone">Delete your account</Link></li>
-          <li><Link to="/support?topic=data-removal">Ask for your data to be removed</Link></li>
+          <li><Link to="/login">Remove your data</Link> after deleting your account: log in to it and choose Remove my data</li>
         </ul>
       ),
     },
@@ -96,11 +93,11 @@ export function Privacy() {
               ))}
             </tbody>
           </table>
-          <p>The private demo and guest browsing store nothing.</p>
+          <p>The private demo and guest browsing store nothing. Tickets and feedback you send as a guest are kept with Support.</p>
         </>
       ),
     },
-    { id: "retention", title: "Retention", body: p("Your data stays in this browser until you clear it, delete your account and request removal, or clear site data.") },
+    { id: "retention", title: "Retention", body: p("Your data stays in your account until you clear it in Settings, or delete your account and then remove its data. Removing data is permanent; the support log keeps only the ticket id, topic, date and status.") },
     { id: "children", title: "Children", body: p("CPA is for people aged 18 and over.") },
     { id: "changes", title: "Changes", body: p("We'll update the date at the top when this policy changes.") },
     { id: "contact", title: "Contact", body: <p>Questions about privacy? Use <Link to="/support">Customer support</Link>.</p> },
@@ -109,7 +106,7 @@ export function Privacy() {
     <div className="card in-short">
       <h2>In short</h2>
       <ul className="plain-list bullets">
-        <li>Your data stays in this browser.</li>
+        <li>Your data is stored with your account on CPA's servers.</li>
         <li>We don't sell personal data.</li>
         <li>The demo stores nothing.</li>
         <li>Delete or export anytime in Settings.</li>

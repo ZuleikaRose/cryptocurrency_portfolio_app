@@ -6,6 +6,77 @@ import { isEmail, passwordChecks, passwordErrors, safeNext } from "../lib/auth.j
 import { useNow } from "../lib/hooks.js";
 import { useApp } from "../state/context.js";
 
+const authUnavailable = "Accounts aren't available right now. You can keep browsing as a guest or try the private demo.";
+
+// A deleted account after the correct password (US-9.6, US-P17.2): remove its data for good,
+// or leave it as it is. Leaving ends the Auth session; if the user navigates away instead,
+// the next app load finds the deleted profile and signs it out.
+function DeletedAccount({ onLeave }) {
+  const { removeDeletedAccountData, leaveDeletedAccount } = useApp();
+  const [step, setStep] = useState("choose");
+  const [error, setError] = useState(null);
+  const [ticketId, setTicketId] = useState(null);
+  const headingRef = useRef(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [step]);
+
+  const remove = async () => {
+    setStep("removing");
+    const result = await removeDeletedAccountData();
+    if (result.error) {
+      setError("We couldn't remove the data. Check your connection and try again. Nothing was removed.");
+      setStep("confirm");
+      return;
+    }
+    setTicketId(result.ticketId);
+    setStep("done");
+  };
+
+  if (step === "done") {
+    return (
+      <div className="auth-form" aria-live="polite">
+        <h2 ref={headingRef} tabIndex={-1}>Your data has been removed</h2>
+        <p>Ticket #{ticketId} completed. All CPA data for this account is gone, and the account can't be used again.</p>
+        <Link to="/" className="button-primary">Continue browsing as guest</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-form">
+      <h2 ref={headingRef} tabIndex={-1}>{step === "choose" ? "This account was deleted" : "Remove all data?"}</h2>
+      {error && <p className="form-alert" role="alert">{error}</p>}
+      {step === "choose" ? (
+        <>
+          <p>You no longer have access. Your data is kept until you remove it.</p>
+          <button className="button-primary danger-fill" onClick={() => setStep("confirm")}>Remove my data</button>
+          <button
+            className="button-tertiary centered"
+            onClick={() => {
+              leaveDeletedAccount();
+              onLeave();
+            }}
+          >
+            Keep it and go back
+          </button>
+        </>
+      ) : (
+        <>
+          <p>This permanently removes your watchlist, portfolio, alerts, settings and profile. It can't be undone.</p>
+          <div className="sheet-actions">
+            <button className="button-secondary" onClick={() => setStep("choose")} disabled={step === "removing"}>Cancel</button>
+            <button className="button-primary danger-fill" onClick={remove} disabled={step === "removing"}>
+              {step === "removing" ? "Removing…" : "Remove data"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function LogInForm({ next }) {
   const { logIn } = useApp();
   const navigate = useNavigate();
@@ -40,23 +111,21 @@ function LogInForm({ next }) {
 
   const messages = {
     invalid: "Email or password is incorrect.",
-    deleted: "This account was deleted. Contact support to restore access or remove your data.",
-    crypto: "This browser can't do secure password checks here (Web Crypto is unavailable). Open CPA over HTTPS or on localhost.",
+    unconfirmed: "Confirm your email first: open the link we sent you, then log in.",
+    limited: "Too many attempts. Wait a few minutes and try again.",
+    network: "We couldn't reach CPA. Check your connection and try again.",
+    unavailable: authUnavailable,
     locked: null,
   };
   const message = locked ? `Too many attempts. Try again in ${Math.ceil((lockedUntil - now) / 1000)} s.` : messages[error] ?? error;
+
+  if (error === "deleted") return <DeletedAccount onLeave={() => setError(null)} />;
 
   return (
     <form className="auth-form" onSubmit={onSubmit} noValidate>
       {message && (
         <p className="form-alert" role="alert">
           {message}
-          {error === "deleted" && (
-            <>
-              {" "}
-              <Link to="/support?topic=data-removal">Contact support</Link>
-            </>
-          )}
         </p>
       )}
       <label className="form-field">
@@ -117,10 +186,15 @@ function SignUpForm({ next }) {
     if (result.error === "exists") {
       setExists(true);
       emailRef.current?.focus();
-    } else if (result.error === "crypto") {
-      setErrors([["password", "This browser can't do secure password checks here (Web Crypto is unavailable). Open CPA over HTTPS or on localhost."]]);
     } else {
-      setErrors([["email", "Couldn't save the account in this browser. Storage may be full or blocked."]]);
+      const messages = {
+        weak: ["password", "Choose a stronger password."],
+        email: ["email", "We can't send email to that address. Check it, or use a different one."],
+        confirm: ["email", "Check your email and open the link to confirm your account, then log in."],
+        limited: ["email", "Too many attempts. Wait a few minutes and try again."],
+        unavailable: ["email", authUnavailable],
+      };
+      setErrors([messages[result.error] ?? ["email", "We couldn't create your account. Check your connection and try again."]]);
     }
   };
   const invalid = (field) => errors.some(([key]) => key === field);
@@ -238,7 +312,7 @@ export default function Login() {
       <p className="muted-line">The demo uses sample data, isn't saved, and resets when you refresh.</p>
       <p className="info-card">
         <Icon name="info" />
-        <span>Accounts are stored in this browser only. Browser storage isn't a secure server, so CPA is for demonstration; don't reuse a password you use elsewhere.</span>
+        <span>Your account and data are saved on CPA's servers, so you can sign in on any device. Use a password you don't use anywhere else.</span>
       </p>
     </div>
   );

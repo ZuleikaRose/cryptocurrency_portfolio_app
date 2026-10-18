@@ -6,7 +6,7 @@ export const faqSections = [
     title: "General",
     items: [
       { q: "Is CPA's data real-time?", a: "No. CPA uses a bundled sample dataset that refreshes every 30 seconds in your browser while the app is open. Prices, unlocks and funding rounds are realistic examples, not live market data." },
-      { q: "Where is my data stored?", a: "Accounts are stored in this browser's local storage. Clearing site data removes them. The private demo isn't stored at all and resets when you refresh." },
+      { q: "Where is my data stored?", a: "With an account, your data is stored on CPA's servers, so it's there on any device you sign in on. Guest browsing and the private demo aren't stored and reset when you refresh." },
       { q: "Why didn't my alert fire?", a: "Alerts are checked only while CPA is open in a tab. Nothing fires when the tab is closed. Check the alert is switched on in Alerts → My alerts, and that quiet hours aren't holding back the banner." },
       { q: "Is this financial advice?", a: "No. CPA shows information only. Nothing in the app is a recommendation to buy, sell or hold anything." },
       { q: "How do I reset the demo?", a: "Refresh the page. The demo lives in memory only, so it starts over with the same sample watchlist, portfolio and alerts." },
@@ -37,7 +37,7 @@ export const faqSections = [
     id: "api-plans",
     title: "API & plans",
     items: [
-      { q: "Does CPA have a public API?", a: "Not yet. CPA is front-end only today and has no public API. The plans below are planned and may change." },
+      { q: "Does CPA have a public API?", a: "Not yet. CPA has no public API today. The plans below are planned and may change." },
       { q: "What will the plans include?", a: "Free: rate-limited access and 1 year of history. Pro: higher credit limits, full history and alerts without caps. Team: shared watchlists and seats. Credit limits, endpoints and history depth are listed as planned." },
       { q: "How do the prices differ?", a: "Pro is $9.99 a month or $95.88 a year (the yearly plan works out to $7.99 a month). Free costs nothing. Team pricing is planned." },
       { q: "Can I cancel or pause Pro?", a: "Yes. In Settings → Subscription & billing you can change your billing date, pause for 1 to 3 months, or cancel. Billing in CPA is simulated, so no money is charged." },

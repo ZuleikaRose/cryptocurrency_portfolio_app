@@ -24,15 +24,18 @@ Before changing a page, read its spec and the stories it cites.
 - **Name:** "CPA", not CryptoRank. The style guide and stories say CryptoRank; adapt that text to CPA.
 - **Bottom nav:** 7 tabs: Home, Market, Explore, Funding, Unlocks, Watchlist, Portfolio. No "More" tab. (The style guide's 5-tab bar is superseded.)
 - **Data:**
-  - The app makes no API calls; all data is sample data in `src/data/`.
+  - Market data (coins, funds, rounds, unlocks, sales) is sample data in `src/data/`; the app doesn't fetch it. `supabase/seed` loads the same data into the `cpa` reference tables.
   - **Guest** and **demo** state live in memory and reset on refresh.
-  - **Accounts** persist in `localStorage` under `cpa:v1:*`. Go through `lib/storage.js` (`readJson`, `writeJson`, `removeKey`) and check the boolean result of every write.
+  - **Accounts** use Supabase (user's decision, Oct 17, 2026): Supabase Auth for sign-in, and the `cpa` schema for account data. All of it goes through `lib/supabase.js` (publishable key only) and `lib/cloud.js`, which saves only the rows that changed. Every new per-user field needs a column, a mapping in `cloud.js`, and RLS in a new migration under `supabase/migrations/`.
+  - Simulated billing lives in `user_state.simulated_billing`. `subscriptions` and `billing_history` stay server-only. Account deletion and data removal go through `cpa.delete_my_account()` and `cpa.erase_my_data()`.
+  - The browser keeps only the Auth session (`cpa:v1:auth`). Other `localStorage` access goes through `lib/storage.js` (`readJson`, `writeJson`, `removeKey`); check the boolean result of every write.
 - **Streaming wording:** some source text talks about streaming (autoplay, captions, "episodes"). Adapt it to crypto equivalents such as auto-refresh and chart summaries.
 - **Layout:** a phone-width shell (`--shell-width: 440px`) that's also usable on desktop, where it sits in a centred frame.
 - **Stack:** React 19, Vite 8, react-router-dom 7 with `BrowserRouter`. Navigations run in `startTransition`.
 
 ## Security
 
+- `SUPABASE_SECRET_KEY` (in `.env`) bypasses RLS: use it only in server-side scripts such as `supabase/seed`. Never give it a `VITE_` prefix or import it in `app/`. After a build, check `app/dist` doesn't contain it.
 - `lookup.py` reads `CRYPTORANK_API_KEY` from the environment or `.env`. **Never commit `.env`, never print the key, and never paste it into code, docs, logs or commit messages.** `.env.example` holds names only.
 - Before every commit, check the staged diff for the key and confirm `git check-ignore .env`.
 - Wrap browser I/O in try/catch or a failure check: storage, clipboard, downloads, `FileReader`, Web Crypto and notifications. Tell the user plainly when it fails; never fail silently.

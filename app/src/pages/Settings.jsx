@@ -6,7 +6,7 @@ import Sheet from "../components/Sheet.jsx";
 import { discountedPrice, findPromo } from "../data/promotions.js";
 import { ranges } from "../data/research.js";
 import { shortcuts } from "../data/shortcuts.js";
-import { accountById, isEmail, passwordChecks, passwordErrors } from "../lib/auth.js";
+import { isEmail, passwordChecks, passwordErrors } from "../lib/auth.js";
 import { blocksDeletion, cancel, changeBillingDay, isPaid, pause, planById, plans, resume, subscribe, validateCard } from "../lib/billing.js";
 import { downloadText } from "../lib/clipboard.js";
 import { currencies, formatDate } from "../lib/format.js";
@@ -93,12 +93,13 @@ function ChangePasswordSheet({ open, onClose }) {
       setErrors(["Current password is incorrect."]);
       return;
     }
-    if (result.error === "crypto") {
-      setErrors(["This browser can't do secure password checks here (Web Crypto is unavailable). Open CPA over HTTPS or on localhost."]);
-      return;
-    }
     if (result.error) {
-      setErrors(["Couldn't save the new password in this browser."]);
+      const messages = {
+        same: "Choose a password different from your current one.",
+        weak: "Choose a stronger password.",
+        limited: "Too many attempts. Wait a few minutes and try again.",
+      };
+      setErrors([messages[result.error] ?? "We couldn't change your password. Check your connection and try again."]);
       return;
     }
     showToast("Password changed");
@@ -179,10 +180,10 @@ function DeleteAccountSheet({ open, onClose, email }) {
     setBusy(false);
     if (result.error) {
       const messages = {
-        storage: "Couldn't delete the account: this browser's storage is full or blocked. Nothing was changed.",
-        crypto: "This browser can't do secure password checks here (Web Crypto is unavailable). Open CPA over HTTPS or on localhost.",
+        wrong: "Password is incorrect.",
+        limited: "Too many attempts. Wait a few minutes and try again.",
       };
-      setError(messages[result.error] ?? "Password is incorrect.");
+      setError(messages[result.error] ?? "We couldn't delete the account. Check your connection and try again. Nothing was changed.");
       return;
     }
     // The deleted page ends the session once Settings is gone (its guest redirect would win otherwise).
@@ -192,7 +193,7 @@ function DeleteAccountSheet({ open, onClose, email }) {
   return (
     <Sheet open={open} onClose={onClose} title="Delete your CPA account?" side="bottom">
       <form className="tx-form" onSubmit={onSubmit} noValidate>
-        <p className="sheet-note">This removes your access to CPA. Your data stays until you ask support to remove it.</p>
+        <p className="sheet-note">This removes your access to CPA. Your data stays until you remove it: log in again afterwards and choose Remove my data.</p>
         <label className="form-field">
           <span>Type your email to confirm</span>
           <input className="input" value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" placeholder={email} />
@@ -206,7 +207,6 @@ function DeleteAccountSheet({ open, onClose, email }) {
             {busy ? "Deleting…" : "Delete account"}
           </button>
         </div>
-        <Link to="/support?topic=data-removal" className="link-button">Want your data removed too? Contact support <Icon name="chevron" /></Link>
       </form>
     </Sheet>
   );
@@ -268,14 +268,15 @@ export default function Settings() {
   if (paid && billing.status === "paused") planStatus = `Paused until ${formatDate(billing.pausedUntil)}`;
   if (paid && billing.status === "cancelled") planStatus = `Cancels on ${formatDate(billing.cancelsOn)}`;
 
-  const saveProfile = (event) => {
+  const saveProfile = async (event) => {
     event.preventDefault();
     if (!profile.name.trim()) return setProfileError("Enter your name.");
     if (!demo && !isEmail(profile.email)) return setProfileError("Enter a valid email address.");
-    const result = app.updateProfile(demo ? { name: profile.name, email: session.email ?? "" } : profile);
+    const result = await app.updateProfile(demo ? { name: profile.name, email: session.email ?? "" } : profile);
     if (result.error === "exists") return setProfileError("An account with this email already exists.");
-    if (result.error) return setProfileError("Couldn't save your profile in this browser.");
+    if (result.error) return setProfileError("We couldn't save your profile. Check your connection and try again.");
     setProfileError(null);
+    if (result.emailPending) showToast(`Check ${profile.email.trim()} and open the link to confirm your new email.`);
     markSaved("profile");
     return undefined;
   };
@@ -317,8 +318,9 @@ export default function Settings() {
   };
 
   const exportData = () => {
-    const account = session.kind === "user" ? accountById(session.userId) : null;
-    const profileOut = account ? { name: account.name, email: account.email, createdAt: account.createdAt, plan: account.plan } : { name: session.name };
+    const profileOut = session.kind === "user"
+      ? { name: session.name, email: session.email, createdAt: session.createdAt, plan: billing.plan }
+      : { name: session.name };
     const json = JSON.stringify({ exportedAt: new Date().toISOString(), profile: profileOut, data: app.exportData() }, null, 2);
     const ok = downloadText(`cpa-export-${new Date().toISOString().slice(0, 10)}.json`, json, "application/json");
     showToast(ok ? "Export downloaded" : "Couldn't start the download in this browser.");

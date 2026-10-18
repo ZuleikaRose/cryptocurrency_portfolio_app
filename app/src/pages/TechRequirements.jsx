@@ -105,7 +105,7 @@ export default function TechRequirements() {
         ["Supported browsers", "Chrome, Edge, Firefox and Safari: the latest 2 versions. iOS Safari 17+ and Android Chrome."],
         ["Screen sizes", "320px wide and up. Best at 360–430px, or on desktop, where CPA shows a centred phone layout."],
         ["Internet", "Needed only to load the app (about 1 MB). Prices come from bundled sample data, so CPA keeps working offline once loaded."],
-        ["Storage", "Allow site data (cookies and local storage) to keep a signed-up account. Private windows forget it when closed."],
+        ["Storage", "Allow site data (local storage) to stay signed in. Private windows sign you out when closed; your account data is kept."],
         ["Assistive technology", "Tested with NVDA, JAWS, VoiceOver and TalkBack, and keyboard only."],
         ["Performance", "First data on screen in 2 seconds or less on a mid-range phone."],
       ].map(([title, body]) => (

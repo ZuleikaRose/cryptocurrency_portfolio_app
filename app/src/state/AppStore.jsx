@@ -7,13 +7,14 @@ import { researchFor } from "../data/research.js";
 import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets } from "../lib/alerts.js";
 import { formatDate } from "../lib/format.js";
 import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
-import { CryptoUnavailableError, accountById, clearFailures, createAccount, findAccount, lockState, newPasswordRecord, recordFailure, updateAccount, verifyPassword } from "../lib/auth.js";
+import { authErrorKind, clearFailures, lockState, normalizeEmail, recordFailure } from "../lib/auth.js";
 import { emptyBilling, normalizeBilling, settleBilling } from "../lib/billing.js";
-import { keys, readJson, removeKey, writeJson } from "../lib/storage.js";
+import { loadAccountData, saveAccountData, sendFeedback, sendTicket, snapshot } from "../lib/cloud.js";
+import { supabase } from "../lib/supabase.js";
 import { POINTS_PROMO, findPromo, pointsFor, promoStatus } from "../data/promotions.js";
 
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
-// "user" is a signed-up account whose data is saved to localStorage.
+// "user" is a signed-up account on Supabase Auth whose data is saved to the cpa tables.
 
 const emptyData = {
   watchlist: [],
@@ -103,7 +104,9 @@ const demoData = () => ({
   ...demoAlertData(),
 });
 let idCounter = 0;
-const newId = (prefix) => `${prefix}-${Date.now().toString(36)}-${(idCounter += 1)}`;
+// UUIDs, because transactions, alerts, notifications and saved filters are uuid rows in the
+// database. Without Web Crypto (insecure origins) the fallback id works for this tab only.
+const newId = (prefix) => globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now().toString(36)}-${(idCounter += 1)}`;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -135,22 +138,31 @@ const normalizeAlert = (alert) => ({
 const isValidNotification = (note) =>
   note && typeof note === "object" && typeof note.id === "string" && typeof note.title === "string" && Number.isFinite(note.at);
 
-function loadInitial() {
-  // Saved data may be missing or hand-edited; fall back to a guest session rather than crash.
-  const saved = readJson(keys.session);
-  const account = typeof saved?.userId === "string" ? accountById(saved.userId) : null;
-  if (!account || account.status === "deleted") return { session: { kind: "guest" }, data: guestData() };
-  const loaded = loadAccount(account);
-  // Each app load counts as a visit (feedback prompt after the 5th, 20-feedback.md).
-  return { ...loaded, data: { ...loaded.data, visits: loaded.data.visits + 1 } };
-}
+// Every load starts as a guest; a saved Supabase session is restored after mount.
+const loadInitial = () => ({ session: { kind: "guest" }, data: guestData() });
 
 const isTicket = (item) => item && typeof item.id === "string" && typeof item.subject === "string" && typeof item.date === "string";
 
-// A signed-up account's saved data, validated and normalised.
-function loadAccount(account) {
-  const rawStored = readJson(keys.user(account.id), {});
-  const stored = rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {};
+const accountSession = (profile, user) => ({ kind: "user", userId: profile.id, name: profile.name, email: user.email, createdAt: profile.created_at });
+
+// The signed-in user's profile and data from Supabase, validated and normalised.
+// Returns { status: "ok", session, data, snapshot } | { status: "deleted" } | { status: "error", error }.
+async function loadAccount(user) {
+  try {
+    const { profile, stored } = await loadAccountData();
+    if (profile.status === "deleted") return { status: "deleted" };
+    const data = normalizeStored(stored);
+    return { status: "ok", session: accountSession(profile, user), data, snapshot: snapshot(data) };
+  } catch (error) {
+    return { status: "error", error };
+  }
+}
+
+// Stored data may be partial or malformed; anything that doesn't fit falls back to the default.
+function normalizeStored(rawStored) {
+  const stored = Object.fromEntries(
+    Object.entries(rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {}).filter(([, value]) => value !== undefined && value !== null),
+  );
   ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications", "tickets", "feedback"].forEach((key) => {
     if (!Array.isArray(stored[key])) delete stored[key];
   });
@@ -191,39 +203,32 @@ function loadAccount(account) {
     if (stored[key] && (typeof stored[key] !== "object" || Array.isArray(stored[key]))) delete stored[key];
   });
   return {
-    session: { kind: "user", userId: account.id, name: account.name, email: account.email },
-    data: {
-      ...emptyData,
-      ...stored,
-      settings: {
-        ...defaultSettings,
-        ...stored.settings,
-        market: { ...defaultSettings.market, ...stored.settings?.market },
-        unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
-        fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
-        a11y: normalizeA11y(stored.settings?.a11y),
-        ai: normalizeAi(stored.settings?.ai),
-        quietHours: { ...defaultSettings.quietHours, ...(stored.settings?.quietHours && typeof stored.settings.quietHours === "object" ? stored.settings.quietHours : {}) },
-      },
-      reminders: Object.fromEntries(
-        Object.entries(stored.reminders ?? {})
-          .filter(([, item]) => item && Array.isArray(item.timings) && typeof item.symbol === "string" && !Number.isNaN(new Date(item.date).getTime()))
-          .map(([id, item]) => [id, { ...item, fired: Array.isArray(item.fired) ? item.fired : [], paused: item.paused === true }]),
-      ),
-      billing: settleBilling(normalizeBilling(stored.billing)),
-      follows: Object.fromEntries(Object.entries(stored.follows ?? {}).filter(([, frequency]) => ["instant", "daily", "weekly"].includes(frequency))),
+    ...emptyData,
+    ...stored,
+    settings: {
+      ...defaultSettings,
+      ...stored.settings,
+      market: { ...defaultSettings.market, ...stored.settings?.market },
+      unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
+      fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
+      a11y: normalizeA11y(stored.settings?.a11y),
+      ai: normalizeAi(stored.settings?.ai),
+      quietHours: { ...defaultSettings.quietHours, ...(stored.settings?.quietHours && typeof stored.settings.quietHours === "object" ? stored.settings.quietHours : {}) },
     },
+    reminders: Object.fromEntries(
+      Object.entries(stored.reminders ?? {})
+        .filter(([, item]) => item && Array.isArray(item.timings) && typeof item.symbol === "string" && !Number.isNaN(new Date(item.date).getTime()))
+        .map(([id, item]) => [id, { ...item, fired: Array.isArray(item.fired) ? item.fired : [], paused: item.paused === true }]),
+    ),
+    billing: settleBilling(normalizeBilling(stored.billing)),
+    follows: Object.fromEntries(Object.entries(stored.follows ?? {}).filter(([, frequency]) => ["instant", "daily", "weekly"].includes(frequency))),
   };
 }
 
-// Password work needs Web Crypto; report its absence as { error: "crypto" } instead of a stuck form.
-const cryptoSafe = (task) =>
-  task().catch((error) => {
-    if (error instanceof CryptoUnavailableError) return { error: "crypto" };
-    throw error;
-  });
-
 const TICK_MS = 30_000;
+const SAVE_DELAY_MS = 600;
+const RETRY_MS = 15_000;
+const RESTORE_TIMEOUT_MS = 8000;
 const PENDING_TTL_MS = 15 * 60_000;
 
 function MarketProvider({ autoRefresh, children }) {
@@ -322,19 +327,51 @@ export function AppProvider({ children }) {
     if (Date.now() - at < PENDING_TTL_MS) action();
   }, [session.kind]);
 
-  // Persist signed-up accounts only. If the browser refuses (storage full or blocked),
-  // say so once instead of failing silently.
+  // Save signed-up accounts to Supabase: after a short pause, one save at a time, changed rows
+  // only. A failed save says so once, keeps the changes in memory and retries.
   const notifyRef = useRef(null);
-  const saveWarned = useRef(false);
-  useEffect(() => {
-    if (session.kind !== "user") return;
-    const stored = readJson(keys.user(session.userId), {}) ?? {};
-    const saved = writeJson(keys.user(session.userId), { ...stored, ...data });
-    if (!saved && !saveWarned.current) {
-      saveWarned.current = true;
-      notifyRef.current?.("Couldn't save your changes on this device. They'll be lost when you close the tab.");
+  const sync = useRef({ userId: null, snapshot: null, running: null, again: false, warned: false, retry: 0 });
+  const flush = useCallback(function flushNow() {
+    const state = sync.current;
+    if (!state.userId || !state.snapshot) return Promise.resolve();
+    if (state.running) {
+      state.again = true;
+      return state.running;
     }
-  }, [session, data]);
+    window.clearTimeout(state.retry);
+    state.running = (async () => {
+      do {
+        state.again = false;
+        const target = dataRef.current;
+        const result = await saveAccountData(state.userId, state.snapshot, target).catch((error) => ({ ok: false, error, snapshot: state.snapshot }));
+        state.snapshot = result.snapshot;
+        if (!result.ok) {
+          if (!state.warned) notifyRef.current?.("We couldn't save your changes. Check your connection; we'll keep trying.");
+          state.warned = true;
+          if (sync.current === state) state.retry = window.setTimeout(flushNow, RETRY_MS);
+          return;
+        }
+        if (state.warned) notifyRef.current?.("Your changes are saved.");
+        state.warned = false;
+      } while (state.again);
+    })().finally(() => {
+      state.running = null;
+    });
+    return state.running;
+  }, []);
+  useEffect(() => {
+    if (session.kind !== "user") return undefined;
+    const id = window.setTimeout(flush, SAVE_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [session, data, flush]);
+  // Save straight away when the tab is hidden or closing.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, [flush]);
 
   // Reflect display and accessibility settings on <html> so CSS can respond (27-accessibility-menu.md).
   const { a11y } = data.settings;
@@ -736,69 +773,18 @@ export function AppProvider({ children }) {
 
   const [accessibilityOpen, setAccessibilityOpen] = useState(false);
 
-  const enterAccount = useCallback((account, data) => {
-    // The account works for this tab either way; say so if it won't survive a refresh.
-    if (!writeJson(keys.session, { userId: account.id, createdAt: new Date().toISOString() })) {
-      notifyRef.current?.("Couldn't save your sign-in on this device. You'll be signed out when you refresh.");
-    }
-    dataRef.current = data;
-    setData(data);
-    setSession({ kind: "user", userId: account.id, name: account.name, email: account.email });
+  const enterAccount = useCallback((loaded) => {
+    window.clearTimeout(sync.current.retry);
+    sync.current = { userId: loaded.session.userId, snapshot: loaded.snapshot, running: null, again: false, warned: false, retry: 0 };
+    dataRef.current = loaded.data;
+    setData(loaded.data);
+    setSession(loaded.session);
     setAuthPrompt(null);
   }, []);
 
-  // Guest stars, history and picks carry over into the new account (US-P13.1); demo data never does.
-  const signUp = useCallback(
-    ({ name, email, password }) =>
-      cryptoSafe(async () => {
-        if (findAccount(email)) return { error: "exists" };
-        const account = await createAccount({ name, email, password });
-        if (!account) return { error: "storage" };
-        const guest = session.kind === "guest" ? dataRef.current : guestData();
-        const data = {
-          ...emptyData,
-          settings: guest.settings,
-          watchlist: guest.watchlist,
-          recentCoins: guest.recentCoins,
-          recentSearches: guest.recentSearches,
-          interests: guest.interests,
-          onboarded: guest.onboarded,
-        };
-        // The persist effect saves `data` once the session is set, and warns if storage refuses.
-        enterAccount(account, data);
-        showToast("Account created");
-        return { ok: true };
-      }),
-    [session.kind, enterAccount, showToast],
-  );
-
-  // Never says whether the email or the password was wrong; a deleted account is only
-  // revealed after the correct password.
-  const logIn = useCallback(
-    (email, password) =>
-      cryptoSafe(async () => {
-        const lock = lockState();
-        if (lock.lockedUntil > Date.now()) return { error: "locked", until: lock.lockedUntil };
-        const account = findAccount(email);
-        const ok = account ? await verifyPassword(account, password) : (await newPasswordRecord(password), false);
-        if (!ok) {
-          const next = recordFailure();
-          return next.lockedUntil > Date.now() ? { error: "locked", until: next.lockedUntil } : { error: "invalid" };
-        }
-        clearFailures();
-        if (account.status === "deleted") return { error: "deleted" };
-        const loaded = loadAccount(account);
-        enterAccount(account, loaded.data);
-        showToast(`Welcome back, ${account.name.split(" ")[0]}`);
-        return { ok: true };
-      }),
-    [enterAccount, showToast],
-  );
-
-  const logOut = useCallback(() => {
-    if (!removeKey(keys.session)) {
-      notifyRef.current?.("Couldn't clear your sign-in on this device. You may be signed back in when you refresh.");
-    }
+  const resetToGuest = useCallback(() => {
+    window.clearTimeout(sync.current.retry);
+    sync.current = { userId: null, snapshot: null, running: null, again: false, warned: false, retry: 0 };
     pendingAction.current = null;
     setAuthPrompt(null);
     setSearch({ open: false, scope: "all" });
@@ -809,39 +795,209 @@ export function AppProvider({ children }) {
     setSession({ kind: "guest" });
   }, []);
 
-  // Logging out in another tab signs this one out on its next storage event (US-P15.4).
+  // Restore a saved Supabase session. Pages wait for this so a signed-in refresh doesn't
+  // flash the guest view; a slow network falls back to guest after RESTORE_TIMEOUT_MS.
+  const [ready, setReady] = useState(!supabase);
   useEffect(() => {
-    const onStorage = (event) => {
-      if (event.key === keys.session && !event.newValue && session.kind === "user") logOut();
+    if (!supabase) return undefined;
+    let live = true;
+    const timer = window.setTimeout(() => setReady(true), RESTORE_TIMEOUT_MS);
+    (async () => {
+      const { data: { session: auth } } = await supabase.auth.getSession();
+      if (!auth || !live) return;
+      const loaded = await loadAccount(auth.user);
+      if (!live) return;
+      if (loaded.status === "deleted") {
+        await supabase.auth.signOut({ scope: "local" });
+        return;
+      }
+      if (loaded.status !== "ok") {
+        notifyRef.current?.("We couldn't load your account. Check your connection and refresh to try again.");
+        return;
+      }
+      // Each app load counts as a visit (feedback prompt after the 5th, 20-feedback.md).
+      enterAccount({ ...loaded, data: { ...loaded.data, visits: loaded.data.visits + 1 } });
+    })()
+      .catch(() => notifyRef.current?.("We couldn't load your account. Check your connection and refresh to try again."))
+      .finally(() => {
+        window.clearTimeout(timer);
+        if (live) setReady(true);
+      });
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
     };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [session.kind, logOut]);
+  }, [enterAccount]);
 
+  // Logging out in another tab signs this one out too (US-P15.4); a confirmed email change
+  // updates the address shown. Supabase calls must not be awaited inside this callback.
+  const sessionRef = useRef(session);
+  useLayoutEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+  useEffect(() => {
+    if (!supabase) return undefined;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, auth) => {
+      if (event === "SIGNED_OUT" && sessionRef.current.kind === "user") window.setTimeout(resetToGuest, 0);
+      if (event === "USER_UPDATED" && auth?.user?.email) {
+        setSession((current) => (current.kind === "user" && current.email !== auth.user.email ? { ...current, email: auth.user.email } : current));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [resetToGuest]);
+
+  // Guest stars, history and picks carry over into the new account (US-P13.1); demo data never does.
+  const signUp = useCallback(
+    async ({ name, email, password }) => {
+      if (!supabase) return { error: "unavailable" };
+      try {
+        const { data: result, error } = await supabase.auth.signUp({
+          email: normalizeEmail(email),
+          password,
+          options: { data: { name: name.trim() } },
+        });
+        if (error) return { error: authErrorKind(error) };
+        // With "Confirm email" switched on in Supabase there's no session until the link is opened.
+        if (!result.session) return { error: "confirm" };
+        // The sign-up trigger has created the profile, default settings and Free plan.
+        const loaded = await loadAccount(result.user);
+        if (loaded.status !== "ok") return { error: "network" };
+        const guest = session.kind === "guest" ? dataRef.current : guestData();
+        enterAccount({
+          ...loaded,
+          data: {
+            ...loaded.data,
+            settings: guest.settings,
+            watchlist: guest.watchlist,
+            recentCoins: guest.recentCoins,
+            recentSearches: guest.recentSearches,
+            interests: guest.interests,
+            onboarded: guest.onboarded,
+          },
+        });
+        showToast("Account created");
+        return { ok: true };
+      } catch {
+        return { error: "network" };
+      }
+    },
+    [session.kind, enterAccount, showToast],
+  );
+
+  // Never says whether the email or the password was wrong; a deleted account is only
+  // revealed after the correct password. Its Auth session is kept so the user can choose
+  // Remove my data (removeDeletedAccountData) or leave (leaveDeletedAccount).
+  const logIn = useCallback(
+    async (email, password) => {
+      if (!supabase) return { error: "unavailable" };
+      const lock = lockState();
+      if (lock.lockedUntil > Date.now()) return { error: "locked", until: lock.lockedUntil };
+      try {
+        const { data: result, error } = await supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
+        if (error) {
+          const kind = authErrorKind(error);
+          if (kind !== "invalid") return { error: kind };
+          const next = recordFailure();
+          return next.lockedUntil > Date.now() ? { error: "locked", until: next.lockedUntil } : { error: "invalid" };
+        }
+        clearFailures();
+        const loaded = await loadAccount(result.user);
+        if (loaded.status === "deleted") return { error: "deleted" };
+        if (loaded.status !== "ok") {
+          await supabase.auth.signOut({ scope: "local" });
+          return { error: "network" };
+        }
+        enterAccount(loaded);
+        showToast(`Welcome back, ${loaded.session.name.split(" ")[0]}`);
+        return { ok: true };
+      } catch {
+        return { error: "network" };
+      }
+    },
+    [enterAccount, showToast],
+  );
+
+  // Data removal (US-P17.2) for the deleted account just logged in to. Returns { ok, ticketId } | { error }.
+  const removeDeletedAccountData = useCallback(async () => {
+    try {
+      const { data: ticketId, error } = await supabase.rpc("erase_my_data");
+      if (error) return { error: "network" };
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+      return { ok: true, ticketId };
+    } catch {
+      return { error: "network" };
+    }
+  }, []);
+  const leaveDeletedAccount = useCallback(() => {
+    supabase?.auth.signOut({ scope: "local" }).catch(() => {});
+  }, []);
+
+  // Pending changes are saved first, then this browser's session ends (other devices stay signed in).
+  // A second call (StrictMode re-running an effect, two tabs) finds no account and does nothing.
+  const logOut = useCallback(() => {
+    if (!sync.current.userId) return;
+    const pending = flush();
+    resetToGuest();
+    pending
+      .catch(() => {})
+      .then(() => supabase?.auth.signOut({ scope: "local" }))
+      .then((result) => {
+        if (result?.error) notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
+      });
+  }, [flush, resetToGuest]);
+
+  // Checks the current password by signing in again. Returns null when it's right, or an error kind.
+  const confirmPassword = useCallback(
+    async (password) => {
+      const { error } = await supabase.auth.signInWithPassword({ email: session.email, password });
+      if (!error) return null;
+      return authErrorKind(error) === "invalid" ? "wrong" : authErrorKind(error);
+    },
+    [session.email],
+  );
+
+  // Returns { ok, emailPending } | { error: "exists" | "network" | … }. An email change waits for
+  // the confirmation link when Supabase's "Secure email change" is on.
   const updateProfile = useCallback(
-    ({ name, email }) => {
+    async ({ name, email }) => {
       if (session.kind !== "user") {
         setSession((current) => ({ ...current, name: name.trim() }));
         return { ok: true };
       }
-      const existing = findAccount(email);
-      if (existing && existing.id !== session.userId) return { error: "exists" };
-      const account = updateAccount(session.userId, { name: name.trim(), email: email.trim().toLowerCase() });
-      if (!account) return { error: "storage" };
-      setSession((current) => ({ ...current, name: account.name, email: account.email }));
-      return { ok: true };
+      try {
+        const nextName = name.trim();
+        if (nextName !== session.name) {
+          const { error } = await supabase.from("users").update({ name: nextName }).eq("id", session.userId);
+          if (error) return { error: "network" };
+        }
+        const nextEmail = normalizeEmail(email);
+        let emailPending = false;
+        if (nextEmail !== session.email) {
+          const { data: result, error } = await supabase.auth.updateUser({ email: nextEmail });
+          if (error) return { error: authErrorKind(error) };
+          emailPending = result.user?.email !== nextEmail;
+        }
+        setSession((current) => ({ ...current, name: nextName, email: emailPending ? current.email : nextEmail }));
+        return { ok: true, emailPending };
+      } catch {
+        return { error: "network" };
+      }
     },
     [session],
   );
 
   const changePassword = useCallback(
-    (currentPassword, nextPassword) =>
-      cryptoSafe(async () => {
-        const account = accountById(session.userId);
-        if (!account || !(await verifyPassword(account, currentPassword))) return { error: "wrong" };
-        return updateAccount(account.id, await newPasswordRecord(nextPassword)) ? { ok: true } : { error: "storage" };
-      }),
-    [session.userId],
+    async (currentPassword, nextPassword) => {
+      try {
+        const wrong = await confirmPassword(currentPassword);
+        if (wrong) return { error: wrong };
+        const { error } = await supabase.auth.updateUser({ password: nextPassword });
+        return error ? { error: authErrorKind(error) } : { ok: true };
+      } catch {
+        return { error: "network" };
+      }
+    },
+    [confirmPassword],
   );
 
   const setBilling = useCallback(
@@ -850,27 +1006,23 @@ export function AppProvider({ children }) {
     },
     [],
   );
-  // Mirror the plan onto the account record (cpa:v1:accounts.plan). Billing in the user data
-  // is the source of truth; a failed mirror gets the same one-time storage warning.
-  useEffect(() => {
-    if (session.kind !== "user" || updateAccount(session.userId, { plan: data.billing.plan })) return;
-    if (!saveWarned.current) {
-      saveWarned.current = true;
-      notifyRef.current?.("Couldn't save your changes on this device. They'll be lost when you close the tab.");
-    }
-  }, [session, data.billing.plan]);
 
-  // Deleting removes access only; data stays until a support data-removal ticket (US-9.6).
+  // Deleting removes access only; data stays until the user removes it (US-9.6, US-P17.2).
   const deleteAccount = useCallback(
-    (password) =>
-      cryptoSafe(async () => {
-        const account = accountById(session.userId);
-        if (!account || !(await verifyPassword(account, password))) return { error: "wrong" };
-        // If the status can't be saved, the account isn't deleted: say so rather than show the deleted page.
-        if (!updateAccount(account.id, { status: "deleted", deletedAt: new Date().toISOString() })) return { error: "storage" };
-        return { ok: true }; // /account-deleted ends the session after Settings unmounts.
-      }),
-    [session.userId],
+    async (password) => {
+      try {
+        const wrong = await confirmPassword(password);
+        if (wrong) return { error: wrong };
+        const { error } = await supabase.rpc("delete_my_account");
+        if (error) return { error: "network" };
+        // /account-deleted ends the session after Settings unmounts.
+        setSession((current) => ({ ...current, deleted: true }));
+        return { ok: true };
+      } catch {
+        return { error: "network" };
+      }
+    },
+    [confirmPassword],
   );
 
   const clearRecentCoins = useCallback(() => setData((current) => ({ ...current, recentCoins: [] })), []);
@@ -892,28 +1044,48 @@ export function AppProvider({ children }) {
   }, []);
   const getLastError = useCallback(() => lastError.current, []);
 
-  // Ticket ids: #CPA-1042… for tickets, #BUG-0217… for issue reports. Logged data removals
-  // count too, so ids stay unique across guest visits. Returns the new ticket.
-  const nextTicketId = useCallback((kind) => {
+  // Ticket ids: #CPA-1042… for tickets, #BUG-0217… for issue reports. Guests and users get
+  // theirs from the database sequence; the demo numbers its own in memory.
+  const demoTicketId = useCallback((kind) => {
     const issue = kind === "issue";
     const count = dataRef.current.tickets.filter((item) => (item.kind === "issue") === issue).length;
-    const logged = issue ? 0 : (readJson(keys.supportLog, []) || []).length;
-    return issue ? `BUG-${String(217 + count).padStart(4, "0")}` : `CPA-${1042 + count + logged}`;
+    return issue ? `BUG-${String(217 + count).padStart(4, "0")}` : `CPA-${1042 + count}`;
   }, []);
+  // Returns the saved ticket, or null if it couldn't be sent.
   const addTicket = useCallback(
-    (ticket) => {
-      const id = ticket.id ?? nextTicketId(ticket.kind);
-      const saved = { status: "Received", ...ticket, id, date: new Date().toISOString() };
+    async (ticket) => {
+      let saved;
+      if (session.kind === "demo" || !supabase) {
+        saved = { status: "Received", ...ticket, id: demoTicketId(ticket.kind), date: new Date().toISOString() };
+      } else {
+        try {
+          saved = await sendTicket(session.kind === "user" ? session.userId : null, ticket);
+        } catch {
+          return null;
+        }
+      }
       dataRef.current = { ...dataRef.current, tickets: [saved, ...dataRef.current.tickets] };
       setData((latest) => ({ ...latest, tickets: [saved, ...latest.tickets] }));
       return saved;
     },
-    [nextTicketId],
+    [session, demoTicketId],
   );
 
-  const addFeedback = useCallback((entry) => {
-    setData((current) => ({ ...current, feedback: [{ ...entry, date: new Date().toISOString() }, ...current.feedback], feedbackPromptDismissed: Date.now() }));
-  }, []);
+  // Returns false if it couldn't be sent.
+  const addFeedback = useCallback(
+    async (entry) => {
+      if (session.kind !== "demo" && supabase) {
+        try {
+          await sendFeedback(session.kind === "user" ? session.userId : null, entry);
+        } catch {
+          return false;
+        }
+      }
+      setData((current) => ({ ...current, feedback: [{ ...entry, date: new Date().toISOString() }, ...current.feedback], feedbackPromptDismissed: Date.now() }));
+      return true;
+    },
+    [session],
+  );
   const dismissFeedbackPrompt = useCallback(() => setData((current) => ({ ...current, feedbackPromptDismissed: Date.now() })), []);
 
   // Promo codes (21-promotions.md): returns { ok, promo } or { error: "invalid" | "new-only" | "points" }.
@@ -922,7 +1094,7 @@ export function AppProvider({ children }) {
     const promo = findPromo(code);
     if (!promo || promo === POINTS_PROMO || promoStatus(promo) !== "active") return { error: "invalid" };
     if (promo.newAccountsOnly && session.kind === "user") {
-      const created = new Date(accountById(session.userId)?.createdAt ?? 0).getTime();
+      const created = new Date(session.createdAt ?? 0).getTime();
       if (Date.now() - created > 30 * 86_400_000) return { error: "new-only" };
     }
     setData((latest) => ({ ...latest, billing: { ...latest.billing, promo: { code: promo.code, appliedAt: new Date().toISOString() } } }));
@@ -1028,6 +1200,8 @@ export function AppProvider({ children }) {
       setBilling,
       signUp,
       logIn,
+      removeDeletedAccountData,
+      leaveDeletedAccount,
       logOut,
       updateProfile,
       changePassword,
@@ -1043,7 +1217,6 @@ export function AppProvider({ children }) {
       points: pointsFor(data, session),
       getLastError,
       addTicket,
-      nextTicketId,
       addFeedback,
       dismissFeedbackPrompt,
       applyPromo,
@@ -1051,14 +1224,14 @@ export function AppProvider({ children }) {
       joinAffiliate,
       setAffiliatePayout,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, nextTicketId, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
   );
 
   return (
     <AppContext.Provider value={value}>
       <MarketProvider autoRefresh={data.settings.autoRefresh}>
         <AlertWatcher onPrices={checkPrices} onClock={checkClock} />
-        {children}
+        {ready ? children : <div className="app-restoring" aria-busy="true" aria-label="Loading your account" />}
       </MarketProvider>
     </AppContext.Provider>
   );
