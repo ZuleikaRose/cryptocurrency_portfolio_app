@@ -10,6 +10,7 @@ export default function Logout() {
   const [done, setDone] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
 
   useEffect(() => {
     document.title = "Log out · CPA";
@@ -33,10 +34,21 @@ export default function Logout() {
       </div>
     );
   }
-  if (session.kind === "guest") return <Navigate to="/" replace />;
+  if (session.kind === "guest") {
+    if (!saving) return <Navigate to="/" replace />;
+    return (
+      <div className="auth-page">
+        <h1>Logging out</h1>
+        <p className="page-sub" role="status">
+          {discarding ? "Discarding unsaved changes and ending this session." : "Your changes are saved. Ending this session."}
+        </p>
+      </div>
+    );
+  }
 
   const demo = session.kind === "demo";
   const finishLogOut = async (discard = false) => {
+    setDiscarding(discard);
     setSaving(true);
     const result = await logOut({ discard });
     setSaving(false);
