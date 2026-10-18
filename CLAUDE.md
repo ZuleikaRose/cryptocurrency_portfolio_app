@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a front-end SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Read `README.md` for the overview.
+Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
 
 ## Commands
 
@@ -15,9 +15,13 @@ Run these from `app/`:
 2. **`app_outline/pages/NN-*.md`**: one spec per page, with its wireframe, components, stories, states and "Done when" conditions. Each page's spec is named in `src/routes.js` (`doc`).
 3. **`app_outline/figma-wireframe/`**: the layout and visual reference. The violet accent comes from here.
 4. **`app_outline/style_guide.md`**: tokens, type, voice, components, states, motion, accessibility.
-5. **`app_outline/user_stories.md`** (US-x.y, priorities P0/P1/P2) and **`app_outline/user_journey.md`** (personas Maya, Daniel, Priya and Leo, journey maps, cross-journey rules).
+5. **`app_outline/user_stories.md`** (US-x.y, priorities P0/P1/P2) and **`app_outline/user_journey.md`** (personas Maya, Daniel, Priya and Leo, journey maps, cross-journey rules, moments that matter).
+6. **Data model:**
+   - `supabase/migrations/` is what the live database runs.
+   - `schema.sql` (47 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
+   - Where the two differ (Supabase Auth instead of password and session tables, RLS, `simulated_billing`), the migrations win.
 
-Before changing a page, read its spec and the stories it cites.
+Before changing a page, read its spec and the stories it cites. Before storing anything new for a user, find its table in `schema.sql` / `drawsql.png`.
 
 ## Fixed decisions
 
@@ -33,6 +37,15 @@ Before changing a page, read its spec and the stories it cites.
 - **Layout:** a phone-width shell (`--shell-width: 440px`) that's also usable on desktop, where it sits in a centred frame.
 - **Stack:** React 19, Vite 8, react-router-dom 7 with `BrowserRouter`. Navigations run in `startTransition`.
 
+## Data model rules
+
+- **Schema changes:** add a new file to `supabase/migrations/` (apply it with the Supabase MCP `apply_migration`, then save the file under the version it records). Never edit an applied migration.
+- **Keep the references in step:** mirror the change in `schema.sql` and update `drawsql.png`, so both still describe every table. Keep the README's table count and group list correct.
+- **Every user table:** RLS on, policies scoped to `(select auth.uid()) = user_id`, a covering index on every foreign key, and a mapping in `lib/cloud.js` (with load and save) when the app stores it.
+- **Reference tables:** read-only to `anon` and `authenticated`; only the seed script or server code writes them. Re-run `npm run seed` in `supabase/` after changing `app/src/data/`.
+- **After DDL:** run the security and performance advisors (`get_advisors`) and fix or explain every warning.
+- **Personal data:** collect only what a feature needs (journey §16–17). Analytics stay off by default, and export and delete must keep working.
+
 ## Security
 
 - `SUPABASE_SECRET_KEY` (in `.env`) bypasses RLS: use it only in server-side scripts such as `supabase/seed`. Never give it a `VITE_` prefix or import it in `app/`. After a build, check `app/dist` doesn't contain it.
@@ -43,6 +56,11 @@ Before changing a page, read its spec and the stories it cites.
 ## Writing rules (style guide §2)
 
 - **Voice:** expert, precise and neutral, like a research analyst. No hype, no "moon", "guaranteed" or "don't miss out", and no financial advice.
+- **Tone by context:**
+  - Market data is factual ("BTC +2.41% in 24h").
+  - Onboarding and empty states are friendly and brief.
+  - Alerts sound urgent only when something is time-sensitive ("ARB unlock in 1 hour: 92.6M tokens (3.2% of supply)").
+  - Never use urgency just to drive engagement.
 - **Case:** sentence case everywhere. Tickers in uppercase (BTC). Project names in their official casing (dYdX).
 - **Numbers:**
   - Abbreviate large values (`$1.24B`, `$842.5M`, `$12.3K`) and show full precision on detail screens.
@@ -59,11 +77,18 @@ Before changing a page, read its spec and the stories it cites.
 - **Row heights:** coin rows 64px, settings rows 56px. Touch targets at least 44×44px.
 - **Type:** Inter, using the `.num` class (tabular figures) for every price, percentage and table column. JetBrains Mono for addresses.
 - **Direction:** never shown by colour alone; always pair it with ▲ ▼ or + −. Respect `data-colors` (swapped and cb-safe).
+- **Components (style guide §6–7):**
+  - Change pill: 6px radius, 10% fill of the up or down colour, full-colour text and arrow.
+  - Primary button: 48px tall, one per screen.
+  - Coin logos: circular, 24px in lists and 40px in headers, with a 1px ring and the ticker initial as fallback. Fund logos: 8px-radius squares.
+  - Icons are outlined; only the active tab uses the filled variant.
+  - The style guide's row swipe actions are visible buttons in CPA. If a swipe is ever added, keep the button too.
 - **States (§7.8):**
   - Loading: skeleton matching the layout, never a spinner on lists. Use `useFirstLoad` and `SkeletonCards` / `SkeletonDetail`.
   - Empty: illustration, one sentence, one action.
   - Error: `ErrorBanner` with Retry, with cached data kept visible where it exists.
-  - Stale: over 5 minutes old, show "Last updated".
+  - Stale: over 5 minutes old, show "Last updated" in secondary text with a clock icon.
+  - Offline: a top banner, "You're offline: showing saved data" (US-9.5, not built yet).
   - `?simulate=error` triggers the error state.
 - **Motion (§8):**
   - Durations: `--dur-micro` 150ms, `--dur-screen` 250ms, `--dur-sheet` 350ms.
@@ -97,6 +122,14 @@ Before changing a page, read its spec and the stories it cites.
 6. **Guest mode:** full browsing without an account.
    - Sign-in is required only for alerts, a saved portfolio and the like. Use `requireAuth(reason, action)`.
    - The pending action completes after sign-in, and guest data merges into the new account.
+
+## Targets (user_journey.md §7, user_stories.md non-functional requirements)
+
+- **Speed:** first data on screen in 2 s or less; lists scroll smoothly.
+- **Freshness:** visible prices no more than 30 s old; alerts fire within 30 s of their trigger.
+- **Retention signals:** the first watchlist add and the first alert are the moments to make easy; keep both one tap away.
+- **Security and privacy:** no secrets in the bundle; read-only integrations only; analytics opt-in; data export and delete available.
+- **Localization:** keep UI strings out of logic where practical; English only for now.
 
 ## Workflow
 
