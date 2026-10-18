@@ -333,7 +333,7 @@ export function AppProvider({ children }) {
   const sync = useRef({ userId: null, snapshot: null, running: null, again: false, warned: false, retry: 0 });
   const flush = useCallback(function flushNow() {
     const state = sync.current;
-    if (!state.userId || !state.snapshot) return Promise.resolve();
+    if (!state.userId || !state.snapshot) return Promise.resolve({ ok: true });
     if (state.running) {
       state.again = true;
       return state.running;
@@ -349,11 +349,12 @@ export function AppProvider({ children }) {
           if (!state.warned) notifyRef.current?.("We couldn't save your changes. Check your connection; we'll keep trying.");
           state.warned = true;
           if (sync.current === state) state.retry = window.setTimeout(flushNow, RETRY_MS);
-          return;
+          return { ok: false };
         }
         if (state.warned) notifyRef.current?.("Your changes are saved.");
         state.warned = false;
       } while (state.again);
+      return { ok: true };
     })().finally(() => {
       state.running = null;
     });
@@ -934,16 +935,18 @@ export function AppProvider({ children }) {
 
   // Pending changes are saved first, then this browser's session ends (other devices stay signed in).
   // A second call (StrictMode re-running an effect, two tabs) finds no account and does nothing.
-  const logOut = useCallback(() => {
-    if (!sync.current.userId) return;
-    const pending = flush();
+  const logOut = useCallback(async ({ discard = false } = {}) => {
+    if (!sync.current.userId) return { ok: true };
+    const result = await flush();
+    if (!result.ok && !discard) return result;
     resetToGuest();
-    pending
-      .catch(() => {})
-      .then(() => supabase?.auth.signOut({ scope: "local" }))
-      .then((result) => {
-        if (result?.error) notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
-      });
+    try {
+      const { error } = await supabase?.auth.signOut({ scope: "local" }) ?? {};
+      if (error) notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
+    } catch {
+      notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
+    }
+    return { ok: true };
   }, [flush, resetToGuest]);
 
   // Checks the current password by signing in again. Returns null when it's right, or an error kind.

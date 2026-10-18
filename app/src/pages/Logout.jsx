@@ -8,6 +8,8 @@ export default function Logout() {
   const { session, logOut, endDemo } = useApp();
   const navigate = useNavigate();
   const [done, setDone] = useState(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     document.title = "Log out · CPA";
@@ -34,6 +36,19 @@ export default function Logout() {
   if (session.kind === "guest") return <Navigate to="/" replace />;
 
   const demo = session.kind === "demo";
+  const finishLogout = async (discard = false) => {
+    if (demo) {
+      endDemo();
+      setDone("demo");
+      return;
+    }
+    setBusy(true);
+    const result = await logOut({ discard });
+    setBusy(false);
+    if (result?.ok) setDone("user");
+    else setSaveFailed(true);
+  };
+
   return (
     <div className="auth-page">
       <h1>{demo ? "End the demo?" : "Log out of CPA?"}</h1>
@@ -43,17 +58,22 @@ export default function Logout() {
         <>
           <p className="page-sub">Signed in as {session.email}</p>
           <p>Your watchlist, portfolio, alerts, and settings stay saved to your account. Alerts won't fire while you're logged out.</p>
+          {saveFailed && (
+            <>
+              <p className="form-alert" role="alert">We couldn't save your latest changes. Retry, or log out and discard them.</p>
+              <button className="button-tertiary centered" disabled={busy} onClick={() => finishLogout(true)}>
+                Log out without saving
+              </button>
+            </>
+          )}
         </>
       )}
       <button
         className="button-primary"
-        onClick={() => {
-          setDone(demo ? "demo" : "user");
-          if (demo) endDemo();
-          else logOut();
-        }}
+        disabled={busy}
+        onClick={() => finishLogout()}
       >
-        {demo ? "End demo" : "Log out"}
+        {busy ? "Saving…" : saveFailed ? "Retry saving and log out" : demo ? "End demo" : "Log out"}
       </button>
       <button className="button-tertiary centered" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}>
         Cancel
