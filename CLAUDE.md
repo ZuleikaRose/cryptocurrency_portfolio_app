@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
+Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Prices for 31 coins come live from CryptoRank through a Supabase Edge Function; other market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
 
 ## Commands
 
@@ -8,6 +8,9 @@ Run these from `app/`:
 - `npm run dev`: Vite on http://localhost:5173. Use `npx vite --port 5173 --strictPort` if you need the port fixed for browser tests.
 - `npm run lint`: oxlint. It must pass with no output before you commit.
 - `npm run build`: production build. Run it to catch broken imports, because oxlint doesn't resolve modules.
+
+From the repo root:
+- `supabase functions deploy cryptorank-sync --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the live price sync. Type-check and lint it with Deno first (`deno check`, `deno lint`); the deploy hook expects that dry run in the same command.
 
 ## Sources of truth, in order
 
@@ -18,7 +21,7 @@ Run these from `app/`:
 5. **`app_outline/user_stories.md`** (US-x.y, priorities P0/P1/P2) and **`app_outline/user_journey.md`** (personas Maya, Daniel, Priya and Leo, journey maps, cross-journey rules, moments that matter).
 6. **Data model:**
    - `supabase/migrations/` is what the live database runs.
-   - `schema.sql` (47 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
+   - `schema.sql` (48 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
    - Where the two differ (Supabase Auth instead of password and session tables, RLS, `simulated_billing`), the migrations win.
 
 Before changing a page, read its spec and the stories it cites. Before storing anything new for a user, find its table in `schema.sql` / `drawsql.png`.
@@ -28,7 +31,12 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 - **Name:** "CPA", not CryptoRank. The style guide and stories say CryptoRank; adapt that text to CPA.
 - **Bottom nav:** 7 tabs: Home, Market, Explore, Funding, Unlocks, Watchlist, Portfolio. No "More" tab. (The style guide's 5-tab bar is superseded.)
 - **Data:**
-  - Market data (coins, funds, rounds, unlocks, sales) is sample data in `src/data/`; the app doesn't fetch it. `supabase/seed` loads the same data into the `cpa` reference tables.
+  - Market data (coins, funds, rounds, unlocks, sales) is sample data in `src/data/`. `supabase/seed` loads the same data into the `cpa` reference tables.
+  - **Live prices** (user's decision, Oct 18, 2026; `prompt.md` clarification 14):
+    - The `cryptorank-sync` Edge Function (`supabase/functions/`) writes CryptoRank price, 24h change, market cap and volume into `cpa.coins` every 10 minutes (pg_cron) for coins with a `cryptorank_slug`. Each run is recorded in the server-only `cpa.market_sync`.
+    - The app reads them over REST through `lib/market.js` only, on load and every 30 s, and merges them onto the sample coins. Keep the fallbacks: last data plus `ErrorBanner` when a request fails, and the simulated feed before the first sync.
+    - The free CryptoRank plan allows 400 credits a day. Each run costs 2. Don't raise the schedule or the page count without a paid plan.
+    - Name the source wherever prices show: "CryptoRank" for synced figures, "CPA sample data" for the rest.
   - **Guest** and **demo** state live in memory and reset on refresh.
   - **Accounts** use Supabase (user's decision, Oct 17, 2026): Supabase Auth for sign-in, and the `cpa` schema for account data. All of it goes through `lib/supabase.js` (publishable key only) and `lib/cloud.js`, which saves only the rows that changed. Every new per-user field needs a column, a mapping in `cloud.js`, and RLS in a new migration under `supabase/migrations/`.
   - Simulated billing lives in `user_state.simulated_billing`. `subscriptions` and `billing_history` stay server-only. Account deletion and data removal go through `cpa.delete_my_account()` and `cpa.erase_my_data()`.
@@ -40,16 +48,16 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 ## Data model rules
 
 - **Schema changes:** add a new file to `supabase/migrations/` (apply it with the Supabase MCP `apply_migration`, then save the file under the version it records). Never edit an applied migration.
-- **Keep the references in step:** mirror the change in `schema.sql` and update `drawsql.png`, so both still describe every table. Keep the README's table count and group list correct.
+- **Keep the references in step:** mirror the change in `schema.sql` and regenerate `drawsql.png` (`npm run diagram` in `tools/diagram/`; add new tables to a group in `erd.py`), so both still describe every table. Keep the README's table count and group list correct.
 - **Every user table:** RLS on, policies scoped to `(select auth.uid()) = user_id`, a covering index on every foreign key, and a mapping in `lib/cloud.js` (with load and save) when the app stores it.
-- **Reference tables:** read-only to `anon` and `authenticated`; only the seed script or server code writes them. Re-run `npm run seed` in `supabase/` after changing `app/src/data/`.
+- **Reference tables:** read-only to `anon` and `authenticated`; only the seed script or server code (the `cryptorank-sync` Edge Function) writes them. Re-run `npm run seed` in `supabase/` after changing `app/src/data/`.
 - **After DDL:** run the security and performance advisors (`get_advisors`) and fix or explain every warning.
 - **Personal data:** collect only what a feature needs (journey §16–17). Analytics stay off by default, and export and delete must keep working.
 
 ## Security
 
 - `SUPABASE_SECRET_KEY` (in `.env`) bypasses RLS: use it only in server-side scripts such as `supabase/seed`. Never give it a `VITE_` prefix or import it in `app/`. After a build, check `app/dist` doesn't contain it.
-- `lookup.py` reads `CRYPTORANK_API_KEY` from the environment or `.env`. **Never commit `.env`, never print the key, and never paste it into code, docs, logs or commit messages.** `.env.example` holds names only.
+- `lookup.py` reads `CRYPTORANK_API_KEY` from the environment or `.env`. The Edge Function reads it from its secrets, set from `.env` with `supabase secrets set --env-file <(grep '^CRYPTORANK_API_KEY=' .env)`; `supabase secrets list` shows only its SHA-256 digest. **Never commit `.env`, never print the key, and never paste it into code, docs, logs or commit messages.** `.env.example` holds names only.
 - Before every commit, check the staged diff for the key and confirm `git check-ignore .env`.
 - Wrap browser I/O in try/catch or a failure check: storage, clipboard, downloads, `FileReader`, Web Crypto and notifications. Tell the user plainly when it fails; never fail silently.
 
@@ -126,7 +134,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 ## Targets (user_journey.md §7, user_stories.md non-functional requirements)
 
 - **Speed:** first data on screen in 2 s or less; lists scroll smoothly.
-- **Freshness:** visible prices no more than 30 s old; alerts fire within 30 s of their trigger.
+- **Freshness:** visible prices no more than 30 s old; alerts fire within 30 s of their trigger. On the free CryptoRank plan synced prices can be up to 10 minutes old, so the stale state must show their real age (`price_updated_at`), never the time of the last REST poll.
 - **Retention signals:** the first watchlist add and the first alert are the moments to make easy; keep both one tap away.
 - **Security and privacy:** no secrets in the bundle; read-only integrations only; analytics opt-in; data export and delete available.
 - **Localization:** keep UI strings out of logic where practical; English only for now.

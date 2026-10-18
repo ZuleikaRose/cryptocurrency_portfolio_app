@@ -70,7 +70,7 @@ function EditList({ coins, onMove, onRemove }) {
 
 export default function Watchlist() {
   const { session, settings, watchlist, toggleWatch, moveWatch, removeWatch, updateSettings, updateMarketSettings, requireAuth, openSearch } = useApp();
-  const { coins, lastUpdated, flashes, tick, refresh } = useMarket();
+  const { coins, lastUpdated, flashes, tick, refresh, loadError } = useMarket();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const now = useNow(15_000);
@@ -128,7 +128,7 @@ export default function Watchlist() {
         </div>
       )}
 
-      {failed && (
+      {(failed || loadError) && (
         <div className="banner banner-error" role="alert">
           <span>We couldn't load prices. Showing data from {relativeTime(lastUpdated, now)}.</span>
           <button

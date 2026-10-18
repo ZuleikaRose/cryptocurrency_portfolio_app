@@ -19,3 +19,6 @@ dist/
 
 # Local plugin learning data
 .cto-toolkit/
+
+# Diagram generator output
+tools/diagram/build/

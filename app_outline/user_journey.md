@@ -143,6 +143,8 @@ flowchart LR
 | Shared card opened by a friend | Organic growth loop                   | Share → install conversion                  |
 | Day-7 return                   | Habit formed                          | D7 retention                                 |
 
+> **CPA build (Oct 18, 2026):** the first data screen renders the bundled figures at once and swaps in live CryptoRank prices when the REST request returns, so a slow network never delays first data.
+
 ---
 
 ## 8. Cross-Journey Pain Points & Recommendations
@@ -151,6 +153,7 @@ flowchart LR
 2. **Saved state:** remember filters, sort orders, and chart ranges for each tab.
 3. **Event context:** tie price moves to unlocks, funding, and listings on the chart.
 4. **Trust signals:** data source, last-updated time, and verified contract on every key screen.
+   > **CPA build (Oct 18, 2026):** live prices are labelled "CryptoRank" and sample figures "CPA sample data". The last-updated time is when CryptoRank reported the price, so a delayed sync shows as stale instead of looking fresh.
 5. **Progressive disclosure:** "Simple" vs "Pro" density setting to serve both Leo and Maya.
 6. **Guest mode:** let users browse fully without an account. Require sign-in only for sync, alerts, and portfolio.
 

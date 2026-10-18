@@ -4,6 +4,10 @@
 -- browser-only build (sample data in app/src/data, accounts in localStorage under cpa:v1:*)
 -- can move to a server. Table and column comments cite the page spec or story they come from.
 --
+-- Live prices: a scheduled job (the cryptorank-sync Edge Function on Supabase) writes CryptoRank
+-- v3 price, 24h change, market cap and volume into coins and records each run in market_sync.
+-- Coins without a cryptorank_slug keep their sample figures.
+--
 -- Guest and demo sessions stay in memory and are not stored (prompt.md clarifications).
 -- Passwords are never stored: only a salted PBKDF2-SHA-256 hash (lib/auth.js).
 -- Cards are never stored in full: only brand, last 4 digits and expiry (lib/billing.js).
@@ -28,7 +32,7 @@ END;
 $$;
 
 -- =====================================================================
--- 1. Reference data (today: app/src/data/*.js)
+-- 1. Reference data (today: app/src/data/*.js; live prices from CryptoRank)
 -- =====================================================================
 
 -- Market categories (data/coins.js `categories`); also fund and round sectors.
@@ -60,6 +64,9 @@ CREATE TABLE coins (
   total_supply       numeric(30, 6),
   circulating_supply numeric(30, 6),
   max_supply         numeric(30, 6),
+  cryptorank_slug  text UNIQUE,                               -- CryptoRank v3 slug; null keeps sample figures
+  price_source     text NOT NULL DEFAULT 'sample' CHECK (price_source IN ('sample', 'cryptorank')),  -- trust signal (journey rule 4)
+  price_updated_at timestamptz,                               -- when CryptoRank last reported price, 24h, cap, volume
   updated_at       timestamptz NOT NULL DEFAULT now()         -- "Last updated" / stale over 5 min
 );
 CREATE INDEX coins_symbol_idx ON coins (symbol);   -- not unique: copycat tickers exist (US-2.5)
@@ -90,6 +97,18 @@ CREATE TABLE coin_markets (
   price_usd    numeric(30, 12),
   volume_share numeric(6, 5) CHECK (volume_share BETWEEN 0 AND 1),
   PRIMARY KEY (coin_id, exchange_id, pair)
+);
+
+-- Last run of the live price sync (the cryptorank-sync Edge Function). One row; server-only.
+CREATE TABLE market_sync (
+  id               boolean PRIMARY KEY DEFAULT true CHECK (id),
+  last_started_at  timestamptz,                               -- runs start at most every 9 minutes
+  last_finished_at timestamptz,
+  last_status      text CHECK (last_status IN ('ok', 'error')),
+  coins_updated    integer NOT NULL DEFAULT 0,
+  credits_used     integer NOT NULL DEFAULT 0,                -- CryptoRank credits (free plan: 400 a day)
+  missing_slugs    text[] NOT NULL DEFAULT '{}',              -- mapped coins not found in the top 200
+  last_error       text
 );
 
 -- Tokenomics: vesting schedule per coin and its allocations (03-coin-detail.md Tokenomics).

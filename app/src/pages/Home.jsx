@@ -15,6 +15,7 @@ import { fundingRounds, unlockEvents } from "../data/research.js";
 import { direction, formatCompact, formatDate, formatPercent, relativeTime, rateFor, spokenPercent } from "../lib/format.js";
 import { TRENDING, useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
+import { marketCapChange24h } from "../lib/market.js";
 
 const MOVERS_MIN_VOLUME = 100_000;
 const initialCapTotal = initialCoins.reduce((sum, coin) => sum + coin.marketCap, 0);
@@ -76,7 +77,7 @@ export default function Home() {
   }, []);
 
   const totalCap = marketPulse.totalMarketCap * (coins.reduce((sum, coin) => sum + coin.marketCap, 0) / initialCapTotal);
-  const totalChange = marketPulse.totalChange24h + (totalCap / marketPulse.totalMarketCap - 1) * 100;
+  const totalChange = marketCapChange24h(coins);
   const capDir = direction(totalChange);
 
   // Guests see Trending until they pick coins in onboarding (US-1.3).

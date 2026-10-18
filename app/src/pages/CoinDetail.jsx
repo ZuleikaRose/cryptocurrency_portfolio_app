@@ -134,8 +134,10 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
         </div>
         {showMarkers && (
           <p className="marker-legend">
-            <span className="marker-key marker-unlock">U</span> Unlock <span className="marker-key marker-funding">F</span> Funding{" "}
-            <span className="marker-key marker-listing">L</span> Listing
+            {/* Each key stays with its label when the legend wraps at large text sizes. */}
+            <span className="marker-item"><span className="marker-key marker-unlock">U</span> Unlock</span>
+            <span className="marker-item"><span className="marker-key marker-funding">F</span> Funding</span>
+            <span className="marker-item"><span className="marker-key marker-listing">L</span> Listing</span>
           </p>
         )}
         <ChartSummary text={chartSummary(points, range.label, currency, rate)} />
@@ -538,7 +540,7 @@ export default function CoinDetail() {
       </section>
 
       <p className="disclaimer">
-        Not financial advice. Data provided for informational purposes. Source: CPA sample data · Last updated {relativeTime(lastUpdated, now)}
+        Not financial advice. Data provided for informational purposes. Source: {coin.source === "cryptorank" ? "CryptoRank (price, 24h change, market cap, volume); other figures CPA sample data" : "CPA sample data"} · Last updated {relativeTime(lastUpdated, now)}
       </p>
 
       <Sheet open={Boolean(eventSheet)} onClose={() => setEventSheet(null)} title={eventSheet ? `${{ unlock: "Unlock", funding: "Funding round", listing: "Listing" }[eventSheet.kind]}` : "Event"} side="bottom">

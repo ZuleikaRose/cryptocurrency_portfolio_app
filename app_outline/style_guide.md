@@ -11,7 +11,7 @@
 |---|---|
 | **Data first** | Numbers are the product. Prices, % changes, market caps, and unlock dates get the most visual weight. Decoration never competes with data. |
 | **Glanceable** | A user should read the market in under 3 seconds: the top movers, their watchlist, and the next unlock. |
-| **Trustworthy** | Every metric shows its source and when it was last updated. Labels are neutral. No hype language or "moon" emoji. |
+| **Trustworthy** | Every metric shows its source and when it was last updated. Labels are neutral. No hype language or "moon" emoji. (CPA: "Source: CryptoRank" for live prices, "CPA sample data" for the rest.) |
 | **Dense but calm** | Show plenty of information, using whitespace, alignment, and muted surfaces to avoid noise. |
 | **Thumb-friendly** | Primary actions sit in the bottom half of the screen. Touch targets are at least 44×44 pt. |
 
@@ -185,6 +185,8 @@ ARB · Arbitrum                       in 3d 04h
 | Error | Inline banner with retry. Cached data stays visible, marked "Last updated 12m ago" |
 | Offline | Top banner "You're offline: showing saved data" |
 | Stale data | Values over 5 min old are shown in `text/secondary` with a clock icon |
+
+> **CPA build (Oct 18, 2026):** live prices sync from CryptoRank every 10 minutes, so the stale state is expected for part of each cycle and is measured from when CryptoRank reported the figures. A failed REST request uses the Error pattern: the last prices stay on screen with the banner and Retry.
 
 ---
 
