@@ -43,6 +43,27 @@ The personas come from `app_outline/user_journey.md`:
 
 Each page has a spec with its wireframe, stories and "done when" conditions in `app_outline/pages/` (`00-app-shell.md` to `29-not-found.md`).
 
+## What the outline asks for
+
+`app_outline/` holds the source documents. `prompt.md` condenses what they require, and `CLAUDE.md` turns that into working rules.
+
+- **`user_stories.md`:** 9 epics of stories (US-1.1 to US-9.6), each with Given/When/Then criteria. The 22 P0 stories (81 points) are the MVP; P1 and P2 stories are built where a browser allows.
+- **`user_journey.md`:**
+  - The four personas and their journey maps.
+  - Three core flows: first launch, set an unlock reminder, research a project.
+  - The six cross-journey rules: ask for notifications only at the first alert, remember choices per tab, show events on charts, show trust signals, offer Simple vs Pro, and allow full guest browsing.
+  - The "moments that matter", each with how it's measured:
+
+    | Moment | Measured by |
+    |---|---|
+    | First data on screen | 2 s or less from a cold start |
+    | First watchlist add | share of new users who add a coin in their first session |
+    | First alert fires on time | delivered within 30 s of the trigger |
+    | A shared card gets opened | shares that turn into new users |
+    | Day-7 return | 7-day retention |
+
+- **`style_guide.md`:** principles, voice, colour, type, spacing, components, states, motion and accessibility. The **Design** and **Accessibility** sections below summarise it.
+
 ## How data is kept
 
 | Who | Where | Survives a refresh? |
@@ -71,6 +92,7 @@ The design follows `app_outline/style_guide.md`, with the Figma wireframe (`app_
   - Signed percentages to 2 decimals with a true minus (`−0.48%`).
   - Direction is never shown by colour alone: values carry ▲ ▼ or + −.
 - **Colour options:** up/down colours can be swapped, or switched to a colour-blind safe blue/orange pair.
+- **Voice:** a neutral research analyst. Market data is factual, empty states are friendly and brief, errors are plain and say what to do next, and alerts sound urgent only when something is time-sensitive. Never advice or hype.
 - **States:**
   - Loading: skeleton shimmer.
   - Empty: one sentence and one action.
@@ -118,6 +140,33 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 - The app reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the root `.env` (`envDir: '..'` in `vite.config.js`).
 - Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; add `http://localhost:5173/reset-password` (and your deployed URL) under **Authentication → URL configuration → Redirect URLs**.
 
+## Data model
+
+![Entity-relationship diagram of the CPA schema: 47 tables in 8 groups](drawsql.png)
+
+`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 47 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
+
+| Group | Tables | Holds |
+|---|---|---|
+| Reference | `categories`, `plans`, `promotions`, `faq_sections`, `faq_items`, `learn_articles`, `glossary_terms` | Fixed lists and help content |
+| Market | `coins`, `coin_prices`, `exchanges`, `coin_markets` | Rankings, price history, where each coin trades |
+| Research | `vesting_schedules`, `vesting_allocations`, `unlock_events`, `funds`, `fund_sectors`, `funding_rounds`, `round_investors`, `token_sales` | Tokenomics, unlocks, fundraising, token sales |
+| Watchlist & portfolio | `watchlist_items`, `recent_coins`, `recent_searches`, `sentiment_votes`, `transactions`, `user_interest_coins`, `user_interest_sectors`, `fund_follows`, `project_follows` | What each user tracks, holds and follows |
+| Accounts | `users`, `sessions`, `login_attempts`, `password_reset_tokens`, `password_reset_requests`, `user_state`, `affiliates` | Sign-in, counters and flags, affiliate codes |
+| Alerts & billing | `price_alerts`, `reminders`, `notifications`, `saved_filters`, `subscriptions`, `promo_redemptions`, `billing_history`, `payment_methods` | Alerts and their inbox, saved Fundraising filters, plans and payments |
+| Settings | `user_settings` | One row per user: display, notifications, AI features, the accessibility menu and each tab's remembered filters |
+| Support | `support_tickets`, `support_log`, `feedback` | Tickets, issue reports, data-removal log, feedback |
+
+Views: `coin_sentiment`, `portfolio_holdings` (net amount and average buy price) and `user_points` (loyalty points).
+
+The live database runs the Supabase version in `supabase/migrations/`. It differs from `schema.sql` in these ways:
+- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 43 tables. `cpa.users` is a profile row keyed to `auth.users`.
+- **Access:** row-level security is on every table.
+- **Sentiment:** `coin_sentiment` became the `coin_sentiment_today()` function, which returns totals without revealing who voted.
+- **Later migration:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`.
+
+`schema.sql` stays the portable reference for running CPA on any PostgreSQL 15+ server.
+
 ## Project layout
 
 ```
@@ -131,6 +180,8 @@ app/                  React 19 + Vite 8 + React Router 7 (BrowserRouter)
   src/styles/         tokens.css first, a11y.css last
 app_outline/          style guide, user journeys, user stories, page specs, wireframe
 supabase/             migrations, seed script, CLI config (config.toml)
+schema.sql            portable PostgreSQL schema for every feature (47 tables)
+drawsql.png           entity-relationship diagram of schema.sql
 lookup.py             CryptoRank v3 lookup (needs CRYPTORANK_API_KEY)
 prompt.md             the original build brief and its clarifications
 CLAUDE.md             working rules for Claude Code in this repo
