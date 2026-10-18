@@ -50,12 +50,19 @@ These override the brief and the `app_outline` documents where they differ.
     - Sign-in uses Supabase Auth with email and password.
     - Account data is stored in the `cpa` schema through the Supabase REST API, with row-level security on every table.
     - Guest browsing and the demo still live in memory and reset on refresh.
-    - Market data stays bundled sample data. Reading it from the database, with live CryptoRank prices from a scheduled Edge Function, is a later phase.
+    - Market data was bundled sample data at this point. Clarification 14 adds live CryptoRank prices.
 12. **Account decisions.**
     - Sign-up logs straight in ("Confirm email" is off).
     - Simulated billing is stored in `user_state.simulated_billing`, and the real subscription tables stay server-only.
     - Delete account marks the profile deleted. Logging in to a deleted account offers **Remove my data**, which erases it for good.
-13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 47 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
+13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 48 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
+14. **Live prices from CryptoRank (Oct 18, 2026).** This replaces "There will be no API interactions" above, for prices only.
+    - The `cryptorank-sync` Supabase Edge Function fetches the top 200 coins from CryptoRank v3 every 10 minutes (pg_cron) and writes price, 24h change, market cap and volume into `cpa.coins`.
+    - 31 coins are mapped by `coins.cryptorank_slug`. The others, and every other figure (1h and 7d change, FDV, sparklines, unlocks, rounds, sales), stay sample data.
+    - The app reads the prices through the Supabase REST API on load and every 30 s. A failed request keeps the last data on screen with an error banner and Retry. Before the first sync, or without Supabase, the simulated feed stands in.
+    - `CRYPTORANK_API_KEY` is an Edge Function secret set from `.env`. It never reaches the browser or the repository.
+    - Freshness: the free CryptoRank plan allows 400 credits a day, so prices can be up to about 10 minutes old instead of 30 s. The "Last updated" time and stale marker show the real age.
+    - Coin detail names the source of each figure (CryptoRank or CPA sample data).
 
 # Required material from the outline documents
 
@@ -139,7 +146,7 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 ## Non-functional requirements (user_stories.md)
 
 - **Speed:** first data in 2 s or less; smooth list scrolling.
-- **Freshness:** prices no more than 30 s old while visible.
+- **Freshness:** prices no more than 30 s old while visible. CPA's live prices sync every 10 minutes on the free CryptoRank plan (clarification 14), so the stale marker shows when they're older than 5 minutes.
 - **Reliability:** at least 99.5% of sessions without a crash.
 - **Accessibility:** WCAG 2.2 AA, with text up to 200%.
 - **Privacy and security:** analytics off by default; no sale of personal data; data export and delete available; no secrets in the app; read-only integrations only.
@@ -169,7 +176,7 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 | Group | Tables |
 |---|---|
 | Reference | categories, plans, promotions, faq_sections, faq_items, learn_articles, glossary_terms |
-| Market | coins, coin_prices, exchanges, coin_markets |
+| Market | coins, coin_prices, exchanges, coin_markets, market_sync |
 | Research | vesting_schedules, vesting_allocations, unlock_events, funds, fund_sectors, funding_rounds, round_investors, token_sales |
 | Watchlist & portfolio | watchlist_items, recent_coins, recent_searches, sentiment_votes, transactions, user_interest_coins, user_interest_sectors, fund_follows, project_follows |
 | Accounts | users, sessions, login_attempts, password_reset_tokens, password_reset_requests, user_state, affiliates |
@@ -177,11 +184,12 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 | Settings | user_settings (one row per user: display, notifications, AI, accessibility menu, each tab's filters) |
 | Support | support_tickets, support_log, feedback |
 
-The Supabase migrations run a 43-table version of this model:
+The Supabase migrations run a 44-table version of this model:
 - Supabase Auth replaces the password and session tables.
 - Row-level security is on every table.
 - `coin_sentiment` became the `coin_sentiment_today()` function.
 - `user_state` gains `simulated_billing`.
+- `coins` gains `cryptorank_slug`, `price_source` and `price_updated_at`, and `market_sync` records each live price sync.
 
 ## Style guide essentials (style_guide.md)
 
