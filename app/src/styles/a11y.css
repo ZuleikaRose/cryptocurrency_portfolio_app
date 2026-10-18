@@ -141,7 +141,7 @@ main.content, .sheet-body { zoom: var(--a11y-zoom, 1); }
 :root[data-text-large="on"] :is(.pulse-grid, .discover-grid, .stat-tiles, .custom-range, .password-checks, .sheet-actions, .profile-grid) {
   grid-template-columns: minmax(0, 1fr);
 }
-:root[data-text-large="on"] :is(.input-row, .segmented, .unlock-card-head, .chart-readout, .promo-code-row, .round-foot, .detail-actions, .detail-header, .button-row, .still-stuck, .holding-row, .deal-list li, .feedback-prompt) {
+:root[data-text-large="on"] :is(.input-row, .segmented, .unlock-card-head, .chart-readout, .promo-code-row, .round-foot, .detail-actions, .detail-header, .button-row, .still-stuck, .holding-row, .deal-list li, .feedback-prompt, .home-rounds li, .marker-legend) {
   flex-wrap: wrap;
 }
 :root[data-text-large="on"] :is(.chart, .chart-frame, .chart-surface, .card, .input, .unlock-card, .pulse-card) { min-width: 0; max-width: 100%; }

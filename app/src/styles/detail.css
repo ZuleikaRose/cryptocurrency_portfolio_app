@@ -105,7 +105,8 @@
 .marker-listing span, .marker-key.marker-listing { background: var(--cat-sales); }
 .chart-marker:hover span { filter: brightness(1.25); }
 .chart-marker:focus-visible { outline: 2px solid var(--accent); border-radius: 4px; }
-.marker-legend { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.marker-legend { display: flex; align-items: center; gap: 6px 12px; color: var(--muted); font-size: 12px; }
+.marker-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .marker-key { width: 14px; height: 14px; margin-left: 6px; font-size: 0; }
 .chart-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
 .chart-controls .segment { min-width: 0; padding: 0 9px; }

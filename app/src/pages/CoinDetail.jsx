@@ -134,8 +134,10 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
         </div>
         {showMarkers && (
           <p className="marker-legend">
-            <span className="marker-key marker-unlock">U</span> Unlock <span className="marker-key marker-funding">F</span> Funding{" "}
-            <span className="marker-key marker-listing">L</span> Listing
+            {/* Each key stays with its label when the legend wraps at large text sizes. */}
+            <span className="marker-item"><span className="marker-key marker-unlock">U</span> Unlock</span>
+            <span className="marker-item"><span className="marker-key marker-funding">F</span> Funding</span>
+            <span className="marker-item"><span className="marker-key marker-listing">L</span> Listing</span>
           </p>
         )}
         <ChartSummary text={chartSummary(points, range.label, currency, rate)} />

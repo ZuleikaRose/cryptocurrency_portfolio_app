@@ -21,7 +21,7 @@ From the repo root:
 5. **`app_outline/user_stories.md`** (US-x.y, priorities P0/P1/P2) and **`app_outline/user_journey.md`** (personas Maya, Daniel, Priya and Leo, journey maps, cross-journey rules, moments that matter).
 6. **Data model:**
    - `supabase/migrations/` is what the live database runs.
-   - `schema.sql` (47 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
+   - `schema.sql` (48 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
    - Where the two differ (Supabase Auth instead of password and session tables, RLS, `simulated_billing`), the migrations win.
 
 Before changing a page, read its spec and the stories it cites. Before storing anything new for a user, find its table in `schema.sql` / `drawsql.png`.
