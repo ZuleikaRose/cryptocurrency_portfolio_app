@@ -1054,6 +1054,7 @@ export function AppProvider({ children }) {
   // Returns the saved ticket, or null if it couldn't be sent.
   const addTicket = useCallback(
     async (ticket) => {
+      if (session.kind !== "demo" && !supabase) return null;
       let saved;
       if (session.kind === "demo" || !supabase) {
         saved = { status: "Received", ...ticket, id: demoTicketId(ticket.kind), date: new Date().toISOString() };
@@ -1074,6 +1075,7 @@ export function AppProvider({ children }) {
   // Returns false if it couldn't be sent.
   const addFeedback = useCallback(
     async (entry) => {
+      if (session.kind !== "demo" && !supabase) return false;
       if (session.kind !== "demo" && supabase) {
         try {
           await sendFeedback(session.kind === "user" ? session.userId : null, entry);
