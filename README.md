@@ -142,9 +142,9 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 
 ## Data model
 
-![Entity-relationship diagram of the CPA schema: 47 tables in 8 groups](drawsql.png)
+![Entity-relationship diagram of the CPA schema: 48 tables in 8 groups](drawsql.png)
 
-`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram (it predates `market_sync` and the three price-source columns on `coins`). Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
+`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
 
 | Group | Tables | Holds |
 |---|---|---|

@@ -4,6 +4,10 @@
 -- browser-only build (sample data in app/src/data, accounts in localStorage under cpa:v1:*)
 -- can move to a server. Table and column comments cite the page spec or story they come from.
 --
+-- Live prices: a scheduled job (the cryptorank-sync Edge Function on Supabase) writes CryptoRank
+-- v3 price, 24h change, market cap and volume into coins and records each run in market_sync.
+-- Coins without a cryptorank_slug keep their sample figures.
+--
 -- Guest and demo sessions stay in memory and are not stored (prompt.md clarifications).
 -- Passwords are never stored: only a salted PBKDF2-SHA-256 hash (lib/auth.js).
 -- Cards are never stored in full: only brand, last 4 digits and expiry (lib/billing.js).
@@ -28,7 +32,7 @@ END;
 $$;
 
 -- =====================================================================
--- 1. Reference data (today: app/src/data/*.js)
+-- 1. Reference data (today: app/src/data/*.js; live prices from CryptoRank)
 -- =====================================================================
 
 -- Market categories (data/coins.js `categories`); also fund and round sectors.
