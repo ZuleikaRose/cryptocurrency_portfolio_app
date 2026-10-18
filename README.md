@@ -116,7 +116,7 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 - `migrations/`: the `cpa` schema, RLS policies, and the account functions. The migrations are already applied to the linked project.
 - `seed/seed-sample-data.mjs`: uses `SUPABASE_SECRET_KEY` from `.env`. That key is server-only: never give it a `VITE_` prefix.
 - The app reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the root `.env` (`envDir: '..'` in `vite.config.js`).
-- Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; add `http://localhost:5173/reset-password` (and your deployed URL) under **Authentication → URL configuration → Redirect URLs**.
+- Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; set the minimum password length to 13 and password requirements to lowercase, uppercase, digits and symbols; add `http://localhost:5173/reset-password` (and your deployed URL) under **Authentication → URL configuration → Redirect URLs**.
 
 ## Project layout
 

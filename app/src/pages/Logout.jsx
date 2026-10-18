@@ -8,11 +8,21 @@ export default function Logout() {
   const { session, logOut, endDemo } = useApp();
   const navigate = useNavigate();
   const [done, setDone] = useState(null);
+  const [saveError, setSaveError] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     document.title = "Log out · CPA";
   }, []);
 
+  if (done === "loggingOut" || done === "discarding") {
+    return (
+      <div className="auth-page">
+        <h1>Logging out</h1>
+        <p className="page-sub" role="status">{done === "discarding" ? "Discarding unsaved changes…" : "Saving your account changes…"}</p>
+      </div>
+    );
+  }
   if (done === "demo") return <Navigate to="/" replace />;
   if (done === "user") {
     return (
@@ -34,6 +44,25 @@ export default function Logout() {
   if (session.kind === "guest") return <Navigate to="/" replace />;
 
   const demo = session.kind === "demo";
+  const finishLogout = async ({ discard = false } = {}) => {
+    if (demo) {
+      endDemo();
+      setDone("demo");
+      return;
+    }
+    setBusy(true);
+    setSaveError(false);
+    setDone(discard ? "discarding" : "loggingOut");
+    const result = await logOut({ discard });
+    setBusy(false);
+    if (!result.ok) {
+      setDone(null);
+      setSaveError(true);
+      return;
+    }
+    setDone("user");
+  };
+
   return (
     <div className="auth-page">
       <h1>{demo ? "End the demo?" : "Log out of CPA?"}</h1>
@@ -43,18 +72,25 @@ export default function Logout() {
         <>
           <p className="page-sub">Signed in as {session.email}</p>
           <p>Your watchlist, portfolio, alerts, and settings stay saved to your account. Alerts won't fire while you're logged out.</p>
+          {saveError && (
+            <div className="form-alert" role="alert">
+              <p>We couldn't save your changes. Retry, or discard unsaved changes and log out.</p>
+            </div>
+          )}
         </>
       )}
       <button
         className="button-primary"
-        onClick={() => {
-          setDone(demo ? "demo" : "user");
-          if (demo) endDemo();
-          else logOut();
-        }}
+        disabled={busy}
+        onClick={() => finishLogout()}
       >
-        {demo ? "End demo" : "Log out"}
+        {busy ? "Saving…" : demo ? "End demo" : saveError ? "Retry save" : "Log out"}
       </button>
+      {saveError && !demo && (
+        <button className="button-tertiary danger centered" disabled={busy} onClick={() => finishLogout({ discard: true })}>
+          Discard unsaved changes and log out
+        </button>
+      )}
       <button className="button-tertiary centered" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}>
         Cancel
       </button>
@@ -69,7 +105,7 @@ export function AccountDeleted() {
   }, []);
   // Arriving here from Settings: end the session of the account that was just deleted.
   useEffect(() => {
-    if (session.kind === "user" && session.deleted) logOut();
+    if (session.kind === "user" && session.deleted) logOut({ discard: true });
   }, [session, logOut]);
   return (
     <div className="auth-page">

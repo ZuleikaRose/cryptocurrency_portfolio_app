@@ -93,19 +93,20 @@ function NewPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState([]);
+  const [logoutFailed, setLogoutFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const checks = passwordChecks(password);
 
   const onSubmit = async (event) => {
     event.preventDefault();
     if (busy) return;
+    setLogoutFailed(false);
     const found = passwordErrors(checks);
     if (confirm !== password || !confirm) found.push("Passwords don't match.");
     setErrors(found);
     if (found.length) return;
     setBusy(true);
     const outcome = await completeReset(password);
-    setBusy(false);
     const failures = {
       same: "Choose a password different from your current one.",
       weak: "Choose a stronger password.",
@@ -113,10 +114,17 @@ function NewPasswordForm() {
       failed: "We couldn't save the new password. Check your connection and try again. Nothing was changed.",
     };
     if (outcome !== "ok") {
+      setBusy(false);
       setErrors([failures[outcome] ?? failures.failed]);
       return;
     }
-    logOut();
+    const loggedOut = await logOut();
+    setBusy(false);
+    if (!loggedOut.ok) {
+      setErrors(["Your password was updated, but pending account changes couldn't be saved."]);
+      setLogoutFailed(true);
+      return;
+    }
     showToast("Password updated. Log in with your new password.");
     navigate("/login", { replace: true });
   };
@@ -131,6 +139,7 @@ function NewPasswordForm() {
           ))}
         </ul>
       )}
+      {logoutFailed && <p className="page-sub">Go to <Link to="/logout">Log out</Link> to retry saving or discard the pending changes.</p>}
       <label className="form-field" htmlFor="reset-password">
         <span>New password</span>
       </label>

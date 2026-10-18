@@ -11,16 +11,21 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Times that keep a list's order (newest first): a row keeps its saved time while the order
 // still holds, otherwise it gets one just below the row above it.
 function orderedTimes(list, previous, now) {
+  const currentExisting = list.filter((item) => previous.has(item));
+  const previousExisting = [...previous.keys()].filter((item) => list.includes(item));
+  const sameOrder = currentExisting.every((item, index) => item === previousExisting[index]);
   let limit = Infinity;
   return list.map((item) => {
-    const saved = previous.get(item);
-    const time = saved != null && saved < limit ? saved : Math.min(limit - 1, now);
-    limit = time;
+    const savedValue = previous.get(item);
+    const saved = savedValue == null ? null : ms(savedValue);
+    const preserve = saved != null && (saved < limit || (sameOrder && saved === limit));
+    const time = preserve ? savedValue : Math.min(limit - 1, now);
+    limit = preserve ? saved : time;
     return time;
   });
 }
 const savedTimes = (snapshot, table, field) =>
-  new Map([...(snapshot?.[table]?.values() ?? [])].map((row) => [row.key, ms(row[field])]));
+  new Map([...(snapshot?.[table]?.values() ?? [])].map((row) => [row.key, row[field]]));
 
 // --- One-row tables -------------------------------------------------------
 
@@ -89,14 +94,14 @@ const collections = [
     table: "recent_coins", conflict: "coin_id",
     rows: (d, prev, now) => {
       const times = orderedTimes(d.recentCoins, savedTimes(prev, "recent_coins", "viewed_at"), now);
-      return d.recentCoins.map((coin_id, i) => ({ key: coin_id, coin_id, viewed_at: iso(times[i]) }));
+      return d.recentCoins.map((coin_id, i) => ({ key: coin_id, coin_id, viewed_at: typeof times[i] === "string" ? times[i] : iso(times[i]) }));
     },
   },
   {
     table: "recent_searches", conflict: "query",
     rows: (d, prev, now) => {
       const times = orderedTimes(d.recentSearches, savedTimes(prev, "recent_searches", "searched_at"), now);
-      return d.recentSearches.map((query, i) => ({ key: query, query, searched_at: iso(times[i]) }));
+      return d.recentSearches.map((query, i) => ({ key: query, query, searched_at: typeof times[i] === "string" ? times[i] : iso(times[i]) }));
     },
   },
   {
@@ -222,30 +227,61 @@ export async function saveAccountData(userId, previous, data) {
 
 // --- Load ------------------------------------------------------------------
 
-async function rows(table, order, ascending = true) {
-  let query = supabase.from(table).select("*");
-  if (order) query = query.order(order, { ascending });
-  const { data, error } = await query;
-  if (error) throw error;
-  return data;
+const stableKeys = {
+  users: "id",
+  user_settings: "user_id",
+  user_state: "user_id",
+  watchlist_items: "coin_id",
+  recent_coins: "coin_id",
+  recent_searches: "query",
+  sentiment_votes: "coin_id",
+  user_interest_coins: "coin_id",
+  user_interest_sectors: "sector",
+  transactions: "id",
+  fund_follows: "fund_id",
+  project_follows: "project",
+  saved_filters: "id",
+  price_alerts: "id",
+  reminders: "target_id",
+  notifications: "id",
+  affiliates: "user_id",
+  support_tickets: "id",
+  feedback: "id",
+};
+
+async function rows(table, order, ascending = true, tieBreaker = stableKeys[table]) {
+  const pageSize = 1000;
+  const allRows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    let query = supabase.from(table).select("*");
+    if (order) query = query.order(order, { ascending });
+    if (tieBreaker && tieBreaker !== order) query = query.order(tieBreaker, { ascending });
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    allRows.push(...data);
+    if (data.length < pageSize) return allRows;
+  }
 }
 
 // The signed-in user's profile and data in the app's shape (before AppStore's normalising).
 // Returns { profile, stored } or throws. RLS limits every query to this user's rows.
 export async function loadAccountData() {
+  const profiles = await rows("users");
+  const profile = profiles[0];
+  if (!profile) throw new Error("No profile row for this account.");
+  if (profile.status === "deleted") return { profile };
+
   const [
-    profiles, settings, state, watchlist, recentCoins, recentSearches, votes, interestCoins, interestSectors,
+    settings, state, watchlist, recentCoins, recentSearches, votes, interestCoins, interestSectors,
     transactions, follows, projects, filters, alerts, reminders, notifications, affiliates, tickets, feedback,
   ] = await Promise.all([
-    rows("users"), rows("user_settings"), rows("user_state"), rows("watchlist_items", "position"),
+    rows("user_settings"), rows("user_state"), rows("watchlist_items", "position"),
     rows("recent_coins", "viewed_at", false), rows("recent_searches", "searched_at", false), rows("sentiment_votes", "vote_day"),
-    rows("user_interest_coins"), rows("user_interest_sectors"), rows("transactions", "occurred_at"),
+    rows("user_interest_coins"), rows("user_interest_sectors"), rows("transactions", "occurred_at", true, "id"),
     rows("fund_follows"), rows("project_follows", "followed_at"), rows("saved_filters", "created_at", false),
     rows("price_alerts", "created_at", false), rows("reminders"), rows("notifications", "created_at", false),
     rows("affiliates"), rows("support_tickets", "created_at", false), rows("feedback", "created_at", false),
   ]);
-  const profile = profiles[0];
-  if (!profile) throw new Error("No profile row for this account.");
   const s = settings[0];
   const st = state[0];
   const affiliate = affiliates[0];
@@ -294,7 +330,14 @@ export async function loadAccountData() {
     tickets: tickets.map(ticketFromRow),
     feedback: feedback.map((row) => ({ rating: row.rating, area: row.area, text: row.body, contact: row.may_contact, date: row.created_at })),
   };
-  return { profile, stored };
+  return {
+    profile,
+    stored,
+    previous: {
+      recent_coins: new Map(recentCoins.map((row) => [row.coin_id, { key: row.coin_id, viewed_at: row.viewed_at }])),
+      recent_searches: new Map(recentSearches.map((row) => [row.query, { key: row.query, searched_at: row.searched_at }])),
+    },
+  };
 }
 
 // --- Tickets and feedback: insert-only, so they're written directly, not diffed ----------

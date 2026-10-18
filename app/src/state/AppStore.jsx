@@ -149,10 +149,10 @@ const accountSession = (profile, user) => ({ kind: "user", userId: profile.id, n
 // Returns { status: "ok", session, data, snapshot } | { status: "deleted" } | { status: "error", error }.
 async function loadAccount(user) {
   try {
-    const { profile, stored } = await loadAccountData();
+    const { profile, stored, previous } = await loadAccountData();
     if (profile.status === "deleted") return { status: "deleted" };
     const data = normalizeStored(stored);
-    return { status: "ok", session: accountSession(profile, user), data, snapshot: snapshot(data) };
+    return { status: "ok", session: accountSession(profile, user), data, snapshot: snapshot(data, previous) };
   } catch (error) {
     return { status: "error", error };
   }
@@ -333,7 +333,7 @@ export function AppProvider({ children }) {
   const sync = useRef({ userId: null, snapshot: null, running: null, again: false, warned: false, retry: 0 });
   const flush = useCallback(function flushNow() {
     const state = sync.current;
-    if (!state.userId || !state.snapshot) return Promise.resolve();
+    if (!state.userId || !state.snapshot) return Promise.resolve({ ok: true });
     if (state.running) {
       state.again = true;
       return state.running;
@@ -341,19 +341,23 @@ export function AppProvider({ children }) {
     window.clearTimeout(state.retry);
     state.running = (async () => {
       do {
+        if (sync.current !== state) return { ok: false, stale: true };
         state.again = false;
         const target = dataRef.current;
         const result = await saveAccountData(state.userId, state.snapshot, target).catch((error) => ({ ok: false, error, snapshot: state.snapshot }));
+        if (sync.current !== state) return { ok: false, stale: true };
         state.snapshot = result.snapshot;
         if (!result.ok) {
           if (!state.warned) notifyRef.current?.("We couldn't save your changes. Check your connection; we'll keep trying.");
           state.warned = true;
           if (sync.current === state) state.retry = window.setTimeout(flushNow, RETRY_MS);
-          return;
+          return { ok: false, error: result.error };
         }
         if (state.warned) notifyRef.current?.("Your changes are saved.");
         state.warned = false;
-      } while (state.again);
+        if (dataRef.current !== target) state.again = true;
+      } while (state.again && sync.current === state);
+      return { ok: sync.current === state };
     })().finally(() => {
       state.running = null;
     });
@@ -801,7 +805,10 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!supabase) return undefined;
     let live = true;
-    const timer = window.setTimeout(() => setReady(true), RESTORE_TIMEOUT_MS);
+    const timer = window.setTimeout(() => {
+      live = false;
+      setReady(true);
+    }, RESTORE_TIMEOUT_MS);
     (async () => {
       const { data: { session: auth } } = await supabase.auth.getSession();
       if (!auth || !live) return;
@@ -934,16 +941,23 @@ export function AppProvider({ children }) {
 
   // Pending changes are saved first, then this browser's session ends (other devices stay signed in).
   // A second call (StrictMode re-running an effect, two tabs) finds no account and does nothing.
-  const logOut = useCallback(() => {
-    if (!sync.current.userId) return;
-    const pending = flush();
+  const logOut = useCallback(async ({ discard = false } = {}) => {
+    const state = sync.current;
+    if (!state.userId) return { ok: true };
+    if (!discard) {
+      const result = await flush();
+      if (!result.ok || sync.current !== state) return result;
+    } else if (sync.current !== state) {
+      return { ok: false, stale: true };
+    }
     resetToGuest();
-    pending
-      .catch(() => {})
-      .then(() => supabase?.auth.signOut({ scope: "local" }))
-      .then((result) => {
-        if (result?.error) notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
-      });
+    try {
+      const { error } = await supabase?.auth.signOut({ scope: "local" }) ?? {};
+      if (error) notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
+    } catch {
+      notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
+    }
+    return { ok: true };
   }, [flush, resetToGuest]);
 
   // Checks the current password by signing in again. Returns null when it's right, or an error kind.
@@ -1054,6 +1068,7 @@ export function AppProvider({ children }) {
   // Returns the saved ticket, or null if it couldn't be sent.
   const addTicket = useCallback(
     async (ticket) => {
+      if (session.kind !== "demo" && !supabase) return null;
       let saved;
       if (session.kind === "demo" || !supabase) {
         saved = { status: "Received", ...ticket, id: demoTicketId(ticket.kind), date: new Date().toISOString() };
@@ -1074,6 +1089,7 @@ export function AppProvider({ children }) {
   // Returns false if it couldn't be sent.
   const addFeedback = useCallback(
     async (entry) => {
+      if (session.kind !== "demo" && !supabase) return false;
       if (session.kind !== "demo" && supabase) {
         try {
           await sendFeedback(session.kind === "user" ? session.userId : null, entry);
