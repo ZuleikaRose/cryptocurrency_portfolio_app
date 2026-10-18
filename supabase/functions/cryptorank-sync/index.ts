@@ -87,8 +87,9 @@ Deno.serve(async (req) => {
     return json({ status: "ok", updated, credits, missing });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await db.rpc("fail_market_sync", { message, credits });
     console.error(`cryptorank-sync failed: ${message}`);
-    return json({ status: "error", error: message, credits }, 502);
+    const { error: logError } = await db.rpc("fail_market_sync", { message, credits });
+    if (logError) console.error(`cryptorank-sync couldn't record the failure: ${logError.message}`);
+    return json({ status: "error", error: message, credits, recorded: !logError }, 502);
   }
 });
