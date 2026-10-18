@@ -15,8 +15,9 @@ import {
   relativeTime,
   spokenPercent,
 } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useNow, useOnline } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
+import { marketCapChange24h } from "../lib/market.js";
 
 const views = [
   { id: "coins", label: "Coins", title: "Top cryptocurrencies" },
@@ -271,7 +272,7 @@ function CoinList({ rows, view, emptyAction, ...rowProps }) {
 
 export default function Market() {
   const { settings, updateSettings, updateMarketSettings, watchlist, toggleWatch, openSearch } = useApp();
-  const { coins, lastUpdated, tick, flashes, refresh } = useMarket();
+  const { coins, lastUpdated, tick, flashes, refresh, loadError } = useMarket();
   const [params, setParams] = useSearchParams();
   const [sortOpen, setSortOpen] = useState(false);
   const [aboutFearGreed, setAboutFearGreed] = useState(false);
@@ -285,6 +286,7 @@ export default function Market() {
   const rate = rateFor(currency, coins);
   const stale = now - lastUpdated > STALE_AFTER_MS;
   const simulatedError = params.get("simulate") === "error";
+  const online = useOnline();
 
   useEffect(() => {
     document.title = "Market · CPA";
@@ -310,7 +312,7 @@ export default function Market() {
 
   const rows = useMemo(() => selectRows(coins, view, market, watchlist), [coins, view, market, watchlist]);
   const totalCap = marketPulse.totalMarketCap * (coins.reduce((sum, coin) => sum + coin.marketCap, 0) / initialCapTotal);
-  const totalChange = marketPulse.totalChange24h + (totalCap / marketPulse.totalMarketCap - 1) * 100;
+  const totalChange = marketCapChange24h(coins);
 
   const setView = (id) => {
     const next = new URLSearchParams(params);
@@ -380,7 +382,7 @@ export default function Market() {
         ))}
       </div>
 
-      {simulatedError && (
+      {(simulatedError || loadError) && (
         <div className="banner banner-error" role="alert">
           <span>We couldn't load prices. Showing data from {relativeTime(lastUpdated, now)}.</span>
           <button
@@ -412,7 +414,8 @@ export default function Market() {
           </Link>
         ) : (
           // Auto-refresh off (US-P27.3): prices only change when asked.
-          <button className="button-secondary compact" onClick={refresh}>
+          // Offline (US-9.5): the feed can't refresh, so the button is disabled until the connection returns.
+          <button className="button-secondary compact" onClick={refresh} disabled={!online}>
             Refresh
           </button>
         )}

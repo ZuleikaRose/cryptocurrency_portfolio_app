@@ -15,15 +15,16 @@ function mulberry32(seed) {
 }
 const random = mulberry32(20261017);
 const between = (min, max) => min + random() * (max - min);
+const betweenWith = (rand, min, max) => min + rand() * (max - min);
 
 // 7-day sparkline: 24 points ending at today's price, shaped by the 7d change.
-function makeSpark(change7d, volatility) {
+function makeSpark(change7d, volatility, rand = random) {
   const points = [];
   let value = 100;
   const drift = change7d / 23;
   for (let i = 0; i < 24; i += 1) {
     points.push(value);
-    value += drift + (random() - 0.5) * volatility * 2.5;
+    value += drift + (rand() - 0.5) * volatility * 2.5;
   }
   return points;
 }
@@ -94,7 +95,10 @@ function fillerName() {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, tint, listedDaysAgo, fdv, volume24h }, rank) {
+// `rand` defaults to the shared sample PRNG; coins added later pass their own so the
+// earlier coins' generated figures stay the same.
+function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, tint, listedDaysAgo, fdv, volume24h }, rank, rand = random) {
+  const between = (min, max) => betweenWith(rand, min, max);
   const stable = category === "Stablecoin";
   const volatility = stable ? 0.02 : between(0.6, 2.2);
   const fixed = wireframe[slug];
@@ -115,7 +119,7 @@ function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, 
     fdv: fdv ?? marketCap / circulatingShare,
     volume24h: volume24h ?? marketCap * (stable ? between(0.25, 0.6) : between(0.015, 0.12)),
     listedDaysAgo: listedDaysAgo ?? Math.round(between(200, 4000)),
-    spark: fixed ? wireframeSpark(fixed.spark) : makeSpark(change7d, volatility),
+    spark: fixed ? wireframeSpark(fixed.spark) : makeSpark(change7d, volatility, rand),
   };
 }
 
@@ -169,7 +173,20 @@ function buildCoins() {
   return [...head, ...tail].map((row, index) => buildCoin(row, index + 1));
 }
 
-export const initialCoins = buildCoins();
+// Coins added after the first build, each with its own PRNG (see buildCoin). Zcash was added
+// on Oct 18, 2026 with live CryptoRank prices; its sample figures are CryptoRank's that day.
+const added = [
+  { slug: "zcash", name: "Zcash", symbol: "ZEC", price: 1081.81, change24h: -4.56, marketCap: 18.21e9, category: "Layer 1", tint: "yellow", listedDaysAgo: 3640, seed: 20261018 },
+];
+
+// Rank by market cap, keeping the wireframe's first four in place.
+function rerank(coins) {
+  const head = coins.slice(0, 4);
+  const tail = coins.slice(4).sort((a, b) => b.marketCap - a.marketCap);
+  return [...head, ...tail].map((coin, index) => ({ ...coin, rank: index + 1 }));
+}
+
+export const initialCoins = rerank([...buildCoins(), ...added.map(({ seed, ...row }) => buildCoin(row, 0, mulberry32(seed)))]);
 
 export const marketPulse = {
   totalMarketCap: 2.67e12,

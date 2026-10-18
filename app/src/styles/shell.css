@@ -238,6 +238,18 @@ main.content:focus-visible { outline: none; }
 .toast .icon { width: 16px; height: 16px; color: var(--up); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
+/* Offline banner (US-9.5) */
+.offline-banner {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  font-size: 13px;
+}
+.offline-banner .icon { width: 16px; height: 16px; flex: none; color: var(--warning); }
+
 /* Demo banner */
 .demo-banner {
   display: flex; align-items: center; justify-content: space-between;

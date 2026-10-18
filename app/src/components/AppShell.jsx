@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
-import { DemoBanner, SignInSheet, Toasts } from "./GlobalOverlays.jsx";
+import { DemoBanner, OfflineBanner, SignInSheet, Toasts } from "./GlobalOverlays.jsx";
 import SearchOverlay from "./SearchOverlay.jsx";
 import AccessibilityMenu from "./AccessibilityMenu.jsx";
 import ReadingGuide from "./ReadingGuide.jsx";
@@ -149,6 +149,7 @@ export default function AppShell() {
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">{announcement}</p>
       <div className="phone">
         <TopBar onOpenMenu={() => setMenuOpen(true)} onOpenA11y={() => setA11yOpen(true)} onOpenSearch={() => openSearch()} />
+        <OfflineBanner />
         <DemoBanner />
         <main id="main" className="content" tabIndex={-1}>
           <Outlet />

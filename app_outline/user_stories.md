@@ -46,6 +46,8 @@
 - Prices refresh at least every 30 s while the screen is visible.
 - Infinite scroll loads 100 rows per page, with skeleton loading states.
 
+> **CPA build (Oct 18, 2026):** the list polls the Supabase REST API every 30 s. Prices for 34 coins come from CryptoRank, synced every 10 minutes by the `cryptorank-sync` Edge Function (the free API plan's limit, accepted as the refresh rate); the other coins use sample data.
+
 ### US-2.2 Sort & filter · P0 · 3 pts
 **As a** trader, **I want** to sort by price, change, volume, or market cap and filter by category **so that** I can find the coins that matter to me.
 
@@ -253,10 +255,14 @@
 
 - "Last updated" is shown on every data screen. Data more than 5 minutes old is visibly marked as stale.
 
+> **CPA build (Oct 18, 2026):** "Last updated" uses the time CryptoRank reported the figures (`coins.price_updated_at`), not the time of the last poll. Coin detail names the source of each figure: CryptoRank for price, 24h change, market cap and volume on synced coins, CPA sample data for the rest.
+
 ### US-9.5 Offline mode · P1 · 3 pts
 **As a** commuter, **I want** to see my last-loaded data offline **so that** the app still works on the subway.
 
 - Shows an offline banner and cached watchlist, portfolio, and unlocks. Actions are queued and sync when back online.
+
+> **CPA build (Oct 18, 2026):** the banner "You're offline: showing saved data" appears at the top while the browser is offline. The last loaded prices and the bundled data stay on screen, the price feed pauses and refreshes on reconnect, and Refresh is disabled. Unsaved account changes are retried every 15 s until they save. Data isn't cached across reloads.
 
 ### US-9.6 Account deletion · P0 · 2 pts
 **As a** user, **I want** to delete my account and data from inside the app **so that** I control my privacy (App Store and Google Play requirement).
@@ -268,7 +274,7 @@
 | Area | Requirement |
 |---|---|
 | Performance | Cold start to first data ≤ 2 s (p75) on mid-range devices; list scroll at 60 fps |
-| Data freshness | Visible prices ≤ 30 s old while the app is in the foreground |
+| Data freshness | Visible prices ≤ 30 s old while the app is in the foreground. CPA build: synced CryptoRank prices are up to 10 min old on the free plan, and the stale marker says so |
 | Reliability | Crash-free sessions ≥ 99.5% |
 | Security | TLS 1.2+; tokens in Keychain/Keystore; no secrets in the app binary; read-only integrations only |
 | Privacy | Analytics opt-out; no sale of personal data; GDPR/CCPA-compliant data export and delete |

@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { useApp } from "../state/context.js";
+import { useOnline } from "../lib/hooks.js";
 
 // Toasts sit above the bottom nav; at most two, each for 4 s (00-app-shell.md).
 export function Toasts() {
@@ -52,6 +53,18 @@ export function SignInSheet() {
         <button className="button-tertiary muted" onClick={dismissAuthPrompt}>Not now</button>
       </div>
     </Sheet>
+  );
+}
+
+// Offline (US-9.5, 00-app-shell.md): the last loaded prices and the bundled data stay on screen.
+export function OfflineBanner() {
+  const online = useOnline();
+  if (online) return null;
+  return (
+    <div className="offline-banner" role="status">
+      <Icon name="clock" />
+      <span>You're offline: showing saved data</span>
+    </div>
   );
 }
 

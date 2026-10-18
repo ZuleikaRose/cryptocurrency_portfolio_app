@@ -13,6 +13,21 @@ export function useDebounced(value, delay = 250) {
   return debounced;
 }
 
+// Browser connection state, updated on the online/offline events (US-9.5).
+export function useOnline() {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  return online;
+}
+
 // Current time, refreshed every `intervalMs` (countdowns, "Updated 2m ago").
 export function useNow(intervalMs) {
   const [now, setNow] = useState(() => Date.now());

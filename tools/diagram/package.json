@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Regenerates drawsql.png from schema.sql",
+  "scripts": {
+    "diagram": "mkdir -p build && python3 -I erd.py ../../schema.sql build/erd.html && node render.mjs build/erd.html ../../drawsql.png"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}
