@@ -538,7 +538,7 @@ export default function CoinDetail() {
       </section>
 
       <p className="disclaimer">
-        Not financial advice. Data provided for informational purposes. Source: CPA sample data · Last updated {relativeTime(lastUpdated, now)}
+        Not financial advice. Data provided for informational purposes. Source: {coin.source === "cryptorank" ? "CryptoRank (price, 24h change, market cap, volume); other figures CPA sample data" : "CPA sample data"} · Last updated {relativeTime(lastUpdated, now)}
       </p>
 
       <Sheet open={Boolean(eventSheet)} onClose={() => setEventSheet(null)} title={eventSheet ? `${{ unlock: "Unlock", funding: "Funding round", listing: "Listing" }[eventSheet.kind]}` : "Event"} side="bottom">

@@ -11,6 +11,7 @@ import { authErrorKind, clearFailures, lockState, normalizeEmail, recordFailure 
 import { emptyBilling, normalizeBilling, settleBilling } from "../lib/billing.js";
 import { loadAccountData, saveAccountData, sendFeedback, sendTicket, snapshot } from "../lib/cloud.js";
 import { supabase } from "../lib/supabase.js";
+import { fetchLivePrices, mergeLivePrices } from "../lib/market.js";
 import { POINTS_PROMO, findPromo, pointsFor, promoStatus } from "../data/promotions.js";
 
 // Session kinds: "guest" and "demo" live in memory only (reset on refresh);
@@ -236,11 +237,13 @@ function MarketProvider({ autoRefresh, children }) {
   const [lastUpdated, setLastUpdated] = useState(() => Date.now());
   const [tick, setTick] = useState(0);
   const [flashes, setFlashes] = useState({});
+  const [loadError, setLoadError] = useState(false);
 
   const coinsRef = useRef(coins);
+  const liveRef = useRef(false);
 
   // Simulated feed: nudge every price a little; stablecoins barely move.
-  const refresh = useCallback(() => {
+  const simulate = useCallback(() => {
     const nextFlashes = {};
     const next = coinsRef.current.map((coin) => {
       const stable = coin.category === "Stablecoin";
@@ -259,6 +262,39 @@ function MarketProvider({ autoRefresh, children }) {
     setLastUpdated(Date.now());
   }, []);
 
+  // Live feed: read CryptoRank prices from cpa.coins over REST. Until the first sync has run (or
+  // without Supabase) the simulated feed stands in. A failed request keeps the last data visible.
+  const apply = useCallback((live, simulateWhenEmpty) => {
+    setLoadError(false);
+    if (!live?.rows.length) {
+      if (!liveRef.current && simulateWhenEmpty) simulate();
+      return;
+    }
+    liveRef.current = true;
+    const { next, flashes: nextFlashes } = mergeLivePrices(coinsRef.current, live.rows);
+    coinsRef.current = next;
+    setCoins(next);
+    setFlashes(nextFlashes);
+    setTick((value) => value + 1);
+    setLastUpdated(live.updatedAt || Date.now());
+  }, [simulate]);
+  const refresh = useCallback(
+    () => fetchLivePrices().then((live) => apply(live, true), () => setLoadError(true)),
+    [apply],
+  );
+
+  // First load: no simulated nudge, so the sample figures show as bundled until a sync has run.
+  useEffect(() => {
+    let active = true;
+    fetchLivePrices().then(
+      (live) => active && apply(live, false),
+      () => active && setLoadError(true),
+    );
+    return () => {
+      active = false;
+    };
+  }, [apply]);
+
   useEffect(() => {
     if (!autoRefresh) return undefined;
     const id = window.setInterval(() => {
@@ -267,7 +303,10 @@ function MarketProvider({ autoRefresh, children }) {
     return () => window.clearInterval(id);
   }, [autoRefresh, refresh]);
 
-  const value = useMemo(() => ({ coins, lastUpdated, tick, flashes, refresh }), [coins, lastUpdated, tick, flashes, refresh]);
+  const value = useMemo(
+    () => ({ coins, lastUpdated, tick, flashes, refresh, loadError }),
+    [coins, lastUpdated, tick, flashes, refresh, loadError],
+  );
   return <MarketContext.Provider value={value}>{children}</MarketContext.Provider>;
 }
 

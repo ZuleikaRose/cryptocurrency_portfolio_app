@@ -271,7 +271,7 @@ function CoinList({ rows, view, emptyAction, ...rowProps }) {
 
 export default function Market() {
   const { settings, updateSettings, updateMarketSettings, watchlist, toggleWatch, openSearch } = useApp();
-  const { coins, lastUpdated, tick, flashes, refresh } = useMarket();
+  const { coins, lastUpdated, tick, flashes, refresh, loadError } = useMarket();
   const [params, setParams] = useSearchParams();
   const [sortOpen, setSortOpen] = useState(false);
   const [aboutFearGreed, setAboutFearGreed] = useState(false);
@@ -380,7 +380,7 @@ export default function Market() {
         ))}
       </div>
 
-      {simulatedError && (
+      {(simulatedError || loadError) && (
         <div className="banner banner-error" role="alert">
           <span>We couldn't load prices. Showing data from {relativeTime(lastUpdated, now)}.</span>
           <button

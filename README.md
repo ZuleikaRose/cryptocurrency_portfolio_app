@@ -1,10 +1,10 @@
 # CPA: Cryptocurrency Portfolio App
 
-CPA is a phone-width single-page app for following the crypto market: coin rankings, token unlocks, funding rounds, token sales, a watchlist, a manual portfolio and alerts. It's a build of the CryptoRank-style product described in `app_outline/`. Market data is bundled sample data; accounts use Supabase (Auth plus Postgres in the `cpa` schema).
+CPA is a phone-width single-page app for following the crypto market: coin rankings, token unlocks, funding rounds, token sales, a watchlist, a manual portfolio and alerts. It's a build of the CryptoRank-style product described in `app_outline/`. Prices for 31 major coins come live from CryptoRank through a scheduled Supabase Edge Function; everything else is bundled sample data. Accounts use Supabase (Auth plus Postgres in the `cpa` schema).
 
 It also works on desktop, where the phone-width shell sits in a centred frame.
 
-> Not financial advice. Data provided for informational purposes. All prices, unlocks and rounds in the app are sample data.
+> Not financial advice. Data provided for informational purposes. Live prices come from CryptoRank; unlocks, rounds and the remaining coins are sample data.
 
 ## Quick start
 
@@ -144,12 +144,12 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 
 ![Entity-relationship diagram of the CPA schema: 47 tables in 8 groups](drawsql.png)
 
-`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 47 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
+`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram (it predates `market_sync` and the three price-source columns on `coins`). Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
 
 | Group | Tables | Holds |
 |---|---|---|
 | Reference | `categories`, `plans`, `promotions`, `faq_sections`, `faq_items`, `learn_articles`, `glossary_terms` | Fixed lists and help content |
-| Market | `coins`, `coin_prices`, `exchanges`, `coin_markets` | Rankings, price history, where each coin trades |
+| Market | `coins`, `coin_prices`, `exchanges`, `coin_markets`, `market_sync` | Rankings, price history, where each coin trades, the last live price sync |
 | Research | `vesting_schedules`, `vesting_allocations`, `unlock_events`, `funds`, `fund_sectors`, `funding_rounds`, `round_investors`, `token_sales` | Tokenomics, unlocks, fundraising, token sales |
 | Watchlist & portfolio | `watchlist_items`, `recent_coins`, `recent_searches`, `sentiment_votes`, `transactions`, `user_interest_coins`, `user_interest_sectors`, `fund_follows`, `project_follows` | What each user tracks, holds and follows |
 | Accounts | `users`, `sessions`, `login_attempts`, `password_reset_tokens`, `password_reset_requests`, `user_state`, `affiliates` | Sign-in, counters and flags, affiliate codes |
@@ -160,12 +160,20 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 Views: `coin_sentiment`, `portfolio_holdings` (net amount and average buy price) and `user_points` (loyalty points).
 
 The live database runs the Supabase version in `supabase/migrations/`. It differs from `schema.sql` in these ways:
-- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 43 tables. `cpa.users` is a profile row keyed to `auth.users`.
+- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 44 tables. `cpa.users` is a profile row keyed to `auth.users`.
 - **Access:** row-level security is on every table.
 - **Sentiment:** `coin_sentiment` became the `coin_sentiment_today()` function, which returns totals without revealing who voted.
-- **Later migration:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`.
+- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule.
 
 `schema.sql` stays the portable reference for running CPA on any PostgreSQL 15+ server.
+
+### Live prices
+
+- **Sync:** `supabase/functions/cryptorank-sync` fetches the top 200 coins from CryptoRank v3 and writes price, 24h change, market cap and volume into `cpa.coins` for the 31 coins mapped by `cryptorank_slug`. pg_cron calls it every 10 minutes: 2 credits a run, 288 a day, inside the free plan's 400 a day and 10K a month.
+- **Key:** `CRYPTORANK_API_KEY` is an Edge Function secret, set from `.env` with `supabase secrets set --env-file <(grep '^CRYPTORANK_API_KEY=' .env)`. It never reaches the browser.
+- **Abuse limit:** the function is public (pg_cron calls it without a JWT), so `cpa.claim_market_sync()` lets a run start at most once every 9 minutes.
+- **App:** `app/src/lib/market.js` reads those rows over the REST API on load and every 30 s. If a request fails, the last data stays on screen with the error banner and Retry. Before the first sync, or without Supabase, the simulated feed stands in. 1h and 7d changes, FDV and sparklines are still sample data, and Coin detail names its source.
+- **Deploy:** `supabase functions deploy cryptorank-sync --project-ref <ref> --no-verify-jwt --use-api`.
 
 ## Project layout
 
@@ -180,7 +188,7 @@ app/                  React 19 + Vite 8 + React Router 7 (BrowserRouter)
   src/styles/         tokens.css first, a11y.css last
 app_outline/          style guide, user journeys, user stories, page specs, wireframe
 supabase/             migrations, seed script, CLI config (config.toml)
-schema.sql            portable PostgreSQL schema for every feature (47 tables)
+schema.sql            portable PostgreSQL schema for every feature (48 tables)
 drawsql.png           entity-relationship diagram of schema.sql
 lookup.py             CryptoRank v3 lookup (needs CRYPTORANK_API_KEY)
 prompt.md             the original build brief and its clarifications
