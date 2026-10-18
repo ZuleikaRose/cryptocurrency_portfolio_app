@@ -38,3 +38,15 @@ export function mergeLivePrices(coins, rows) {
   });
   return { next, flashes };
 }
+
+// Cap-weighted 24h change of the whole list: today's total cap against the total implied by
+// each coin's own 24h change. Holds for live and sample figures alike.
+export function marketCapChange24h(coins) {
+  let now = 0;
+  let before = 0;
+  for (const coin of coins) {
+    now += coin.marketCap;
+    before += coin.marketCap / (1 + coin.change24h / 100);
+  }
+  return before > 0 ? (now / before - 1) * 100 : 0;
+}

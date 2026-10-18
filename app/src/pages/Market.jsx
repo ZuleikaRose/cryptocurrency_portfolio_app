@@ -17,6 +17,7 @@ import {
 } from "../lib/format.js";
 import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
+import { marketCapChange24h } from "../lib/market.js";
 
 const views = [
   { id: "coins", label: "Coins", title: "Top cryptocurrencies" },
@@ -310,7 +311,7 @@ export default function Market() {
 
   const rows = useMemo(() => selectRows(coins, view, market, watchlist), [coins, view, market, watchlist]);
   const totalCap = marketPulse.totalMarketCap * (coins.reduce((sum, coin) => sum + coin.marketCap, 0) / initialCapTotal);
-  const totalChange = marketPulse.totalChange24h + (totalCap / marketPulse.totalMarketCap - 1) * 100;
+  const totalChange = marketCapChange24h(coins);
 
   const setView = (id) => {
     const next = new URLSearchParams(params);
