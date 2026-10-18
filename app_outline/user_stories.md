@@ -46,7 +46,7 @@
 - Prices refresh at least every 30 s while the screen is visible.
 - Infinite scroll loads 100 rows per page, with skeleton loading states.
 
-> **CPA build (Oct 18, 2026):** the list polls the Supabase REST API every 30 s. Prices for 31 coins come from CryptoRank, synced every 10 minutes by the `cryptorank-sync` Edge Function (the free API plan's limit); the other coins use sample data.
+> **CPA build (Oct 18, 2026):** the list polls the Supabase REST API every 30 s. Prices for 34 coins come from CryptoRank, synced every 10 minutes by the `cryptorank-sync` Edge Function (the free API plan's limit, accepted as the refresh rate); the other coins use sample data.
 
 ### US-2.2 Sort & filter · P0 · 3 pts
 **As a** trader, **I want** to sort by price, change, volume, or market cap and filter by category **so that** I can find the coins that matter to me.
@@ -261,6 +261,8 @@
 **As a** commuter, **I want** to see my last-loaded data offline **so that** the app still works on the subway.
 
 - Shows an offline banner and cached watchlist, portfolio, and unlocks. Actions are queued and sync when back online.
+
+> **CPA build (Oct 18, 2026):** the banner "You're offline: showing saved data" appears at the top while the browser is offline. The last loaded prices and the bundled data stay on screen, the price feed pauses and refreshes on reconnect, and Refresh is disabled. Unsaved account changes are retried every 15 s until they save. Data isn't cached across reloads.
 
 ### US-9.6 Account deletion · P0 · 2 pts
 **As a** user, **I want** to delete my account and data from inside the app **so that** I control my privacy (App Store and Google Play requirement).

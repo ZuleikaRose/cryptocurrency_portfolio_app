@@ -58,10 +58,10 @@ These override the brief and the `app_outline` documents where they differ.
 13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 48 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
 14. **Live prices from CryptoRank (Oct 18, 2026).** This replaces "There will be no API interactions" above, for prices only.
     - The `cryptorank-sync` Supabase Edge Function fetches the top 200 coins from CryptoRank v3 every 10 minutes (pg_cron) and writes price, 24h change, market cap and volume into `cpa.coins`.
-    - 31 coins are mapped by `coins.cryptorank_slug`. The others, and every other figure (1h and 7d change, FDV, sparklines, unlocks, rounds, sales), stay sample data.
+    - 34 coins are mapped by `coins.cryptorank_slug`, including Zcash (ZEC, added Oct 18, 2026), Toncoin (listed on CryptoRank as Gram) and Maker. 7d change and FDV come from CryptoRank's per-coin endpoint about every 2 days. The other coins, and 1h change, sparklines, unlocks, rounds and sales, stay sample data.
     - The app reads the prices through the Supabase REST API on load and every 30 s. A failed request keeps the last data on screen with an error banner and Retry. Before the first sync, or without Supabase, the simulated feed stands in.
     - `CRYPTORANK_API_KEY` is an Edge Function secret set from `.env`. It never reaches the browser or the repository.
-    - Freshness: the free CryptoRank plan allows 400 credits a day, so prices can be up to about 10 minutes old instead of 30 s. The "Last updated" time and stale marker show the real age.
+    - Freshness: the free CryptoRank plan allows 400 credits a day, so prices can be up to about 10 minutes old instead of 30 s. This refresh rate is accepted (Oct 18, 2026). The "Last updated" time and stale marker show the real age.
     - Coin detail names the source of each figure (CryptoRank or CPA sample data).
 
 # Required material from the outline documents
@@ -141,7 +141,7 @@ The journey maps name a pain point at each stage and the fix they propose. All o
 | Platform | 8.3 | Deep links to coin, unlock, round, fund and token-sale screens |
 | Settings and trust | 9.1, 9.3, 9.4, 9.6 | Dark/light/system theme and display currency; screen readers read values in full; "Last updated" on every data screen, stale after 5 minutes; account deletion inside the app |
 
-P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filters, follow funds, token sales, the manual portfolio, weekly digest, quiet hours, share cards, colour conventions) are built where the browser allows. Widgets, haptics, social sign-in, wallet import, multiple watchlists and an offline cache are not; see `README.md`.
+P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filters, follow funds, token sales, the manual portfolio, weekly digest, quiet hours, share cards, colour conventions) are built where the browser allows. Widgets, haptics, social sign-in, wallet import, multiple watchlists and a cache across reloads are not; the offline banner is. See `README.md`.
 
 ## Non-functional requirements (user_stories.md)
 
