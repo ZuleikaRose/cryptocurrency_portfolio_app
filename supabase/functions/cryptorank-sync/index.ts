@@ -115,10 +115,12 @@ Deno.serve(async (req) => {
     }
 
     const now = Date.now();
+    // Coins outside the pages (Maker) get their only price from the details, so they go first;
+    // then the oldest details.
     const due = mapped
-      .map((coin) => ({ slug: coin.cryptorank_slug, id: found.get(coin.cryptorank_slug)?.id ?? coin.cryptorank_id, at: Date.parse(coin.details_updated_at ?? "") || 0 }))
+      .map((coin) => ({ slug: coin.cryptorank_slug, id: found.get(coin.cryptorank_slug)?.id ?? coin.cryptorank_id, at: Date.parse(coin.details_updated_at ?? "") || 0, paged: found.has(coin.cryptorank_slug) }))
       .filter((coin) => coin.id != null && now - coin.at > DETAILS_MAX_AGE_MS)
-      .sort((a, b) => a.at - b.at)
+      .sort((a, b) => Number(a.paged) - Number(b.paged) || a.at - b.at)
       .slice(0, DETAILS_PER_RUN);
     const detailErrors: string[] = [];
     for (const coin of due) {
