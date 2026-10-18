@@ -139,7 +139,7 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 - `functions/cryptorank-sync/`: the Edge Function that writes live CryptoRank prices into `cpa.coins` (see [Live prices](#live-prices)). It's deployed to the linked project.
 - `seed/seed-sample-data.mjs`: uses `SUPABASE_SECRET_KEY` from `.env`. That key is server-only: never give it a `VITE_` prefix.
 - The app reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the root `.env` (`envDir: '..'` in `vite.config.js`).
-- Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; add `http://localhost:5173/reset-password` (and your deployed URL) under **Authentication → URL configuration → Redirect URLs**.
+- Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; set a 13-character minimum and require lowercase, uppercase, digits and symbols under **Authentication → Password policy**; add `http://localhost:5173/reset-password`, `http://127.0.0.1:5173/reset-password`, and your deployed URL under **Authentication → URL configuration → Redirect URLs**.
 
 ## Data model
 
@@ -164,7 +164,7 @@ The live database runs the Supabase version in `supabase/migrations/`. It differ
 - **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 44 tables. `cpa.users` is a profile row keyed to `auth.users`.
 - **Access:** row-level security is on every table.
 - **Sentiment:** `coin_sentiment` became the `coin_sentiment_today()` function, which returns totals without revealing who voted.
-- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule, and `market_sync_comments` copied `schema.sql`'s descriptions of them into the database. `cryptorank_more_live_data` added `coins.cryptorank_id` and `details_updated_at`, made `rank` uniqueness deferrable so adding a coin can re-rank the rest, and mapped Toncoin and Maker; `map_zcash` mapped Zcash.
+- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule, and `market_sync_comments` copied `schema.sql`'s descriptions of them into the database. `cryptorank_more_live_data` added `coins.cryptorank_id` and `details_updated_at`, made `rank` uniqueness deferrable so adding a coin can re-rank the rest, and mapped Toncoin and Maker; `map_zcash` mapped Zcash. `review_feedback_fixes` (from PR #6) requires an active profile for every account-data rule, so a deleted account can't read or change its data before it's erased; makes `erase_my_data()` delete the account's tickets and feedback; applies the 10 saved-filter limit to new filters only; and stops issue IDs truncating past 9999.
 
 `schema.sql` stays the portable reference for running CPA on any PostgreSQL 15+ server.
 

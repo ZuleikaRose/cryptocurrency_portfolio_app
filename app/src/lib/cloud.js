@@ -222,12 +222,18 @@ export async function saveAccountData(userId, previous, data) {
 
 // --- Load ------------------------------------------------------------------
 
-async function rows(table, order, ascending = true) {
-  let query = supabase.from(table).select("*");
-  if (order) query = query.order(order, { ascending });
-  const { data, error } = await query;
-  if (error) throw error;
-  return data;
+async function rows(table, order, ascending = true, tieBreaker = null) {
+  const pageSize = 1000;
+  const result = [];
+  for (let from = 0; ; from += pageSize) {
+    let query = supabase.from(table).select("*").order(order, { ascending });
+    if (tieBreaker) query = query.order(tieBreaker, { ascending: true });
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    result.push(...page);
+    if (page.length < pageSize) return result;
+  }
 }
 
 // The signed-in user's profile and data in the app's shape (before AppStore's normalising).
@@ -237,12 +243,12 @@ export async function loadAccountData() {
     profiles, settings, state, watchlist, recentCoins, recentSearches, votes, interestCoins, interestSectors,
     transactions, follows, projects, filters, alerts, reminders, notifications, affiliates, tickets, feedback,
   ] = await Promise.all([
-    rows("users"), rows("user_settings"), rows("user_state"), rows("watchlist_items", "position"),
-    rows("recent_coins", "viewed_at", false), rows("recent_searches", "searched_at", false), rows("sentiment_votes", "vote_day"),
-    rows("user_interest_coins"), rows("user_interest_sectors"), rows("transactions", "occurred_at"),
-    rows("fund_follows"), rows("project_follows", "followed_at"), rows("saved_filters", "created_at", false),
-    rows("price_alerts", "created_at", false), rows("reminders"), rows("notifications", "created_at", false),
-    rows("affiliates"), rows("support_tickets", "created_at", false), rows("feedback", "created_at", false),
+    rows("users", "id"), rows("user_settings", "user_id"), rows("user_state", "user_id"), rows("watchlist_items", "position", true, "coin_id"),
+    rows("recent_coins", "viewed_at", false, "coin_id"), rows("recent_searches", "searched_at", false, "query"), rows("sentiment_votes", "vote_day", true, "coin_id"),
+    rows("user_interest_coins", "coin_id"), rows("user_interest_sectors", "sector"), rows("transactions", "occurred_at", true, "id"),
+    rows("fund_follows", "fund_id"), rows("project_follows", "followed_at", false, "project"), rows("saved_filters", "created_at", false, "id"),
+    rows("price_alerts", "created_at", false, "id"), rows("reminders", "target_id"), rows("notifications", "created_at", false, "id"),
+    rows("affiliates", "user_id"), rows("support_tickets", "created_at", false, "id"), rows("feedback", "created_at", false, "id"),
   ]);
   const profile = profiles[0];
   if (!profile) throw new Error("No profile row for this account.");
@@ -294,7 +300,14 @@ export async function loadAccountData() {
     tickets: tickets.map(ticketFromRow),
     feedback: feedback.map((row) => ({ rating: row.rating, area: row.area, text: row.body, contact: row.may_contact, date: row.created_at })),
   };
-  return { profile, stored };
+  return {
+    profile,
+    stored,
+    snapshot: {
+      recent_coins: new Map(recentCoins.map((row) => [row.coin_id, { key: row.coin_id, viewed_at: row.viewed_at }])),
+      recent_searches: new Map(recentSearches.map((row) => [row.query, { key: row.query, searched_at: row.searched_at }])),
+    },
+  };
 }
 
 // --- Tickets and feedback: insert-only, so they're written directly, not diffed ----------

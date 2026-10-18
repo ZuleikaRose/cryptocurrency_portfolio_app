@@ -116,7 +116,12 @@ function NewPasswordForm() {
       setErrors([failures[outcome] ?? failures.failed]);
       return;
     }
-    logOut();
+    const signedOut = await logOut();
+    if (!signedOut.ok) {
+      showToast("Password updated. Retry saving or discard unsaved changes before logging out.");
+      navigate("/logout", { replace: true });
+      return;
+    }
     showToast("Password updated. Log in with your new password.");
     navigate("/login", { replace: true });
   };
