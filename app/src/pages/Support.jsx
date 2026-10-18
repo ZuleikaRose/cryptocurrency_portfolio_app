@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Disclosure, { Highlight } from "../components/Disclosure.jsx";
 import Icon from "../components/Icon.jsx";
-import Sheet from "../components/Sheet.jsx";
 import { searchHelp } from "../data/help.js";
-import { eraseAccountData, isEmail } from "../lib/auth.js";
+import { isEmail } from "../lib/auth.js";
 import { formatDate } from "../lib/format.js";
 import { useApp } from "../state/context.js";
 
@@ -24,16 +23,16 @@ const tiles = [
   { to: "/accessibility-policy", icon: "accessibility", label: "Accessibility" },
 ];
 
-// Customer support (17-customer-support.md): help search, tiles, tickets, data removal.
+// Customer support (17-customer-support.md): help search, tiles, tickets. Data removal for a
+// deleted account happens when the user logs in to it (Login → Remove my data, US-P17.2).
 export default function Support() {
-  const { session, tickets, addTicket, nextTicketId } = useApp();
+  const { session, tickets, addTicket } = useApp();
   const [params] = useSearchParams();
   const initialTopic = topics.some(([id]) => id === params.get("topic")) ? params.get("topic") : "account";
   const [query, setQuery] = useState("");
   const [form, setForm] = useState({ topic: initialTopic, email: session.email ?? "", subject: "", message: "" });
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
-  const [confirmRemoval, setConfirmRemoval] = useState(false);
   const [busy, setBusy] = useState(false);
   const removal = form.topic === "data-removal";
   const results = searchHelp(query);
@@ -46,63 +45,33 @@ export default function Support() {
 
   const validate = () => {
     const found = {};
-    if (!isEmail(form.email)) found.email = removal ? "Enter the email of the deleted account." : "Enter a valid email address.";
-    if (!removal) {
-      if (!form.subject.trim()) found.subject = "Add a subject.";
-      else if (form.subject.length > 120) found.subject = "Keep the subject under 120 characters.";
-      if (form.message.trim().length < 20) found.message = "Write at least 20 characters so we can help.";
-      else if (form.message.length > 2000) found.message = "Keep the message under 2,000 characters.";
-    }
+    if (!isEmail(form.email)) found.email = "Enter a valid email address.";
+    if (!form.subject.trim()) found.subject = "Add a subject.";
+    else if (form.subject.length > 120) found.subject = "Keep the subject under 120 characters.";
+    if (form.message.trim().length < 20) found.message = "Write at least 20 characters so we can help.";
+    else if (form.message.length > 2000) found.message = "Keep the message under 2,000 characters.";
     setErrors(found);
     return found;
   };
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
+    if (busy) return;
     setResult(null);
     const found = validate();
     if (Object.keys(found).length) {
       document.getElementById(`support-${Object.keys(found)[0]}`)?.focus();
       return;
     }
-    if (removal) {
-      setConfirmRemoval(true);
-      return;
-    }
     setBusy(true);
-    // Simulated sending delay so "Sending…" is visible.
-    window.setTimeout(() => {
-      const ticket = addTicket({ kind: "ticket", topic: form.topic, email: form.email.trim(), subject: form.subject.trim(), message: form.message.trim() });
-      setBusy(false);
-      setResult({ ok: true, text: `Ticket #${ticket.id} received. We usually reply within 2 business days.` });
-      setForm((current) => ({ ...current, subject: "", message: "" }));
-    }, 400);
-  };
-
-  // The simulated support process erases a deleted account's data (US-P17.2).
-  const runRemoval = () => {
-    setConfirmRemoval(false);
-    const id = nextTicketId("ticket");
-    const outcome = eraseAccountData(form.email, id);
-    if (outcome === "active") {
-      setErrors({ email: "This account is still active. Delete your account in Settings first." });
+    const ticket = await addTicket({ kind: "ticket", topic: form.topic, email: form.email.trim(), subject: form.subject.trim(), message: form.message.trim() });
+    setBusy(false);
+    if (!ticket) {
+      setResult({ ok: false, text: "We couldn't send your ticket. Check your connection and try again." });
       return;
     }
-    if (outcome === "unknown") {
-      setErrors({ email: "We couldn't find a deleted account with that email." });
-      return;
-    }
-    if (outcome === "storage") {
-      setResult({ ok: false, text: "Couldn't remove the data: this browser's storage is blocked. Nothing was removed; try again." });
-      return;
-    }
-    // No personal data in the ticket: the email isn't kept after the account is erased.
-    addTicket({ id, kind: "ticket", topic: "data-removal", subject: "Data removal", status: "Completed" });
-    setResult({
-      ok: true,
-      text: `Ticket #${id} completed. All CPA data for that account has been removed from this browser.${outcome === "completed-unlogged" ? " (The support log couldn't be updated.)" : ""}`,
-    });
-    setForm((current) => ({ ...current, email: "" }));
+    setResult({ ok: true, text: `Ticket #${ticket.id} received. We usually reply within 2 business days.` });
+    setForm((current) => ({ ...current, subject: "", message: "" }));
   };
 
   const fieldError = (key) =>
@@ -158,30 +127,28 @@ export default function Support() {
           {removal && (
             <p className="card info-card">
               <Icon name="info" />
-              <span>This permanently removes your CPA data from this browser. It works for deleted accounts only; delete your account in Settings first.</span>
+              <span>
+                To remove a deleted account's data yourself, <Link to="/login">log in to it</Link> and choose Remove my data. It works for deleted accounts only; delete your account in Settings first. Or send us a ticket below.
+              </span>
             </p>
           )}
           <label className="form-field">
-            <span>{removal ? "Email of the deleted account" : "Email"}</span>
+            <span>Email</span>
             <input id="support-email" className="input" type="email" autoComplete="email" value={form.email} onChange={set("email")} aria-invalid={Boolean(errors.email) || undefined} aria-describedby={errors.email ? "support-email-error" : undefined} />
             {fieldError("email")}
           </label>
-          {!removal && (
-            <>
-              <label className="form-field">
-                <span>Subject</span>
-                <input id="support-subject" className="input" maxLength={140} value={form.subject} onChange={set("subject")} aria-invalid={Boolean(errors.subject) || undefined} aria-describedby={errors.subject ? "support-subject-error" : undefined} />
-                {fieldError("subject")}
-              </label>
-              <label className="form-field">
-                <span>Message</span>
-                <textarea id="support-message" className="input textarea" rows={5} value={form.message} onChange={set("message")} aria-invalid={Boolean(errors.message) || undefined} aria-describedby="support-message-count" />
-                <small id="support-message-count" className="num">{form.message.length} / 2,000</small>
-                {fieldError("message")}
-              </label>
-            </>
-          )}
-          <button type="submit" className="button-primary" disabled={busy}>{busy ? "Sending…" : removal ? "Request data removal" : "Submit ticket"}</button>
+          <label className="form-field">
+            <span>Subject</span>
+            <input id="support-subject" className="input" maxLength={140} value={form.subject} onChange={set("subject")} aria-invalid={Boolean(errors.subject) || undefined} aria-describedby={errors.subject ? "support-subject-error" : undefined} />
+            {fieldError("subject")}
+          </label>
+          <label className="form-field">
+            <span>Message</span>
+            <textarea id="support-message" className="input textarea" rows={5} value={form.message} onChange={set("message")} aria-invalid={Boolean(errors.message) || undefined} aria-describedby="support-message-count" />
+            <small id="support-message-count" className="num">{form.message.length} / 2,000</small>
+            {fieldError("message")}
+          </label>
+          <button type="submit" className="button-primary" disabled={busy}>{busy ? "Sending…" : "Submit ticket"}</button>
         </form>
       </section>
 
@@ -201,20 +168,12 @@ export default function Support() {
         ) : (
           <p className="empty-line">No tickets yet.</p>
         )}
-        {session.kind !== "user" && <p className="muted-line">Tickets you send without an account are kept for this visit only.</p>}
+        {session.kind !== "user" && <p className="muted-line">Tickets you send without an account are listed here for this visit only. We reply by email.</p>}
       </section>
 
       <p className="status-line">
         <span className="live-dot" aria-hidden="true" /> Status: All systems normal · Sample data feed
       </p>
-
-      <Sheet open={confirmRemoval} onClose={() => setConfirmRemoval(false)} title="Remove all data?" side="bottom">
-        <p className="sheet-note">This permanently removes all CPA data for {form.email.trim()} from this browser: watchlist, portfolio, alerts and settings. It can't be undone.</p>
-        <div className="sheet-actions">
-          <button className="button-secondary" onClick={() => setConfirmRemoval(false)}>Cancel</button>
-          <button className="button-primary danger-fill" onClick={runRemoval}>Remove data</button>
-        </div>
-      </Sheet>
     </div>
   );
 }

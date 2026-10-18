@@ -50,6 +50,8 @@ export default function ReportIssue() {
   const [image, setImage] = useState(null);
   const [errors, setErrors] = useState({});
   const [saved, setSaved] = useState(null);
+  const [sendError, setSendError] = useState(null);
+  const [busy, setBusy] = useState(false);
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
   useEffect(() => {
@@ -81,8 +83,9 @@ export default function ReportIssue() {
     return undefined;
   };
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
+    if (busy) return;
     const found = {};
     if (!form.summary.trim()) found.summary = "Add a short summary.";
     else if (form.summary.length > 120) found.summary = "Keep the summary under 120 characters.";
@@ -92,7 +95,9 @@ export default function ReportIssue() {
       document.getElementById(`report-${Object.keys(found)[0]}`)?.focus();
       return;
     }
-    const ticket = addTicket({
+    setBusy(true);
+    setSendError(null);
+    const ticket = await addTicket({
       kind: "issue",
       topic: form.type,
       subject: form.summary.trim(),
@@ -106,6 +111,11 @@ export default function ReportIssue() {
       screenshot: image?.url,
       email: form.email.trim() || undefined,
     });
+    setBusy(false);
+    if (!ticket) {
+      setSendError("We couldn't send your report. Check your connection and try again.");
+      return;
+    }
     setSaved(ticket);
   };
 
@@ -191,7 +201,8 @@ export default function ReportIssue() {
           <span>Email (optional)</span>
           <input className="input" type="email" value={form.email} onChange={set("email")} autoComplete="email" />
         </label>
-        <button type="submit" className="button-primary">Send report</button>
+        {sendError && <p className="form-alert" role="alert">{sendError}</p>}
+        <button type="submit" className="button-primary" disabled={busy}>{busy ? "Sending…" : "Send report"}</button>
       </form>
     </div>
   );

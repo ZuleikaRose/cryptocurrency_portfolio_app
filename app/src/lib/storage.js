@@ -1,15 +1,11 @@
-// localStorage access for signed-up accounts only (guest and demo state stay in memory).
-// Keys follow app_outline/pages/00-app-shell.md. Every access is guarded: storage can be
-// unavailable (private mode, blocked site data) and the app must still work.
+// localStorage keys and guarded access. Account data lives in Supabase (lib/cloud.js); the
+// browser keeps only the Auth session. Every access is guarded: storage can be unavailable
+// (private mode, blocked site data) and the app must still work.
 
 const PREFIX = "cpa:v1:";
 
 export const keys = {
-  accounts: `${PREFIX}accounts`,
-  session: `${PREFIX}session`,
-  user: (id) => `${PREFIX}user:${id}`,
-  resetTokens: `${PREFIX}resetTokens`,
-  supportLog: `${PREFIX}supportLog`,
+  auth: `${PREFIX}auth`, // Supabase Auth session (lib/supabase.js)
   probe: `${PREFIX}probe`,
 };
 

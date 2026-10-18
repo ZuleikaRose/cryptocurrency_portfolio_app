@@ -14,20 +14,29 @@ export default function Feedback() {
   const [text, setText] = useState("");
   const [contact, setContact] = useState(false);
   const [error, setError] = useState(null);
+  const [sendError, setSendError] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
     document.title = "Send feedback · CPA";
   }, []);
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
+    if (busy) return;
     if (!rating) {
       setError("Choose a rating.");
       document.querySelector('input[name="ease"]')?.focus();
       return;
     }
-    addFeedback({ rating, area, text: text.trim(), contact });
+    setBusy(true);
+    const ok = await addFeedback({ rating, area, text: text.trim(), contact });
+    setBusy(false);
+    if (!ok) {
+      setSendError("We couldn't send your feedback. Check your connection and try again.");
+      return;
+    }
     setSent(true);
   };
 
@@ -88,7 +97,8 @@ export default function Feedback() {
           <input type="checkbox" checked={contact} onChange={(event) => setContact(event.target.checked)} />
           You can contact me about this
         </label>
-        <button type="submit" className="button-primary">Send feedback</button>
+        {sendError && <p className="form-alert" role="alert">{sendError}</p>}
+        <button type="submit" className="button-primary" disabled={busy}>{busy ? "Sending…" : "Send feedback"}</button>
       </form>
       <Link to="/report-issue" className="link-button">Found a bug instead? Report an issue <Icon name="chevron" /></Link>
     </div>
