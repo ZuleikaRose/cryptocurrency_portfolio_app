@@ -278,10 +278,17 @@ function MarketProvider({ autoRefresh, children }) {
     setTick((value) => value + 1);
     setLastUpdated(live.updatedAt || Date.now());
   }, [simulate]);
-  const refresh = useCallback(
-    () => fetchLivePrices().then((live) => apply(live, true), () => setLoadError(true)),
-    [apply],
-  );
+  // Offline (US-9.5): keep the last data on screen and skip the request, so the offline banner
+  // shows instead of the load error; the feed refreshes when the connection returns.
+  const refresh = useCallback(() => {
+    if (!navigator.onLine) return Promise.resolve();
+    return fetchLivePrices().then((live) => apply(live, true), () => setLoadError(true));
+  }, [apply]);
+
+  useEffect(() => {
+    window.addEventListener("online", refresh);
+    return () => window.removeEventListener("online", refresh);
+  }, [refresh]);
 
   // First load: no simulated nudge, so the sample figures show as bundled until a sync has run.
   useEffect(() => {

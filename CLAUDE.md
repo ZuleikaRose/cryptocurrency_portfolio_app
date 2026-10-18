@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Prices for 31 coins come live from CryptoRank through a Supabase Edge Function; other market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
+Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Prices for 34 coins come live from CryptoRank through a Supabase Edge Function; other market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
 
 ## Commands
 
@@ -33,9 +33,11 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 - **Data:**
   - Market data (coins, funds, rounds, unlocks, sales) is sample data in `src/data/`. `supabase/seed` loads the same data into the `cpa` reference tables.
   - **Live prices** (user's decision, Oct 18, 2026; `prompt.md` clarification 14):
-    - The `cryptorank-sync` Edge Function (`supabase/functions/`) writes CryptoRank price, 24h change, market cap and volume into `cpa.coins` every 10 minutes (pg_cron) for coins with a `cryptorank_slug`. Each run is recorded in the server-only `cpa.market_sync`.
+    - The `cryptorank-sync` Edge Function (`supabase/functions/`) writes CryptoRank price, 24h change, market cap and volume into `cpa.coins` every 10 minutes (pg_cron) for coins with a `cryptorank_slug`, and 7d change and FDV from the per-coin endpoint about every 2 days (6 coins a run). Each run is recorded in the server-only `cpa.market_sync`.
+    - The 10-minute refresh rate is accepted (user's decision, Oct 18, 2026). Toncoin's live entry is CryptoRank's Gram (GRAM); Maker comes only through the per-coin endpoint.
     - The app reads them over REST through `lib/market.js` only, on load and every 30 s, and merges them onto the sample coins. Keep the fallbacks: last data plus `ErrorBanner` when a request fails, and the simulated feed before the first sync.
-    - The free CryptoRank plan allows 400 credits a day. Each run costs 2. Don't raise the schedule or the page count without a paid plan.
+    - The free CryptoRank plan allows 400 credits a day and 10 requests a minute. Pages cost 2 credits a run and details about 17 a day: about 305 a day in all. Don't raise the schedule, the page count or `DETAILS_PER_RUN` without a paid plan.
+    - To add a coin, append it to `added` in `src/data/coins.js` (its own PRNG keeps the other coins' sample figures unchanged), run `npm run seed`, then map its `cryptorank_slug` in a migration.
     - Name the source wherever prices show: "CryptoRank" for synced figures, "CPA sample data" for the rest.
   - **Guest** and **demo** state live in memory and reset on refresh.
   - **Accounts** use Supabase (user's decision, Oct 17, 2026): Supabase Auth for sign-in, and the `cpa` schema for account data. All of it goes through `lib/supabase.js` (publishable key only) and `lib/cloud.js`, which saves only the rows that changed. Every new per-user field needs a column, a mapping in `cloud.js`, and RLS in a new migration under `supabase/migrations/`.
@@ -96,7 +98,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
   - Empty: illustration, one sentence, one action.
   - Error: `ErrorBanner` with Retry, with cached data kept visible where it exists.
   - Stale: over 5 minutes old, show "Last updated" in secondary text with a clock icon.
-  - Offline: a top banner, "You're offline: showing saved data" (US-9.5, not built yet).
+  - Offline: `OfflineBanner` at the top, "You're offline: showing saved data" (US-9.5). The last prices stay on screen, the feed pauses and refreshes on reconnect, and feed actions (Refresh) are disabled. Use `useOnline()`.
   - `?simulate=error` triggers the error state.
 - **Motion (§8):**
   - Durations: `--dur-micro` 150ms, `--dur-screen` 250ms, `--dur-sheet` 350ms.

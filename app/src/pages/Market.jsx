@@ -15,7 +15,7 @@ import {
   relativeTime,
   spokenPercent,
 } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useNow, useOnline } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { marketCapChange24h } from "../lib/market.js";
 
@@ -286,6 +286,7 @@ export default function Market() {
   const rate = rateFor(currency, coins);
   const stale = now - lastUpdated > STALE_AFTER_MS;
   const simulatedError = params.get("simulate") === "error";
+  const online = useOnline();
 
   useEffect(() => {
     document.title = "Market · CPA";
@@ -413,7 +414,8 @@ export default function Market() {
           </Link>
         ) : (
           // Auto-refresh off (US-P27.3): prices only change when asked.
-          <button className="button-secondary compact" onClick={refresh}>
+          // Offline (US-9.5): the feed can't refresh, so the button is disabled until the connection returns.
+          <button className="button-secondary compact" onClick={refresh} disabled={!online}>
             Refresh
           </button>
         )}

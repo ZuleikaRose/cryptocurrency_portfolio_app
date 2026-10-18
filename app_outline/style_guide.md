@@ -183,7 +183,7 @@ ARB · Arbitrum                       in 3d 04h
 | Loading | Skeleton shimmer matching final layout (no spinners for lists) |
 | Empty | Illustration + one sentence + one primary action |
 | Error | Inline banner with retry. Cached data stays visible, marked "Last updated 12m ago" |
-| Offline | Top banner "You're offline: showing saved data" |
+| Offline | Top banner "You're offline: showing saved data" (CPA: built, warning-tinted like the demo banner, with a clock icon) |
 | Stale data | Values over 5 min old are shown in `text/secondary` with a clock icon |
 
 > **CPA build (Oct 18, 2026):** live prices sync from CryptoRank every 10 minutes, so the stale state is expected for part of each cycle and is measured from when CryptoRank reported the figures. A failed REST request uses the Error pattern: the last prices stay on screen with the banner and Retry.
