@@ -11,6 +11,7 @@ import { blocksDeletion, cancel, changeBillingDay, isPaid, pause, planById, plan
 import { downloadText } from "../lib/clipboard.js";
 import { currencies, formatDate } from "../lib/format.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
+import { useInstallPrompt } from "../lib/pwa.js";
 import { useApp } from "../state/context.js";
 
 const sections = [
@@ -52,6 +53,36 @@ function Toggle({ label, hint, checked, onChange }) {
         <span className="switch-track" aria-hidden="true" />
       </span>
     </label>
+  );
+}
+
+// Install as an app (US-8.1 adapted): the browser's own prompt where it offers one.
+function InstallRow({ onResult }) {
+  const { canInstall, installed, install } = useInstallPrompt();
+  const hint = installed
+    ? "Installed. Open CPA from your home screen or app list."
+    : canInstall
+      ? "Opens on your watchlist, with shortcuts to Unlocks and Alerts"
+      : "Use your browser's Install or Add to Home Screen option";
+  return (
+    <div className="setting-row">
+      <span className="setting-label">
+        Install CPA
+        <small>{hint}</small>
+      </span>
+      {canInstall && !installed && (
+        <button
+          className="button-secondary compact"
+          onClick={async () => {
+            const outcome = await install();
+            if (outcome === "accepted") onResult("CPA installed");
+            else if (outcome === "unavailable") onResult("Couldn't open the install prompt. Use your browser's Install option instead.");
+          }}
+        >
+          Install
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -525,6 +556,7 @@ export default function Settings() {
             {ranges.map((range) => <option key={range.id} value={range.id}>{range.id}</option>)}
           </select>
         </label>
+        <InstallRow onResult={showToast} />
       </section>
 
       <section id="notifications" aria-labelledby="notifications-title" className="settings-section">

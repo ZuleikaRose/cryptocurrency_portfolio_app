@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { notificationPermission } from "../lib/notify.js";
 import { prefersReducedMotion } from "../lib/a11y.js";
 import { keys } from "../lib/storage.js";
+import { isInstalled, offlineStatus } from "../lib/pwa.js";
 
 const SUPPORTED = { Chrome: 120, Edge: 120, Firefox: 120, Safari: 17 };
 
@@ -46,6 +47,20 @@ function runChecks() {
     },
     navigator.onLine ? { ok: true, text: "Connection: online" } : { ok: false, warn: true, text: "Connection: offline. Bundled sample data keeps working." },
     { ok: true, info: true, text: `Reduced motion: ${prefersReducedMotion() ? "on (animations are off)" : "off"}` },
+    isInstalled()
+      ? { ok: true, text: "Installed as an app" }
+      : { ok: true, info: true, text: "Installable: use your browser's Install or Add to Home Screen option", link: { to: "/settings#preferences", label: "Install from Settings" } },
+    {
+      ok: offlineStatus() === "ready",
+      info: offlineStatus() !== "ready",
+      text: {
+        ready: "Offline app: ready (opens without a connection, with your last prices)",
+        pending: "Offline app: setting up",
+        failed: "Offline app: couldn't set up. CPA still works online.",
+        unsupported: "Offline app: not supported in this browser",
+        dev: "Offline app: off in development builds",
+      }[offlineStatus()],
+    },
   ];
 }
 

@@ -459,6 +459,8 @@ export function AppProvider({ children }) {
       : data.settings.theme;
     // Contrast "dark" / "light" force that theme; "high" raises contrast within it.
     root.dataset.theme = a11y.contrast === "dark" || a11y.contrast === "light" ? a11y.contrast : theme;
+    // The installed app's title bar follows the theme (manifest default is dark).
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", getComputedStyle(root).getPropertyValue("--bg").trim());
     root.dataset.contrast = a11y.contrast === "high" ? "high" : "default";
     root.dataset.colors = data.settings.colors;
     root.dataset.motion = data.settings.stopAnimations ? "off" : "on";

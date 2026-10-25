@@ -132,7 +132,7 @@ The key is read from the environment or `.env`, and both are git-ignored. Never 
 ```bash
 cd supabase
 npm install
-npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe to re-run)
+npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe to re-run; keeps live CryptoRank prices)
 ```
 
 - `migrations/`: the `cpa` schema, RLS policies, the account functions, and the live price sync (columns, `market_sync`, RPCs, pg_cron schedule, comments). The migrations are already applied to the linked project.
@@ -206,10 +206,11 @@ CLAUDE.md             working rules for Claude Code in this repo
 
 ## Build status
 
-Phases 0 to 8 are complete: shell and Market, Coin detail, Search/Watchlist/Portfolio, research pages, Home and Alerts, accounts, support and legal pages, then polish and QA. After that, accounts moved from the browser to Supabase, the sample data was loaded into the database, prices for 34 coins went live from CryptoRank through a scheduled Edge Function, and the offline banner (US-9.5) was added.
+Phases 0 to 8 are complete: shell and Market, Coin detail, Search/Watchlist/Portfolio, research pages, Home and Alerts, accounts, support and legal pages, then polish and QA. After that, accounts moved from the browser to Supabase, the sample data was loaded into the database, prices for 34 coins went live from CryptoRank through a scheduled Edge Function, and the offline banner (US-9.5) was added. Then came named watchlists (US-6.2), unlock and sale reminders that follow a date change (US-4.2), and the installable app with an offline cache (US-8.1 adapted, US-9.5).
+
+**Installable app (`app/public/manifest.webmanifest`, `app/public/sw.js`, `app/src/lib/pwa.js`):** CPA installs from the browser or from Settings → Preferences → Install CPA. It opens on the Watchlist, with shortcuts to Watchlist, Unlocks and Alerts; a web app can't add a home-screen widget, so this stands in for US-8.1. In production builds a service worker caches the app shell, the build's scripts, styles and Latin fonts, and the last live prices (`/rest/v1/coins`, public data), so CPA opens offline on any route with "You're offline: showing saved data". Account data, sign-in and writes are never cached. The worker is off in `npm run dev`; test it with `npm run build && npx vite preview`. Technical requirements reports whether it's ready. Bump `VERSION` in `sw.js` when its caching rules change.
 
 These parts of the source documents aren't built, because they need native platforms or more server work:
 - Sign in with Apple or Google, and magic links (CPA uses email and password, plus the demo).
-- Home-screen widgets, haptics, and push or email delivery (CPA uses in-app and browser notifications).
-- Wallet and exchange import (US-6.4) and multiple watchlists (US-6.2).
-- A cache that keeps data across reloads while offline (US-9.5). The offline banner is built: it keeps the last loaded prices on screen and pauses the feed until the connection returns.
+- Home-screen widgets, haptics, and push or email delivery (CPA uses in-app and browser notifications, and installs as an app with shortcuts).
+- Wallet and exchange import (US-6.4).
