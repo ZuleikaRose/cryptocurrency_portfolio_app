@@ -73,7 +73,7 @@ function EditList({ coins, listName, onMove, onRemove }) {
 function AddCoinsSheet({ open, onClose, list, coins, onToggle }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const shown = q ? coins.filter((coin) => coin.name.toLowerCase().includes(q) || coin.symbol.toLowerCase().includes(q)) : coins;
+  const shown = q ? coins.filter((coin) => [coin.name, coin.symbol, ...(coin.formerSymbols ?? [])].some((text) => text.toLowerCase().includes(q))) : coins;
   return (
     <Sheet open={open} onClose={onClose} title={list ? `Add coins to ${list.name}` : "Add coins"} side="bottom">
       {list && (

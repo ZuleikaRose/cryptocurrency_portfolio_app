@@ -463,6 +463,7 @@ export default function CoinDetail() {
               </span>
             )}
             <span className="num">#{coin.rank}</span>
+            {coin.formerSymbols?.length > 0 && <span>Formerly {coin.formerSymbols.join(", ")}</span>}
           </p>
         </div>
       </header>
