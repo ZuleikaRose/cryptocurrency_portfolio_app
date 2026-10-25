@@ -25,7 +25,9 @@ CPA is live at **https://cpa-black.vercel.app** (Vercel project `cpa`, root dire
 
 - **Deploy:** `vercel deploy --prod` from `app/`. `app/vercel.json` builds with Vite, sends every route to `index.html` (BrowserRouter), serves `sw.js` with `no-cache` so updates reach installed apps, caches the hashed `/assets/*` for a year, and sets `nosniff`, `X-Frame-Options: DENY`, a referrer policy and a permissions policy.
 - **Build variables:** only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, set in the Vercel project for production and preview. Server keys are never added to Vercel.
-- **Supabase settings for the hosted origin:** `https://cpa-black.vercel.app` must be in the Edge Functions' `ALLOWED_ORIGINS` (for wallet import) and in Auth → URL Configuration → Redirect URLs as `https://cpa-black.vercel.app/**` (for password-reset links).
+- **Supabase settings for the hosted origin:**
+  - CORS: the Edge Functions' `ALLOWED_ORIGINS` is `http://localhost:5173,http://localhost:4173,https://cpa-black.vercel.app` (dev server, `vite preview`, hosted site; set Oct 25, 2026). Setting it replaces the whole list, so include every origin. The Supabase REST and Auth APIs allow any origin and are protected by RLS and the session instead.
+  - Auth → URL Configuration → Redirect URLs needs `https://cpa-black.vercel.app/**` for password-reset links (set in the Dashboard).
 
 ## Who it's for
 
@@ -201,7 +203,7 @@ The live database runs the Supabase version in `supabase/migrations/`. It differ
 - **Coins:** Zcash (ZEC) was added on Oct 18, 2026. Toncoin is listed on CryptoRank as Gram (GRAM), the layer 1 first developed by Telegram, so its live figures come from that entry.
 - **Key:** `CRYPTORANK_API_KEY` is an Edge Function secret, set from `.env` with `supabase secrets set --env-file <(grep '^CRYPTORANK_API_KEY=' .env)`. It never reaches the browser.
 - **Abuse limit:** the function is public (pg_cron calls it without a JWT), so `cpa.claim_market_sync()` lets a run start at most once every 9 minutes. It reads nothing from the request, refuses bodies over 1 KB (413), and returns only counts and generic error text; the details go to the function logs and `cpa.market_sync`.
-- **CORS:** browsers may call it only from the origins in the `ALLOWED_ORIGINS` function setting (comma-separated; default `http://localhost:5173`). Other origins get 403, and preflight `OPTIONS` returns 204. pg_cron sends no `Origin` header and isn't affected. The app itself never calls the function: it reads `cpa.coins` over REST.
+- **CORS:** browsers may call it only from the origins in the `ALLOWED_ORIGINS` function setting (comma-separated; default `http://localhost:5173`; see [Hosting](#hosting) for the current list). Other origins get 403, and preflight `OPTIONS` returns 204. pg_cron sends no `Origin` header and isn't affected. The app itself never calls the function: it reads `cpa.coins` over REST.
 - **App:** `app/src/lib/market.js` reads those rows over the REST API on load and every 30 s. If a request fails, the last data stays on screen with the error banner and Retry. Before the first sync, or without Supabase, the simulated feed stands in. 1h and 7d changes, FDV and sparklines are still sample data, and Coin detail names its source.
 - **Deploy:** `supabase functions deploy cryptorank-sync --project-ref <ref> --no-verify-jwt --use-api`. Run `deno check` and `deno lint` on the function first.
 - **Health:** `select * from cpa.market_sync;` shows the last run: status, coins updated, credits used, any slugs CryptoRank didn't return, and the last error.
