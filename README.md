@@ -23,7 +23,7 @@ To try it without an account, open **Log in** and choose **Try a private demo**.
 
 CPA is live at **https://cpa-black.vercel.app** (Vercel project `cpa`, root directory `app/`).
 
-- **Deploy:** `vercel deploy --prod` from `app/`. `app/vercel.json` builds with Vite, sends every route to `index.html` (BrowserRouter), serves `sw.js` with `no-cache` so updates reach installed apps, caches the hashed `/assets/*` for a year, and sets `nosniff`, `X-Frame-Options: DENY`, a referrer policy and a permissions policy.
+- **Deploy:** the Vercel project is connected to this GitHub repo with root directory `app`. A push to `main` (merging a PR) deploys production; every other branch and PR gets a preview deployment and a "Vercel" check. `app/vercel.json` builds with Vite, sends every route to `index.html` (BrowserRouter), serves `sw.js` with `no-cache` so updates reach installed apps, caches the hashed `/assets/*` for a year, and sets `nosniff`, `X-Frame-Options: DENY`, a referrer policy and a permissions policy.
 - **Build variables:** only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, set in the Vercel project for production and preview. Server keys are never added to Vercel.
 - **Supabase settings for the hosted origin:**
   - CORS: the Edge Functions' `ALLOWED_ORIGINS` is `http://localhost:5173,http://localhost:4173,https://cpa-black.vercel.app` (dev server, `vite preview`, hosted site; set Oct 25, 2026). Setting it replaces the whole list, so include every origin. The Supabase REST and Auth APIs allow any origin and are protected by RLS and the session instead.

@@ -8,7 +8,7 @@ Run these from `app/`:
 - `npm run dev`: Vite on http://localhost:5173. Use `npx vite --port 5173 --strictPort` if you need the port fixed for browser tests.
 - `npm run lint`: oxlint. It must pass with no output before you commit.
 - `npm run build`: production build. Run it to catch broken imports, because oxlint doesn't resolve modules.
-- `vercel deploy --prod`: deploys to https://cpa-black.vercel.app (Vercel project `cpa`; headers and the SPA rewrite are in `app/vercel.json`). Lint and build first. Vercel holds only the two `VITE_` variables; never add a server key there.
+- Hosting: Vercel project `cpa` (root directory `app`) is connected to GitHub. Merging to `main` deploys https://cpa-black.vercel.app; branches and PRs get previews and a "Vercel" check. Headers and the SPA rewrite are in `app/vercel.json`. Lint and build before pushing. Vercel holds only the two `VITE_` variables; never add a server key there.
 
 From the repo root:
 - `supabase functions deploy cryptorank-sync --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the live price sync. Type-check and lint it with Deno first (`deno check`, `deno lint`); the deploy hook expects that dry run in the same command.
