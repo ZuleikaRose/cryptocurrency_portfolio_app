@@ -13,7 +13,7 @@ import { chartSummary } from "../lib/chart.js";
 import { downloadText } from "../lib/clipboard.js";
 import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
 import { useNow } from "../lib/hooks.js";
-import { chainFor, lookupWallet, normaliseAddress, secretWarning, shortAddress, WALLET_CHAINS, walletImportPlan } from "../lib/wallet.js";
+import { chainFor, lookupWallet, normaliseAddress, secretWarning, shortAddress, WALLET_CHAINS, walletImportPlan, walletNote } from "../lib/wallet.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 
@@ -231,7 +231,19 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
   );
 }
 
-// Read-only wallet import (US-6.4): paste a public address, preview, then record the difference.
+// One wallet preview line: what the import records for a coin, or why it records nothing.
+function walletRowText(row, currency, rate) {
+  if (!row.txs.length) return row.reason;
+  const day = (value) => formatDate(`${value}T12:00:00Z`);
+  const parts = [];
+  if (row.openingDay) parts.push(`${formatAmount(row.txs[0].amount)} held before ${day(row.openingDay)}`);
+  if (row.transfers) parts.push(`transfers on ${row.transfers} ${row.transfers === 1 ? "day" : "days"} from ${day(row.firstDay)}`);
+  if (row.adjustment) parts.push(`${row.adjustment > 0 ? "+" : "−"}${formatAmount(Math.abs(row.adjustment))} adjustment at ${formatPrice(row.coin.price, currency, rate)}`);
+  if (row.unpriced) parts.push(`${row.unpriced} ${row.unpriced === 1 ? "day" : "days"} without a closing price use today's`);
+  return parts.join(" · ");
+}
+
+// Read-only wallet import (US-6.4): paste a public address, preview, then record dated transfers.
 function WalletSheet({ open, onClose, coins, transactions, demo, onImport, currency, rate }) {
   const inputId = useId();
   const [address, setAddress] = useState("");
@@ -239,10 +251,20 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
   const warning = secretWarning(address);
   const chain = warning ? null : chainFor(address);
   const chainLabel = WALLET_CHAINS.find((item) => item.id === chain)?.label;
-  const plan = useMemo(
-    () => (state.status === "done" ? walletImportPlan(state.balances, state.address, transactions, coins) : null),
-    [state, transactions, coins],
+  // Earlier imports of this address; with history, they can be rebuilt (e.g. ones recorded at the
+  // import day's price before transfer history was read).
+  const [rebuild, setRebuild] = useState(false);
+  const earlier = useMemo(
+    () => (state.status === "done" ? transactions.filter((tx) => tx.note === walletNote(state.address)) : []),
+    [state, transactions],
   );
+  const canRebuild = earlier.length > 0 && state.status === "done" && state.history.entries.length > 0;
+  const replacing = canRebuild && rebuild;
+  const plan = useMemo(() => {
+    if (state.status !== "done") return null;
+    const kept = replacing ? transactions.filter((tx) => tx.note !== walletNote(state.address)) : transactions;
+    return walletImportPlan(state, state.address, kept, coins);
+  }, [state, transactions, coins, replacing]);
 
   const lookUp = async (event) => {
     event.preventDefault();
@@ -273,6 +295,7 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
             value={address}
             onChange={(event) => {
               setAddress(event.target.value);
+              setRebuild(false);
               if (state.status !== "loading") setState({ status: "idle" });
             }}
             autoComplete="off"
@@ -313,31 +336,41 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
                       <CoinLogo coin={row.coin} />
                       <span>
                         <strong className="num">{formatAmount(row.balance)} {row.coin.symbol}</strong>
-                        <small className="num">
-                          {row.tx
-                            ? `${row.tx.type === "transfer-in" ? "+" : "−"}${formatAmount(row.tx.amount)} as a ${row.tx.type === "transfer-in" ? "transfer in" : "transfer out"} at ${formatPrice(row.coin.price, currency, rate)}`
-                            : row.reason}
-                        </small>
+                        <small className="num">{walletRowText(row, currency, rate)}</small>
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
-              {count > 0 && <p className="sheet-note">Cost basis is today's price. Edit a transaction to change it.</p>}
+              {count > 0 && (
+                <p className="sheet-note">
+                  {plan.rows.some((row) => row.transfers)
+                    ? `Cost basis: each transfer at that day's closing price (${state.demo ? "CPA sample data" : "Coinbase, UTC"}); adjustments at today's price.`
+                    : "Cost basis is today's price."}
+                  {!state.history.complete && " Only recent history was read; the balance before it is priced at the earliest day read."}
+                  {" "}Edit a transaction to change it.
+                </p>
+              )}
             </>
           )}
         </div>
+        {canRebuild && (
+          <label className="check-row">
+            <input type="checkbox" checked={rebuild} onChange={(event) => setRebuild(event.target.checked)} />
+            Rebuild from history: replace the {earlier.length} earlier {earlier.length === 1 ? "transaction" : "transactions"} from this address
+          </label>
+        )}
         {plan && (
           <button
             type="button"
             className="button-primary"
             disabled={!count}
             onClick={() => {
-              onImport(plan.transactions);
+              onImport(plan.transactions, replacing ? { replace: earlier.map((tx) => tx.id) } : undefined);
               onClose();
             }}
           >
-            {count ? `Import ${count} ${count === 1 ? "change" : "changes"}` : "Nothing to import"}
+            {count ? `Import ${count} ${count === 1 ? "transaction" : "transactions"}` : "Nothing to import"}
           </button>
         )}
       </form>

@@ -25,7 +25,6 @@ export function mergeLivePrices(coins, rows) {
     if (!row) return coin;
     const price = Number(row.price_usd);
     if (coin.source === "cryptorank" && price !== coin.price) flashes[coin.id] = price > coin.price ? "up" : "down";
-    const ratio = coin.price > 0 ? price / coin.price : 1;
     const details = row.details_updated_at != null;
     return {
       ...coin,
@@ -39,11 +38,19 @@ export function mergeLivePrices(coins, rows) {
       change24h: Number(row.change_24h),
       marketCap: Number(row.market_cap_usd),
       volume24h: row.volume_24h_usd == null ? coin.volume24h : Number(row.volume_24h_usd),
-      // The 7d sparkline is still sample data; keep its last point on the live price.
-      spark: [...coin.spark.slice(0, -1), coin.spark[coin.spark.length - 1] * ratio],
+      spark: details && row.change_7d != null ? sparkFacing(coin.spark, Number(row.change_7d)) : coin.spark,
     };
   });
   return { next, flashes };
+}
+
+// The 7d sparkline is a unitless sample shape (Sparkline scales it to its own min and max), so a
+// live price can't be applied to it. Mirror it when it runs against the live 7d change instead.
+export function sparkFacing(spark, change7d) {
+  const rising = spark[spark.length - 1] >= spark[0];
+  if (Math.abs(change7d) < 0.1 || rising === change7d > 0) return spark;
+  const top = Math.max(...spark) + Math.min(...spark);
+  return spark.map((point) => top - point);
 }
 
 // Cap-weighted 24h change of the whole list: today's total cap against the total implied by

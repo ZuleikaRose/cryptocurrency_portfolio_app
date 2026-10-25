@@ -1,17 +1,20 @@
 // Read-only wallet import (US-6.4, 11-portfolio.md): returns the balances held by one public
-// Bitcoin or Ethereum address, for the coins CPA lists. The browser calls this function instead
-// of the block explorers, so ETHERSCAN_API_KEY stays a function setting and never ships.
+// Bitcoin or Ethereum address, for the coins CPA lists, and its transfers per coin per day priced
+// at that day's close, for cost basis. The browser calls this function instead of the block
+// explorers, so ETHERSCAN_API_KEY stays a function setting and never ships.
 //
 // Request: POST {"chain": "bitcoin" | "ethereum", "address": "<public address>"} with the caller's
 // Supabase session as the Bearer token. Response: {"chain", "address", "balances": [{coinId, amount}],
-// "asOf"}. Nothing else is read from the request, and the address is never stored.
+// "history": {"entries": [{coinId, day, amount, price}], "complete"}, "asOf"}. Nothing else is
+// read from the request, and the address is never stored.
 //
 // Anyone can reach the URL, so the function needs a signed-in user, answers browsers only from
 // ALLOWED_ORIGINS (CORS), rejects bodies over 1 KB, accepts only well-formed public addresses, and
 // allows 10 lookups an hour per user and 30 per caller IP (cpa.claim_wallet_lookup, migration
 // wallet_lookup_quota). Explorer and database error text goes to the logs, never to the caller.
 import { createClient } from "@supabase/supabase-js";
-import { type Balance, bitcoinBalances, ethereumBalances, LookupError, normaliseAddress } from "./lookup.ts";
+import { bitcoinWallet, ethereumWallet, LookupError, normaliseAddress, type Wallet } from "./lookup.ts";
+import { priceHistory } from "./prices.ts";
 
 const MAX_BODY_BYTES = 1024;
 const LIMIT_PER_USER = 10;
@@ -113,18 +116,19 @@ Deno.serve(async (req) => {
   if (!allowed) return json(req, { error: `You can look up ${LIMIT_PER_USER} wallets an hour. Try again later.` }, 429);
 
   try {
-    let balances: Balance[];
+    let wallet: Wallet;
     if (chain === "bitcoin") {
-      balances = await bitcoinBalances(address);
+      wallet = await bitcoinWallet(address);
     } else {
       const apiKey = Deno.env.get("ETHERSCAN_API_KEY");
       if (!apiKey) {
         console.error("wallet-lookup: ETHERSCAN_API_KEY is not set.");
         return json(req, { error: "Ethereum import isn't configured yet." }, 503);
       }
-      balances = await ethereumBalances(apiKey, address);
+      wallet = await ethereumWallet(apiKey, address);
     }
-    return json(req, { chain, address, balances, asOf: new Date().toISOString() });
+    await priceHistory(wallet.history.entries);
+    return json(req, { chain, address, ...wallet, asOf: new Date().toISOString() });
   } catch (error) {
     if (error instanceof LookupError) {
       console.error(`wallet-lookup ${chain}: ${error.message}`);
