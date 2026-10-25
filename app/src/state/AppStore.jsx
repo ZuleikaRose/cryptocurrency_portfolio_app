@@ -19,6 +19,7 @@ import { POINTS_PROMO, findPromo, pointsFor, promoStatus } from "../data/promoti
 
 const emptyData = {
   watchlist: [],
+  lists: [],
   settings: defaultSettings,
   recentCoins: [],
   recentSearches: [],
@@ -99,6 +100,7 @@ function demoAlertData() {
 const demoData = () => ({
   ...emptyData,
   watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"],
+  lists: [{ id: "demo-list-l2", name: "L2 bets", coinIds: ["arbitrum", "optimism", "polygon"] }],
   transactions: demoTransactions,
   onboarded: true,
   billing: demoBilling(),
@@ -164,7 +166,7 @@ function normalizeStored(rawStored) {
   const stored = Object.fromEntries(
     Object.entries(rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {}).filter(([, value]) => value !== undefined && value !== null),
   );
-  ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications", "tickets", "feedback"].forEach((key) => {
+  ["watchlist", "lists", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications", "tickets", "feedback"].forEach((key) => {
     if (!Array.isArray(stored[key])) delete stored[key];
   });
   if (stored.tickets) stored.tickets = stored.tickets.filter(isTicket);
@@ -192,6 +194,12 @@ function normalizeStored(rawStored) {
     coins: Array.isArray(interests.coins) ? interests.coins.filter((item) => typeof item === "string") : [],
     sectors: Array.isArray(interests.sectors) ? interests.sectors.filter((item) => typeof item === "string") : [],
   };
+  if (stored.lists) {
+    stored.lists = stored.lists
+      .filter((list) => list && typeof list.id === "string" && typeof list.name === "string" && list.name.trim() && Array.isArray(list.coinIds))
+      .slice(0, MAX_LISTS - 1)
+      .map((list) => ({ id: list.id, name: list.name.slice(0, 30), coinIds: [...new Set(list.coinIds.filter((id) => typeof id === "string"))] }));
+  }
   if (stored.savedFilters) stored.savedFilters = stored.savedFilters.filter((item) => item && typeof item.name === "string" && item.filters && typeof item.filters === "object");
   if (stored.savedFilters) {
     stored.savedFilters = stored.savedFilters.slice(0, 10).map((item) => ({
@@ -225,6 +233,9 @@ function normalizeStored(rawStored) {
     follows: Object.fromEntries(Object.entries(stored.follows ?? {}).filter(([, frequency]) => ["instant", "daily", "weekly"].includes(frequency))),
   };
 }
+
+// 10 watchlists in all: "Main" plus up to 9 named lists (10-watchlist.md).
+const MAX_LISTS = 10;
 
 const TICK_MS = 30_000;
 const SAVE_DELAY_MS = 600;
@@ -549,24 +560,89 @@ export function AppProvider({ children }) {
     [requireAuth, showToast],
   );
 
-  // Watchlist order (US-6.1): move up/down or drop at a new index.
-  const moveWatch = useCallback((coinId, toIndex) => {
+  // Watchlist order (US-6.1): move up/down or drop at a new index. `listId` is "main" or a named list.
+  const moveWatch = useCallback((coinId, toIndex, listId = "main") => {
     setData((current) => {
-      const list = current.watchlist.filter((id) => id !== coinId);
-      list.splice(Math.max(0, Math.min(toIndex, list.length)), 0, coinId);
-      return { ...current, watchlist: list };
+      const place = (ids) => {
+        const list = ids.filter((id) => id !== coinId);
+        list.splice(Math.max(0, Math.min(toIndex, list.length)), 0, coinId);
+        return list;
+      };
+      if (listId === "main") return { ...current, watchlist: place(current.watchlist) };
+      return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: place(list.coinIds) } : list)) };
     });
   }, []);
 
   // Remove with a 5 s Undo that restores the coin to its old position (US-P10.2).
   const removeWatch = useCallback(
-    (coin) => {
-      const index = dataRef.current.watchlist.indexOf(coin.id);
+    (coin, listId = "main") => {
+      const ids = listId === "main" ? dataRef.current.watchlist : dataRef.current.lists.find((list) => list.id === listId)?.coinIds ?? [];
+      const index = ids.indexOf(coin.id);
       if (index < 0) return;
-      setData((current) => ({ ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }));
-      showToast(`${coin.name} removed`, { label: "Undo", run: () => moveWatch(coin.id, index) });
+      setData((current) =>
+        listId === "main"
+          ? { ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }
+          : { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: list.coinIds.filter((id) => id !== coin.id) } : list)) },
+      );
+      showToast(`${coin.name} removed`, { label: "Undo", run: () => moveWatch(coin.id, index, listId) });
     },
     [moveWatch, showToast],
+  );
+
+  // Named watchlists (US-6.2): up to 9 besides Main, names up to 30 characters.
+  const createList = useCallback(
+    (name, coinIds = []) => {
+      if (dataRef.current.lists.length >= MAX_LISTS - 1) {
+        showToast(`You can have up to ${MAX_LISTS} watchlists. Delete one to add another.`);
+        return null;
+      }
+      const list = { id: newId("list"), name: name.trim().slice(0, 30), coinIds };
+      setData((current) => ({ ...current, lists: [...current.lists, list] }));
+      showToast(`Created “${list.name}”`);
+      return list.id;
+    },
+    [showToast],
+  );
+  const renameList = useCallback((id, name) => {
+    setData((current) => ({ ...current, lists: current.lists.map((list) => (list.id === id ? { ...list, name: name.trim().slice(0, 30) } : list)) }));
+  }, []);
+  const deleteList = useCallback(
+    (id) => {
+      const index = dataRef.current.lists.findIndex((list) => list.id === id);
+      if (index < 0) return;
+      const removed = dataRef.current.lists[index];
+      setData((current) => ({
+        ...current,
+        lists: current.lists.filter((list) => list.id !== id),
+        settings: current.settings.watchlistList === id ? { ...current.settings, watchlistList: "main" } : current.settings,
+      }));
+      showToast(`Deleted “${removed.name}”`, {
+        label: "Undo",
+        run: () =>
+          setData((current) => {
+            if (current.lists.some((list) => list.id === id)) return current;
+            const lists = [...current.lists];
+            lists.splice(index, 0, removed);
+            return { ...current, lists };
+          }),
+      });
+    },
+    [showToast],
+  );
+  // Add or remove one coin in one list; "main" is the classic watchlist.
+  const setListMembership = useCallback(
+    (coin, listId, member) => {
+      requireAuth(`Sign in to save ${coin.name} to a watchlist`, () => {
+        setData((current) => {
+          const apply = (ids) => (member ? [...new Set([...ids, coin.id])] : ids.filter((id) => id !== coin.id));
+          if (listId === "main") return { ...current, watchlist: apply(current.watchlist) };
+          return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: apply(list.coinIds) } : list)) };
+        });
+        const name = listId === "main" ? "Main" : dataRef.current.lists.find((list) => list.id === listId)?.name ?? "watchlist";
+        showToast(member ? `${coin.name} added to ${name}` : `${coin.name} removed from ${name}`);
+      });
+    },
+    [requireAuth, showToast],
   );
 
   // Search overlay and recent searches (US-2.5, US-P04.2).
@@ -1211,6 +1287,11 @@ export function AppProvider({ children }) {
       clearRecentSearches,
       moveWatch,
       removeWatch,
+      lists: data.lists,
+      createList,
+      renameList,
+      deleteList,
+      setListMembership,
       saveTransaction,
       deleteTransaction,
       dismissToast,
@@ -1285,7 +1366,7 @@ export function AppProvider({ children }) {
       joinAffiliate,
       setAffiliatePayout,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, createList, renameList, deleteList, setListMembership, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
   );
 
   return (

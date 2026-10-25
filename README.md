@@ -143,16 +143,16 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 
 ## Data model
 
-![Entity-relationship diagram of the CPA schema: 48 tables in 8 groups](drawsql.png)
+![Entity-relationship diagram of the CPA schema: 50 tables in 8 groups](drawsql.png)
 
-`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram; regenerate it with `npm run diagram` in `tools/diagram/`. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
+`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 50 tables, 55 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram; regenerate it with `npm run diagram` in `tools/diagram/`. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
 
 | Group | Tables | Holds |
 |---|---|---|
 | Reference | `categories`, `plans`, `promotions`, `faq_sections`, `faq_items`, `learn_articles`, `glossary_terms` | Fixed lists and help content |
 | Market | `coins`, `coin_prices`, `exchanges`, `coin_markets`, `market_sync` | Rankings, price history, where each coin trades, the last live price sync |
 | Research | `vesting_schedules`, `vesting_allocations`, `unlock_events`, `funds`, `fund_sectors`, `funding_rounds`, `round_investors`, `token_sales` | Tokenomics, unlocks, fundraising, token sales |
-| Watchlist & portfolio | `watchlist_items`, `recent_coins`, `recent_searches`, `sentiment_votes`, `transactions`, `user_interest_coins`, `user_interest_sectors`, `fund_follows`, `project_follows` | What each user tracks, holds and follows |
+| Watchlist & portfolio | `watchlist_items`, `watchlists`, `watchlist_list_coins`, `recent_coins`, `recent_searches`, `sentiment_votes`, `transactions`, `user_interest_coins`, `user_interest_sectors`, `fund_follows`, `project_follows` | What each user tracks, holds and follows |
 | Accounts | `users`, `sessions`, `login_attempts`, `password_reset_tokens`, `password_reset_requests`, `user_state`, `affiliates` | Sign-in, counters and flags, affiliate codes |
 | Alerts & billing | `price_alerts`, `reminders`, `notifications`, `saved_filters`, `subscriptions`, `promo_redemptions`, `billing_history`, `payment_methods` | Alerts and their inbox, saved Fundraising filters, plans and payments |
 | Settings | `user_settings` | One row per user: display, notifications, AI features, the accessibility menu and each tab's remembered filters |
@@ -161,10 +161,10 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 Views: `coin_sentiment`, `portfolio_holdings` (net amount and average buy price) and `user_points` (loyalty points).
 
 The live database runs the Supabase version in `supabase/migrations/`. It differs from `schema.sql` in these ways:
-- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 44 tables. `cpa.users` is a profile row keyed to `auth.users`.
+- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 46 tables. `cpa.users` is a profile row keyed to `auth.users`.
 - **Access:** row-level security is on every table.
 - **Sentiment:** `coin_sentiment` became the `coin_sentiment_today()` function, which returns totals without revealing who voted.
-- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule, and `market_sync_comments` copied `schema.sql`'s descriptions of them into the database. `cryptorank_more_live_data` added `coins.cryptorank_id` and `details_updated_at`, made `rank` uniqueness deferrable so adding a coin can re-rank the rest, and mapped Toncoin and Maker; `map_zcash` mapped Zcash. `review_feedback_fixes` (from PR #6) requires an active profile for every account-data rule, so a deleted account can't read or change its data before it's erased; makes `erase_my_data()` delete the account's tickets and feedback; applies the 10 saved-filter limit to new filters only; and stops issue IDs truncating past 9999.
+- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule, and `market_sync_comments` copied `schema.sql`'s descriptions of them into the database. `cryptorank_more_live_data` added `coins.cryptorank_id` and `details_updated_at`, made `rank` uniqueness deferrable so adding a coin can re-rank the rest, and mapped Toncoin and Maker; `map_zcash` mapped Zcash. `review_feedback_fixes` (from PR #6) requires an active profile for every account-data rule, so a deleted account can't read or change its data before it's erased; makes `erase_my_data()` delete the account's tickets and feedback; applies the 10 saved-filter limit to new filters only; and stops issue IDs truncating past 9999. `named_watchlists` added `watchlists`, `watchlist_list_coins` and `user_settings.watchlist_list` (US-6.2), and `named_watchlists_upsert_limit` applies the 10-list limit to new lists only.
 
 `schema.sql` stays the portable reference for running CPA on any PostgreSQL 15+ server.
 

@@ -106,6 +106,22 @@ button.chip { cursor: pointer; }
 .edit-name span { color: var(--subtle); font-size: 12px; }
 .edit-row .icon-button:disabled { opacity: 0.3; cursor: default; }
 
+/* Named lists (US-6.2): chips above the list, checkbox rows in the pickers. */
+.list-chips { margin: 4px 0 12px; }
+.list-chips .chip { min-height: 44px; }
+.list-chips .chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.pick-list { display: grid; gap: 2px; margin: 0 0 12px; padding: 0; list-style: none; max-height: 50vh; overflow-y: auto; }
+.pick-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 48px;
+  padding: 4px 8px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.pick-row:hover { background: var(--surface-raised); }
+.pick-row input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.pick-row .edit-name { flex: 1; }
+
 /* Toast with action */
 .toast { pointer-events: auto; }
 .toast-text { flex: 1; }

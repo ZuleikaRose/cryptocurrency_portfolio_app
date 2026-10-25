@@ -371,8 +371,9 @@ export default function CoinDetail() {
   const navigate = useNavigate();
   const { coins, lastUpdated } = useMarket();
   const app = useApp();
-  const { settings, watchlist, toggleWatch, addRecentCoin, requireAuth, voteFor, castVote, reminders, showToast } = app;
+  const { settings, watchlist, lists, toggleWatch, setListMembership, addRecentCoin, requireAuth, voteFor, castVote, reminders, showToast } = app;
   const [eventSheet, setEventSheet] = useState(null);
+  const [listsOpen, setListsOpen] = useState(false);
   const [reminderSheet, setReminderSheet] = useState(null);
   const [copied, setCopied] = useState(false);
   const now = useNow(1000);
@@ -402,7 +403,9 @@ export default function CoinDetail() {
 
   const currency = settings.currency;
   const rate = rateFor(currency, coins);
-  const starred = watchlist.includes(coin.id);
+  // The star fills if the coin is in any list; with named lists it opens a picker (US-6.2).
+  const starred = watchlist.includes(coin.id) || lists.some((list) => list.coinIds.includes(coin.id));
+  const onStar = () => (lists.length ? requireAuth(`Sign in to save ${coin.name} to a watchlist`, () => setListsOpen(true)) : toggleWatch(coin));
   const dir = direction(coin.change24h);
 
   const setTab = (id) => {
@@ -486,7 +489,7 @@ export default function CoinDetail() {
       </div>
 
       <div className="detail-actions">
-        <button className={starred ? "button-primary in-watchlist" : "button-primary"} aria-pressed={starred} onClick={() => toggleWatch(coin)}>
+        <button className={starred ? "button-primary in-watchlist" : "button-primary"} aria-pressed={lists.length ? undefined : starred} aria-haspopup={lists.length ? "dialog" : undefined} onClick={onStar}>
           <Icon name="star" filled={starred} /> {starred ? "In watchlist" : "Add to watchlist"}
         </button>
         <button
@@ -561,6 +564,23 @@ export default function CoinDetail() {
       </Sheet>
 
       <ReminderSheet key={reminderSheet?.id ?? "none"} item={reminderSheet} onClose={() => setReminderSheet(null)} />
+
+      <Sheet open={listsOpen} onClose={() => setListsOpen(false)} title="Save to watchlists" side="bottom">
+        <ul className="pick-list" aria-label={`Watchlists for ${coin.name}`}>
+          {[{ id: "main", name: "Main", coinIds: watchlist }, ...lists].map((list) => (
+            <li key={list.id}>
+              <label className="pick-row">
+                <input type="checkbox" checked={list.coinIds.includes(coin.id)} onChange={(event) => setListMembership(coin, list.id, event.target.checked)} />
+                <span className="edit-name">
+                  <strong>{list.name}</strong>
+                  <span className="num">{list.coinIds.length} {list.coinIds.length === 1 ? "coin" : "coins"}</span>
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <button className="button-primary" onClick={() => setListsOpen(false)}>Done</button>
+      </Sheet>
     </article>
   );
 }

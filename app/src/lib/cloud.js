@@ -29,6 +29,7 @@ function settingsRow(data) {
   return {
     currency: s.currency, theme: s.theme, colors: s.colors, auto_refresh: s.autoRefresh,
     stop_animations: s.stopAnimations, hide_balances: s.hideBalances, watchlist_sort: s.watchlistSort,
+    watchlist_list: s.watchlistList,
     chart_range: s.chartRange, chart_summaries: s.chartSummaries, auto_advance: s.autoAdvance, analytics: s.analytics,
     quiet_hours_enabled: s.quietHours.enabled, quiet_hours_start: s.quietHours.start, quiet_hours_end: s.quietHours.end,
     weekly_digest: s.weeklyDigest, reminder_timings: data.reminderTimings, notifications_asked: data.notificationsAsked,
@@ -51,7 +52,7 @@ function settingsRow(data) {
 function settingsFromRow(r) {
   return {
     currency: r.currency, theme: r.theme, colors: r.colors, autoRefresh: r.auto_refresh, stopAnimations: r.stop_animations,
-    hideBalances: r.hide_balances, watchlistSort: r.watchlist_sort, chartRange: r.chart_range,
+    hideBalances: r.hide_balances, watchlistSort: r.watchlist_sort, watchlistList: r.watchlist_list, chartRange: r.chart_range,
     chartSummaries: r.chart_summaries, autoAdvance: r.auto_advance, analytics: r.analytics,
     quietHours: { enabled: r.quiet_hours_enabled, start: hhmm(r.quiet_hours_start), end: hhmm(r.quiet_hours_end) },
     weeklyDigest: r.weekly_digest,
@@ -85,6 +86,16 @@ const stateRow = (data) => ({
 
 const collections = [
   { table: "watchlist_items", conflict: "coin_id", rows: (d) => d.watchlist.map((coin_id, position) => ({ key: coin_id, coin_id, position })) },
+  // Named lists (US-6.2) save before their coins, so the coins' foreign key holds.
+  {
+    table: "watchlists", conflict: "id",
+    rows: (d) => d.lists.filter((list) => UUID.test(list.id)).map(({ id, name }, position) => ({ key: id, id, name, position })),
+  },
+  {
+    table: "watchlist_list_coins", conflict: "watchlist_id,coin_id", keys: ["watchlist_id", "coin_id"],
+    rows: (d) => d.lists.filter((list) => UUID.test(list.id)).flatMap((list) =>
+      list.coinIds.map((coin_id, position) => ({ key: `${list.id}|${coin_id}`, watchlist_id: list.id, coin_id, position }))),
+  },
   {
     table: "recent_coins", conflict: "coin_id",
     rows: (d, prev, now) => {
@@ -240,10 +251,11 @@ async function rows(table, order, ascending = true, tieBreaker = null) {
 // Returns { profile, stored } or throws. RLS limits every query to this user's rows.
 export async function loadAccountData() {
   const [
-    profiles, settings, state, watchlist, recentCoins, recentSearches, votes, interestCoins, interestSectors,
+    profiles, settings, state, watchlist, lists, listCoins, recentCoins, recentSearches, votes, interestCoins, interestSectors,
     transactions, follows, projects, filters, alerts, reminders, notifications, affiliates, tickets, feedback,
   ] = await Promise.all([
     rows("users", "id"), rows("user_settings", "user_id"), rows("user_state", "user_id"), rows("watchlist_items", "position", true, "coin_id"),
+    rows("watchlists", "position", true, "id"), rows("watchlist_list_coins", "position", true, "coin_id"),
     rows("recent_coins", "viewed_at", false, "coin_id"), rows("recent_searches", "searched_at", false, "query"), rows("sentiment_votes", "vote_day", true, "coin_id"),
     rows("user_interest_coins", "coin_id"), rows("user_interest_sectors", "sector"), rows("transactions", "occurred_at", true, "id"),
     rows("fund_follows", "fund_id"), rows("project_follows", "followed_at", false, "project"), rows("saved_filters", "created_at", false, "id"),
@@ -267,6 +279,10 @@ export async function loadAccountData() {
     lastDigest: ms(st?.last_digest_at),
     billing: st?.simulated_billing,
     watchlist: watchlist.map((row) => row.coin_id),
+    lists: lists.map((list) => ({
+      id: list.id, name: list.name,
+      coinIds: listCoins.filter((row) => row.watchlist_id === list.id).map((row) => row.coin_id),
+    })),
     recentCoins: recentCoins.map((row) => row.coin_id),
     recentSearches: recentSearches.map((row) => row.query),
     votes: Object.fromEntries(votes.map((row) => [row.coin_id, { vote: row.vote, day: row.vote_day }])),

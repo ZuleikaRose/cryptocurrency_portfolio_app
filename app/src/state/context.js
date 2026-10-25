@@ -8,6 +8,7 @@ export const defaultSettings = {
   stopAnimations: false,
   hideBalances: false,
   watchlistSort: "mine",
+  watchlistList: "main",
   quietHours: { enabled: false, start: "22:00", end: "07:00" },
   weeklyDigest: true,
   autoAdvance: false,

@@ -332,6 +332,7 @@ CREATE TABLE user_settings (
   stop_animations boolean NOT NULL DEFAULT false,             -- data-motion="off"
   hide_balances   boolean NOT NULL DEFAULT false,
   watchlist_sort  text NOT NULL DEFAULT 'mine',
+  watchlist_list  text NOT NULL DEFAULT 'main',              -- 'main' or a watchlists.id (US-6.2)
   chart_range     text NOT NULL DEFAULT '1M' CHECK (chart_range IN ('1D', '7D', '1M', '3M', '1Y', 'ALL')),
   chart_summaries boolean NOT NULL DEFAULT false,             -- auto chart summaries
   auto_advance    boolean NOT NULL DEFAULT false,             -- carousels
@@ -442,6 +443,42 @@ CREATE TABLE watchlist_items (
   PRIMARY KEY (user_id, coin_id)
 );
 CREATE INDEX watchlist_items_order_idx ON watchlist_items (user_id, position);
+
+-- Named watchlists (US-6.2): "Main" is watchlist_items; these are up to 9 more (10 lists in all).
+CREATE TABLE watchlists (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 30),
+  position   integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, id)
+);
+CREATE INDEX watchlists_order_idx ON watchlists (user_id, position);
+
+CREATE OR REPLACE FUNCTION limit_watchlists() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM watchlists WHERE id = NEW.id AND user_id = NEW.user_id)
+     AND (SELECT count(*) FROM watchlists WHERE user_id = NEW.user_id) >= 9 THEN
+    RAISE EXCEPTION 'You can have up to 10 watchlists. Delete one to add another.'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER watchlists_limit BEFORE INSERT ON watchlists FOR EACH ROW EXECUTE FUNCTION limit_watchlists();
+
+-- Coins in a named list, in the list's own order.
+CREATE TABLE watchlist_list_coins (
+  user_id      uuid NOT NULL,
+  watchlist_id uuid NOT NULL,
+  coin_id      text NOT NULL REFERENCES coins (id) ON DELETE CASCADE,
+  position     integer NOT NULL,
+  added_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, watchlist_id, coin_id),
+  FOREIGN KEY (user_id, watchlist_id) REFERENCES watchlists (user_id, id) ON DELETE CASCADE
+);
+CREATE INDEX watchlist_list_coins_coin_idx ON watchlist_list_coins (coin_id);
 
 -- Last 10 coins viewed and last 10 searches (US-P04.2); trimmed by trigger below.
 CREATE TABLE recent_coins (

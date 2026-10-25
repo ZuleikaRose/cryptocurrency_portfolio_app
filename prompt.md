@@ -55,7 +55,7 @@ These override the brief and the `app_outline` documents where they differ.
     - Sign-up logs straight in ("Confirm email" is off).
     - Simulated billing is stored in `user_state.simulated_billing`, and the real subscription tables stay server-only.
     - Delete account marks the profile deleted. Logging in to a deleted account offers **Remove my data**, which erases it for good.
-13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 48 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
+13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 50 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
 14. **Live prices from CryptoRank (Oct 18, 2026).** This replaces "There will be no API interactions" above, for prices only.
     - The `cryptorank-sync` Supabase Edge Function fetches the top 200 coins from CryptoRank v3 every 10 minutes (pg_cron) and writes price, 24h change, market cap and volume into `cpa.coins`.
     - 34 coins are mapped by `coins.cryptorank_slug`, including Zcash (ZEC, added Oct 18, 2026), Toncoin (listed on CryptoRank as Gram) and Maker. 7d change and FDV come from CryptoRank's per-coin endpoint about every 2 days. The other coins, and 1h change, sparklines, unlocks, rounds and sales, stay sample data.
