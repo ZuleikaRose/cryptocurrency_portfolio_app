@@ -695,6 +695,15 @@ export function AppProvider({ children }) {
     },
     [showToast],
   );
+  // CSV import (lib/csv.js has already validated and de-duplicated the rows).
+  const importTransactions = useCallback(
+    (list) => {
+      if (!list.length) return;
+      setData((current) => ({ ...current, transactions: [...current.transactions, ...list.map((tx) => ({ ...tx, id: newId("tx") }))] }));
+      showToast(`${list.length} ${list.length === 1 ? "transaction" : "transactions"} imported`);
+    },
+    [showToast],
+  );
   const deleteTransaction = useCallback(
     (id) => {
       setData((current) => ({ ...current, transactions: current.transactions.filter((item) => item.id !== id) }));
@@ -1332,6 +1341,7 @@ export function AppProvider({ children }) {
       deleteList,
       setListMembership,
       saveTransaction,
+      importTransactions,
       deleteTransaction,
       dismissToast,
       reminders: data.reminders,
@@ -1405,7 +1415,7 @@ export function AppProvider({ children }) {
       joinAffiliate,
       setAffiliatePayout,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, createList, renameList, deleteList, setListMembership, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, createList, renameList, deleteList, setListMembership, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, importTransactions, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
   );
 
   return (

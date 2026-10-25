@@ -149,6 +149,10 @@ button.chip { cursor: pointer; }
 .import-row strong, .import-row small { display: block; }
 .import-row strong { color: var(--text); font-size: 14px; }
 .import-row small { margin-top: 2px; font-size: 12px; }
+/* CSV export and import (11-portfolio.md) */
+.csv-row { border-style: solid; margin-bottom: 12px; flex-wrap: wrap; }
+.csv-actions { display: flex; gap: 8px; }
+.import-skipped { max-height: 30vh; overflow-y: auto; margin: 0 0 8px; padding-left: 18px; color: var(--muted); font-size: 13px; }
 .entry-compare { font-size: 14px; }
 .tx-list { margin: 0; padding: 0; list-style: none; }
 .tx-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }

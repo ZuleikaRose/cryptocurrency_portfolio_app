@@ -10,6 +10,8 @@ import { researchFor } from "../data/research.js";
 import { direction, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
 import { amountHeld, computeHoldings, priceAt, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
 import { chartSummary } from "../lib/chart.js";
+import { downloadText } from "../lib/clipboard.js";
+import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
 import { useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
@@ -151,6 +153,83 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
   );
 }
 
+// CSV import: pick a file, see what will and won't be imported, then confirm.
+function ImportSheet({ open, onClose, coins, transactions, onImport }) {
+  const inputId = useId();
+  const [result, setResult] = useState(null);
+  const [fileError, setFileError] = useState(null);
+
+  const onFile = (event) => {
+    const file = event.target.files?.[0];
+    setResult(null);
+    setFileError(null);
+    if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      setFileError("Choose a file under 1 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const read = readTransactionsCsv(String(reader.result), coins, transactions);
+      if (read.error) setFileError(read.error);
+      else setResult({ ...read, name: file.name });
+    };
+    reader.onerror = () => setFileError("Couldn't read that file. Try saving it again as CSV.");
+    reader.readAsText(file);
+  };
+
+  const count = result?.transactions.length ?? 0;
+  return (
+    <Sheet open={open} onClose={onClose} title="Import transactions" side="bottom">
+      <div className="tx-form">
+        <p className="sheet-note">
+          A CSV with the columns <span className="mono">{CSV_COLUMNS.join(", ")}</span>. A CPA export works as is; other tools' headers such as
+          Timestamp, Asset, Side and Quantity are recognised. Up to {MAX_IMPORT_ROWS.toLocaleString("en-US")} rows; rows already in your portfolio are skipped.
+        </p>
+        <label className="form-field" htmlFor={inputId}>
+          <span>CSV file</span>
+          <input
+            id={inputId}
+            className="input file-input"
+            type="file"
+            accept=".csv,text/csv"
+            onChange={onFile}
+            aria-invalid={Boolean(fileError) || undefined}
+            aria-describedby={fileError ? `${inputId}-error` : undefined}
+          />
+          {fileError && <small id={`${inputId}-error`} className="field-error">{fileError}</small>}
+        </label>
+        {result && (
+          <div role="status">
+            <p className="num">
+              {result.name}: {count} {count === 1 ? "transaction" : "transactions"} ready
+              {result.skipped.length > 0 && `, ${result.skipped.length} skipped`}.
+            </p>
+            {result.skipped.length > 0 && (
+              <ul className="import-skipped">
+                {result.skipped.slice(0, 20).map((item) => (
+                  <li key={item.line} className="num">Row {item.line}: {item.reason}</li>
+                ))}
+                {result.skipped.length > 20 && <li>…and {result.skipped.length - 20} more.</li>}
+              </ul>
+            )}
+          </div>
+        )}
+        <button
+          className="button-primary"
+          disabled={!count}
+          onClick={() => {
+            onImport(result.transactions);
+            onClose();
+          }}
+        >
+          {count ? `Import ${count} ${count === 1 ? "transaction" : "transactions"}` : "Import"}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
 function GuestPreview({ onDemo, onLogin }) {
   return (
     <div className="guest-preview">
@@ -178,12 +257,13 @@ function Disclaimer() {
 }
 
 export default function Portfolio() {
-  const { session, settings, transactions, saveTransaction, updateSettings, requireAuth, startDemo } = useApp();
+  const { session, settings, transactions, saveTransaction, importTransactions, updateSettings, requireAuth, startDemo, showToast } = useApp();
   const { coins } = useMarket();
   const navigate = useNavigate();
   const [range, setRange] = useState("1M");
   const [sort, setSort] = useState("value");
   const [sheet, setSheet] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     document.title = "Portfolio · CPA";
@@ -200,6 +280,10 @@ export default function Portfolio() {
   const slices = [...holdings].sort((a, b) => b.value - a.value).map((item) => ({ label: item.coin.symbol, value: item.value }));
 
   const openAdd = () => requireAuth("Sign in to track a portfolio", () => setSheet({}));
+  const exportCsv = () => {
+    const ok = downloadText(`cpa-transactions-${new Date().toISOString().slice(0, 10)}.csv`, transactionsToCsv(transactions, coins), "text/csv");
+    showToast(ok ? `Exported ${transactions.length} ${transactions.length === 1 ? "transaction" : "transactions"}` : "Couldn't start the download in this browser.");
+  };
 
   return (
     <div className="portfolio">
@@ -295,6 +379,19 @@ export default function Portfolio() {
         </>
       )}
 
+      {session.kind !== "guest" && (
+        <div className="import-row csv-row">
+          <span>
+            <strong>Transactions as CSV</strong>
+            <small>For spreadsheets and tax tools, or to bring trades in from elsewhere.</small>
+          </span>
+          <span className="csv-actions">
+            <button className="button-secondary compact" onClick={exportCsv} disabled={!transactions.length}>Export</button>
+            <button className="button-secondary compact" onClick={() => setImportOpen(true)}>Import</button>
+          </span>
+        </div>
+      )}
+
       <div className="import-row" aria-disabled="true">
         <span>
           <strong>Import from wallet (read-only)</strong>
@@ -308,6 +405,7 @@ export default function Portfolio() {
       {sheet && (
         <TransactionSheet open onClose={() => setSheet(null)} initial={sheet} coins={coins} transactions={transactions} onSave={saveTransaction} />
       )}
+      {importOpen && <ImportSheet open onClose={() => setImportOpen(false)} coins={coins} transactions={transactions} onImport={importTransactions} />}
     </div>
   );
 }

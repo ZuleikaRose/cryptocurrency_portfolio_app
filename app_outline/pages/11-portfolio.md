@@ -61,6 +61,7 @@ Add transaction sheet
 - Allocation donut with legend (colour + label + %), a text summary for screen readers.
 - Holdings: amount, avg buy price, value, P&L; tap → `/portfolio/:coinSlug` with transaction history (edit, delete with confirm).
 - Add transaction sheet: type, coin (search select), amount, price (defaults to sample market price at chosen time), date/time, fee, note; validation: amount > 0, sell/transfer-out can't exceed holding ("You hold 3.2 ETH").
+- Transactions as CSV (user's request, Oct 25, 2026): Export downloads `cpa-transactions-<date>.csv` (date, coin_id, symbol, type, amount, price_usd, fee_usd, note; text cells starting with = + − @ get a leading apostrophe). Import reads a CPA export or other tools' headers (Timestamp, Asset, Side, Quantity…), matches coins by id or ticker (former tickers too, e.g. MATIC), shows "N ready, M skipped" with a reason per skipped row (unknown or ambiguous coin, bad type/number/date, future date, already in the portfolio, sells more than held), and saves only after "Import N transactions". Max 1 MB and 2,000 rows.
 - Wallet import (US-6.4, P2): disabled row "Coming soon". Copy states the app will only ever accept public addresses and never asks for seed phrases or private keys.
 
 ## User stories & acceptance criteria
