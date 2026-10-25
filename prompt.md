@@ -35,6 +35,7 @@ Before writing any code, please confirm your understanding of the application by
 # Clarifications agreed during the build
 
 These override the brief and the `app_outline` documents where they differ.
+The prompts behind them, with their commits, are in `prompt_records.md`.
 
 1. Page specs live in `app_outline/pages/` (`00-app-shell.md` to `29-not-found.md`), one per page, each with a wireframe, stories and "Done when" conditions.
 2. The app is called **CPA (Cryptocurrency Portfolio App)**, not CryptoRank.

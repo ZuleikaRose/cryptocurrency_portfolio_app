@@ -206,6 +206,7 @@ app/                  React 19 + Vite 8 + React Router 7 (BrowserRouter)
 app_outline/          style guide, user journeys, user stories, page specs, wireframe
 supabase/             migrations, seed script, cryptorank-sync and wallet-lookup Edge Functions, CLI config (config.toml)
 schema.sql            portable PostgreSQL schema for every feature (51 tables)
+prompt_records.md     the prompts given during the build, with their commits
 drawsql.png           entity-relationship diagram of schema.sql
 tools/diagram/        regenerates drawsql.png from schema.sql (npm run diagram)
 lookup.py             CryptoRank v3 lookup (needs CRYPTORANK_API_KEY)
