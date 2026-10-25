@@ -20,6 +20,7 @@ export function ResultLabel({ hit }) {
         <span className="result-main">
           <strong>
             {hit.coin.name} <span className="ticker">{hit.coin.symbol}</span>{" "}
+            {hit.coin.formerSymbols?.length > 0 && <span className="ticker">formerly {hit.coin.formerSymbols.join(", ")}</span>}{" "}
             {hit.verified ? (
               <span className="verified-mark" title="Verified">
                 <Icon name="check" />

@@ -156,6 +156,8 @@ flowchart LR
    > **CPA build (Oct 18, 2026):** live prices are labelled "CryptoRank" and sample figures "CPA sample data". The last-updated time is when CryptoRank reported the price, so a delayed sync shows as stale instead of looking fresh.
 5. **Progressive disclosure:** "Simple" vs "Pro" density setting to serve both Leo and Maya.
 6. **Guest mode:** let users browse fully without an account. Require sign-in only for sync, alerts, and portfolio.
+   > **CPA build (Oct 25, 2026):** CSV import and export and wallet import need sign-in, since they change a saved portfolio. What guests can send (support tickets, bug reports, feedback) is limited to fixed columns with length checks in the database.
+7. **Safe imports:** never ask for a recovery phrase or private key. Wallet import takes a public address only, and the app refuses anything that looks like a secret before it leaves the device (US-6.4).
 
 
 
@@ -186,6 +188,7 @@ Key Features & Use Cases
 - **Token Unlocks & Vesting Schedules:** A standout feature used to predict market volatility. It tracks exact vesting dates and token allocations, warning traders when a massive supply of tokens will be unlocked and potentially dumped onto the market.
 - **ICO / IEO / IDO Crowdfund Analytics:** Investors monitor token launchpads and upcoming public sales. It calculates historical Return on Investment (ROI) for various initial token offerings.
 - **Free Multi-Chain Portfolio Tracking:** Users can connect public wallet addresses across multiple networks (such as Ethereum, Solana, and TON) to monitor their live asset allocations and PnL automatically without revealing private keys.
+  > **CPA build (Oct 25, 2026):** Bitcoin and Ethereum (with the ERC-20 tokens CPA lists) public addresses, read through the `wallet-lookup` Edge Function. See US-6.4.
 - **Airdrop Hunting ("Drop Hunting"):** CryptoRank catalogs highly active or emerging early-stage Web3 projects. It provides step-by-step guides on how users can participate in testnets or protocols to qualify for potential upcoming airdrops.
 - **Prediction Market & RWA Aggregation:** The platform normalizes and compares data across prediction venues like Polymarket and Kalshi. It also features dedicated dashboards tracking tokenized Real-World Assets (RWAs) like tokenized stocks, ETFs, and commodities.
 - **Developer Data API & MCP:** For developers and quantitative researchers, CryptoRank provides a high-throughput public API. It also native integrates with AI tools using a Model Context Protocol (MCP) server, allowing users to run complex crypto research using AI models directly.

@@ -114,6 +114,14 @@ CREATE TABLE market_sync (
   last_error       text
 );
 
+-- CryptoRank credits spent each UTC day by the cryptorank-lookup Edge Function, which lookup.py
+-- calls so the API key stays a function secret. Capped at 60 a day, leaving the price sync its
+-- ~305 of the free plan's 400. Server-only; rows older than 30 days are removed.
+CREATE TABLE cryptorank_lookup_usage (
+  day          date PRIMARY KEY DEFAULT current_date,
+  credits_used integer NOT NULL DEFAULT 0 CHECK (credits_used >= 0)
+);
+
 -- Tokenomics: vesting schedule per coin and its allocations (03-coin-detail.md Tokenomics).
 CREATE TABLE vesting_schedules (
   coin_id      text PRIMARY KEY REFERENCES coins (id) ON DELETE CASCADE,
@@ -332,6 +340,7 @@ CREATE TABLE user_settings (
   stop_animations boolean NOT NULL DEFAULT false,             -- data-motion="off"
   hide_balances   boolean NOT NULL DEFAULT false,
   watchlist_sort  text NOT NULL DEFAULT 'mine',
+  watchlist_list  text NOT NULL DEFAULT 'main',              -- 'main' or a watchlists.id (US-6.2)
   chart_range     text NOT NULL DEFAULT '1M' CHECK (chart_range IN ('1D', '7D', '1M', '3M', '1Y', 'ALL')),
   chart_summaries boolean NOT NULL DEFAULT false,             -- auto chart summaries
   auto_advance    boolean NOT NULL DEFAULT false,             -- carousels
@@ -443,6 +452,42 @@ CREATE TABLE watchlist_items (
 );
 CREATE INDEX watchlist_items_order_idx ON watchlist_items (user_id, position);
 
+-- Named watchlists (US-6.2): "Main" is watchlist_items; these are up to 9 more (10 lists in all).
+CREATE TABLE watchlists (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 30),
+  position   integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, id)
+);
+CREATE INDEX watchlists_order_idx ON watchlists (user_id, position);
+
+CREATE OR REPLACE FUNCTION limit_watchlists() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM watchlists WHERE id = NEW.id AND user_id = NEW.user_id)
+     AND (SELECT count(*) FROM watchlists WHERE user_id = NEW.user_id) >= 9 THEN
+    RAISE EXCEPTION 'You can have up to 10 watchlists. Delete one to add another.'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER watchlists_limit BEFORE INSERT ON watchlists FOR EACH ROW EXECUTE FUNCTION limit_watchlists();
+
+-- Coins in a named list, in the list's own order.
+CREATE TABLE watchlist_list_coins (
+  user_id      uuid NOT NULL,
+  watchlist_id uuid NOT NULL,
+  coin_id      text NOT NULL REFERENCES coins (id) ON DELETE CASCADE,
+  position     integer NOT NULL,
+  added_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, watchlist_id, coin_id),
+  FOREIGN KEY (user_id, watchlist_id) REFERENCES watchlists (user_id, id) ON DELETE CASCADE
+);
+CREATE INDEX watchlist_list_coins_coin_idx ON watchlist_list_coins (coin_id);
+
 -- Last 10 coins viewed and last 10 searches (US-P04.2); trimmed by trigger below.
 CREATE TABLE recent_coins (
   user_id   uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -486,6 +531,15 @@ CREATE TABLE transactions (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX transactions_user_idx ON transactions (user_id, occurred_at);
+
+-- Rate limit for read-only wallet import (US-6.4): the wallet-lookup Edge Function counts
+-- lookups per signed-in user and per hashed caller IP each hour. Server-only; rows expire
+-- after an hour. Wallet addresses are never stored.
+CREATE TABLE wallet_lookup_quota (
+  bucket       text PRIMARY KEY CHECK (bucket ~ '^(user:[0-9a-f-]{36}|ip:[0-9a-f]{64})$'),
+  window_start timestamptz NOT NULL DEFAULT now(),
+  used         integer NOT NULL DEFAULT 0 CHECK (used >= 0)  -- lookups in the current hour
+);
 
 -- =====================================================================
 -- 6. Following (07-fundraising.md, 10-fund-profile.md, US-5.4)
@@ -679,30 +733,51 @@ $$;
 
 -- Support tickets (17-customer-support.md) and issue reports (19-report-issue.md).
 -- Guests can file them too, so user_id is optional.
+-- Guests can send these, so every free-text field has a limit that matches its form, and the
+-- id must be one next_ticket_id() has already issued (check_ticket_id trigger below).
 CREATE TABLE support_tickets (
-  id            text PRIMARY KEY,
+  id            text PRIMARY KEY CHECK (id ~ '^(CPA-[0-9]+|BUG-[0-9]{4,})$'),
   user_id       uuid REFERENCES users (id) ON DELETE SET NULL,
   kind          text NOT NULL CHECK (kind IN ('ticket', 'issue')),
   topic         text NOT NULL,
-  subject       text NOT NULL,
-  message       text,
-  email         citext,
+  subject       text NOT NULL CHECK (char_length(subject) BETWEEN 1 AND 140),
+  message       text CHECK (char_length(message) <= 2000),
+  email         citext CHECK (char_length(email::text) <= 254),
   status        text NOT NULL DEFAULT 'Received' CHECK (status IN ('Received', 'In progress', 'Resolved', 'Completed')),
   -- Issue reports only
-  page          text,
-  steps         text,
-  expected      text,
-  actual        text,
-  assistive_tech text,                                        -- accessibility reports
+  page          text CHECK (char_length(page) <= 200),
+  steps         text CHECK (char_length(steps) <= 2000),
+  expected      text CHECK (char_length(expected) <= 1000),
+  actual        text CHECK (char_length(actual) <= 1000),
+  assistive_tech text CHECK (char_length(assistive_tech) <= 200),   -- accessibility reports
   severity      text CHECK (severity IN ('blocking', 'annoying', 'minor')),
-  technical     text,                                         -- app version, browser, last error
-  screenshot_url text,                                        -- up to 2 MB
+  technical     text CHECK (char_length(technical) <= 1000),        -- app version, browser, last error
+  -- A PNG or JPEG data URL under 2 MB.
+  screenshot_url text CHECK (screenshot_url ~ '^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$' AND char_length(screenshot_url) <= 2796300),
   created_at    timestamptz NOT NULL DEFAULT now(),
   CHECK (
     (kind = 'ticket' AND topic IN ('account', 'billing', 'data', 'alerts', 'accessibility', 'data-removal', 'other'))
     OR (kind = 'issue' AND topic IN ('bug', 'data', 'accessibility', 'other') AND severity IS NOT NULL)
   )
 );
+
+CREATE OR REPLACE FUNCTION check_ticket_id() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+  issued bigint;
+BEGIN
+  IF NEW.id LIKE 'BUG-%' THEN
+    SELECT last_value INTO issued FROM issue_report_seq;
+  ELSE
+    SELECT last_value INTO issued FROM support_ticket_seq;
+  END IF;
+  IF substring(NEW.id FROM 5)::bigint > issued THEN
+    RAISE EXCEPTION 'Unknown ticket ID.' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER support_tickets_issued_id BEFORE INSERT ON support_tickets FOR EACH ROW EXECUTE FUNCTION check_ticket_id();
 CREATE INDEX support_tickets_user_idx ON support_tickets (user_id, created_at DESC);
 
 -- Completed data-removal requests (US-P17.2): id, topic, date and status only, no personal data.

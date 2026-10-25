@@ -10,7 +10,10 @@ import { researchFor } from "../data/research.js";
 import { direction, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
 import { amountHeld, computeHoldings, priceAt, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
 import { chartSummary } from "../lib/chart.js";
+import { downloadText } from "../lib/clipboard.js";
+import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
 import { useNow } from "../lib/hooks.js";
+import { chainFor, lookupWallet, normaliseAddress, secretWarning, shortAddress, WALLET_CHAINS, walletImportPlan } from "../lib/wallet.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 
@@ -151,6 +154,197 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
   );
 }
 
+// CSV import: pick a file, see what will and won't be imported, then confirm.
+function ImportSheet({ open, onClose, coins, transactions, onImport }) {
+  const inputId = useId();
+  const [result, setResult] = useState(null);
+  const [fileError, setFileError] = useState(null);
+
+  const onFile = (event) => {
+    const file = event.target.files?.[0];
+    setResult(null);
+    setFileError(null);
+    if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      setFileError("Choose a file under 1 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const read = readTransactionsCsv(String(reader.result), coins, transactions);
+      if (read.error) setFileError(read.error);
+      else setResult({ ...read, name: file.name });
+    };
+    reader.onerror = () => setFileError("Couldn't read that file. Try saving it again as CSV.");
+    reader.readAsText(file);
+  };
+
+  const count = result?.transactions.length ?? 0;
+  return (
+    <Sheet open={open} onClose={onClose} title="Import transactions" side="bottom">
+      <div className="tx-form">
+        <p className="sheet-note">
+          A CSV with the columns <span className="mono">{CSV_COLUMNS.join(", ")}</span>. A CPA export works as is; other tools' headers such as
+          Timestamp, Asset, Side and Quantity are recognised. Up to {MAX_IMPORT_ROWS.toLocaleString("en-US")} rows; rows already in your portfolio are skipped.
+        </p>
+        <label className="form-field" htmlFor={inputId}>
+          <span>CSV file</span>
+          <input
+            id={inputId}
+            className="input file-input"
+            type="file"
+            accept=".csv,text/csv"
+            onChange={onFile}
+            aria-invalid={Boolean(fileError) || undefined}
+            aria-describedby={fileError ? `${inputId}-error` : undefined}
+          />
+          {fileError && <small id={`${inputId}-error`} className="field-error">{fileError}</small>}
+        </label>
+        {result && (
+          <div role="status">
+            <p className="num">
+              {result.name}: {count} {count === 1 ? "transaction" : "transactions"} ready
+              {result.skipped.length > 0 && `, ${result.skipped.length} skipped`}.
+            </p>
+            {result.skipped.length > 0 && (
+              <ul className="import-skipped">
+                {result.skipped.slice(0, 20).map((item) => (
+                  <li key={item.line} className="num">Row {item.line}: {item.reason}</li>
+                ))}
+                {result.skipped.length > 20 && <li>…and {result.skipped.length - 20} more.</li>}
+              </ul>
+            )}
+          </div>
+        )}
+        <button
+          className="button-primary"
+          disabled={!count}
+          onClick={() => {
+            onImport(result.transactions);
+            onClose();
+          }}
+        >
+          {count ? `Import ${count} ${count === 1 ? "transaction" : "transactions"}` : "Import"}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+// Read-only wallet import (US-6.4): paste a public address, preview, then record the difference.
+function WalletSheet({ open, onClose, coins, transactions, demo, onImport, currency, rate }) {
+  const inputId = useId();
+  const [address, setAddress] = useState("");
+  const [state, setState] = useState({ status: "idle" });
+  const warning = secretWarning(address);
+  const chain = warning ? null : chainFor(address);
+  const chainLabel = WALLET_CHAINS.find((item) => item.id === chain)?.label;
+  const plan = useMemo(
+    () => (state.status === "done" ? walletImportPlan(state.balances, state.address, transactions, coins) : null),
+    [state, transactions, coins],
+  );
+
+  const lookUp = async (event) => {
+    event.preventDefault();
+    if (!chain || state.status === "loading") return;
+    const lookedUp = address.trim();
+    setState({ status: "loading" });
+    try {
+      const result = await lookupWallet(chain, lookedUp, { demo });
+      setState({ status: "done", address: normaliseAddress(lookedUp), ...result });
+    } catch (error) {
+      setState({ status: "error", message: error.message });
+    }
+  };
+
+  const fieldError = warning ?? (address.trim() && !chain ? "Enter a Bitcoin address (1…, 3… or bc1…) or an Ethereum address (0x…)." : null);
+  const count = plan?.transactions.length ?? 0;
+  return (
+    <Sheet open={open} onClose={onClose} title="Import from wallet" side="bottom">
+      <form className="tx-form" onSubmit={lookUp} noValidate>
+        <p className="sheet-note wallet-safety">
+          <Icon name="info" /> Never enter a recovery phrase or private key. CPA only needs a public address, and it's read, never stored.
+        </p>
+        <label className="form-field" htmlFor={inputId}>
+          <span>Bitcoin or Ethereum address</span>
+          <input
+            id={inputId}
+            className="input mono"
+            value={address}
+            onChange={(event) => {
+              setAddress(event.target.value);
+              if (state.status !== "loading") setState({ status: "idle" });
+            }}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={120}
+            placeholder="bc1q… or 0x…"
+            aria-invalid={Boolean(fieldError) || undefined}
+            aria-describedby={`${inputId}-hint`}
+          />
+          {fieldError ? (
+            <small id={`${inputId}-hint`} className="field-error">{fieldError}</small>
+          ) : (
+            <small id={`${inputId}-hint`} className="field-hint">
+              {chainLabel ? `${chainLabel} address.` : "ETH also brings in the ERC-20 tokens CPA lists, such as USDT, LINK and UNI."}
+            </small>
+          )}
+        </label>
+        <button type="submit" className="button-secondary" disabled={!chain || state.status === "loading"}>
+          {state.status === "loading" ? "Looking up…" : "Look up balances"}
+        </button>
+
+        <div role="status" aria-live="polite">
+          {state.status === "error" && <p className="field-error">{state.message}</p>}
+          {plan && (
+            <>
+              <p className="num">
+                {shortAddress(state.address)}
+                {state.demo ? " · demo balances, no lookup made" : ` · as of ${formatDate(state.asOf)}`}
+              </p>
+              {plan.rows.length === 0 ? (
+                <p>This address holds none of the coins CPA lists.</p>
+              ) : (
+                <ul className="wallet-preview">
+                  {plan.rows.map((row) => (
+                    <li key={row.coin.id}>
+                      <CoinLogo coin={row.coin} />
+                      <span>
+                        <strong className="num">{formatAmount(row.balance)} {row.coin.symbol}</strong>
+                        <small className="num">
+                          {row.tx
+                            ? `${row.tx.type === "transfer-in" ? "+" : "−"}${formatAmount(row.tx.amount)} as a ${row.tx.type === "transfer-in" ? "transfer in" : "transfer out"} at ${formatPrice(row.coin.price, currency, rate)}`
+                            : row.reason}
+                        </small>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {count > 0 && <p className="sheet-note">Cost basis is today's price. Edit a transaction to change it.</p>}
+            </>
+          )}
+        </div>
+        {plan && (
+          <button
+            type="button"
+            className="button-primary"
+            disabled={!count}
+            onClick={() => {
+              onImport(plan.transactions);
+              onClose();
+            }}
+          >
+            {count ? `Import ${count} ${count === 1 ? "change" : "changes"}` : "Nothing to import"}
+          </button>
+        )}
+      </form>
+    </Sheet>
+  );
+}
+
 function GuestPreview({ onDemo, onLogin }) {
   return (
     <div className="guest-preview">
@@ -178,12 +372,14 @@ function Disclaimer() {
 }
 
 export default function Portfolio() {
-  const { session, settings, transactions, saveTransaction, updateSettings, requireAuth, startDemo } = useApp();
+  const { session, settings, transactions, saveTransaction, importTransactions, updateSettings, requireAuth, startDemo, showToast } = useApp();
   const { coins } = useMarket();
   const navigate = useNavigate();
   const [range, setRange] = useState("1M");
   const [sort, setSort] = useState("value");
   const [sheet, setSheet] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   useEffect(() => {
     document.title = "Portfolio · CPA";
@@ -200,6 +396,10 @@ export default function Portfolio() {
   const slices = [...holdings].sort((a, b) => b.value - a.value).map((item) => ({ label: item.coin.symbol, value: item.value }));
 
   const openAdd = () => requireAuth("Sign in to track a portfolio", () => setSheet({}));
+  const exportCsv = () => {
+    const ok = downloadText(`cpa-transactions-${new Date().toISOString().slice(0, 10)}.csv`, transactionsToCsv(transactions, coins), "text/csv");
+    showToast(ok ? `Exported ${transactions.length} ${transactions.length === 1 ? "transaction" : "transactions"}` : "Couldn't start the download in this browser.");
+  };
 
   return (
     <div className="portfolio">
@@ -295,18 +495,48 @@ export default function Portfolio() {
         </>
       )}
 
-      <div className="import-row" aria-disabled="true">
-        <span>
-          <strong>Import from wallet (read-only)</strong>
-          <small>Coming soon. CPA will only ever accept public addresses and never asks for seed phrases or private keys.</small>
-        </span>
-        <span className="tag">Soon</span>
-      </div>
+      {session.kind !== "guest" && (
+        <div className="import-row csv-row">
+          <span>
+            <strong>Transactions as CSV</strong>
+            <small>For spreadsheets and tax tools, or to bring trades in from elsewhere.</small>
+          </span>
+          <span className="csv-actions">
+            <button className="button-secondary compact" onClick={exportCsv} disabled={!transactions.length}>Export</button>
+            <button className="button-secondary compact" onClick={() => setImportOpen(true)}>Import</button>
+          </span>
+        </div>
+      )}
+
+      {session.kind !== "guest" && (
+        <div className="import-row csv-row">
+          <span>
+            <strong>Import from wallet (read-only)</strong>
+            <small>Bitcoin and Ethereum public addresses. CPA never asks for recovery phrases or private keys.</small>
+          </span>
+          <span className="csv-actions">
+            <button className="button-secondary compact" onClick={() => setWalletOpen(true)}>Import</button>
+          </span>
+        </div>
+      )}
 
       <Disclaimer />
 
       {sheet && (
         <TransactionSheet open onClose={() => setSheet(null)} initial={sheet} coins={coins} transactions={transactions} onSave={saveTransaction} />
+      )}
+      {importOpen && <ImportSheet open onClose={() => setImportOpen(false)} coins={coins} transactions={transactions} onImport={importTransactions} />}
+      {walletOpen && (
+        <WalletSheet
+          open
+          onClose={() => setWalletOpen(false)}
+          coins={coins}
+          transactions={transactions}
+          demo={session.kind === "demo"}
+          onImport={importTransactions}
+          currency={currency}
+          rate={rate}
+        />
       )}
     </div>
   );

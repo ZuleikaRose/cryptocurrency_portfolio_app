@@ -107,7 +107,7 @@ export default function ReportIssue() {
       actual: form.actual,
       assistive: form.type === "accessibility" ? form.assistive : undefined,
       severity: form.severity,
-      technical: form.technical ? technical : undefined,
+      technical: form.technical ? technical.slice(0, 1000) : undefined,
       screenshot: image?.url,
       email: form.email.trim() || undefined,
     });
@@ -151,29 +151,29 @@ export default function ReportIssue() {
         </fieldset>
         <label className="form-field">
           <span>Page</span>
-          <input className="input mono" value={form.page} onChange={set("page")} placeholder="/coins/bitcoin" />
+          <input className="input mono" maxLength={200} value={form.page} onChange={set("page")} placeholder="/coins/bitcoin" />
         </label>
         <label className="form-field">
           <span>Summary</span>
-          <input id="report-summary" className="input" value={form.summary} onChange={set("summary")} aria-invalid={Boolean(errors.summary) || undefined} aria-describedby={errors.summary ? "report-summary-error" : undefined} />
+          <input id="report-summary" className="input" maxLength={140} value={form.summary} onChange={set("summary")} aria-invalid={Boolean(errors.summary) || undefined} aria-describedby={errors.summary ? "report-summary-error" : undefined} />
           {errors.summary && <small id="report-summary-error" className="field-error">{errors.summary}</small>}
         </label>
         <label className="form-field">
           <span>Steps to reproduce</span>
-          <textarea className="input textarea" rows={3} value={form.steps} onChange={set("steps")} />
+          <textarea className="input textarea" rows={3} maxLength={2000} value={form.steps} onChange={set("steps")} />
         </label>
         <label className="form-field">
           <span>Expected</span>
-          <input className="input" value={form.expected} onChange={set("expected")} />
+          <input className="input" maxLength={1000} value={form.expected} onChange={set("expected")} />
         </label>
         <label className="form-field">
           <span>Actual</span>
-          <input className="input" value={form.actual} onChange={set("actual")} />
+          <input className="input" maxLength={1000} value={form.actual} onChange={set("actual")} />
         </label>
         {form.type === "accessibility" && (
           <label className="form-field">
             <span>Assistive technology used</span>
-            <input className="input" value={form.assistive} onChange={set("assistive")} placeholder="For example NVDA 2026.1, VoiceOver" />
+            <input className="input" maxLength={200} value={form.assistive} onChange={set("assistive")} placeholder="For example NVDA 2026.1, VoiceOver" />
           </label>
         )}
         <fieldset className="field-group">
@@ -199,7 +199,7 @@ export default function ReportIssue() {
         {image && <img className="screenshot-preview" src={image.url} alt={`Screenshot preview: ${image.name}`} />}
         <label className="form-field">
           <span>Email (optional)</span>
-          <input className="input" type="email" value={form.email} onChange={set("email")} autoComplete="email" />
+          <input className="input" type="email" maxLength={254} value={form.email} onChange={set("email")} autoComplete="email" />
         </label>
         {sendError && <p className="form-alert" role="alert">{sendError}</p>}
         <button type="submit" className="button-primary" disabled={busy}>{busy ? "Sending…" : "Send report"}</button>

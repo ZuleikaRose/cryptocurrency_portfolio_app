@@ -61,3 +61,36 @@ export function digestTime(date = new Date()) {
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
   return monday.getTime();
 }
+
+// A missing unlock is matched to the same coin's nearest upcoming unlock within 14 days; monthly
+// vesting tranches are ~30 days apart, so a cancelled unlock never borrows next month's.
+const MATCH_WINDOW_MS = 14 * 24 * 60 * 60_000;
+
+// US-4.2: when an unlock or sale date changes, its reminder follows. `candidates(id, reminder)`
+// returns the events the reminder could now belong to ({ id, date }): the same id if it still
+// exists, otherwise that coin's upcoming unlocks. Timings that haven't come due at the new
+// date fire again. Returns { reminders, moves: [{ from, to, previous, reminder }] }.
+export function rescheduleReminders(reminders, candidates, now) {
+  const next = { ...reminders };
+  const moves = [];
+  const taken = new Set(Object.keys(reminders));
+  Object.entries(reminders).forEach(([id, reminder]) => {
+    const previous = new Date(reminder.date).getTime();
+    if (!(previous > now)) return; // Already happened: nothing left to follow.
+    const events = candidates(id, reminder);
+    const target =
+      events.find((event) => event.id === id) ??
+      events
+        .filter((event) => !taken.has(event.id) && event.date.getTime() > now && Math.abs(event.date.getTime() - previous) <= MATCH_WINDOW_MS)
+        .sort((a, b) => Math.abs(a.date.getTime() - previous) - Math.abs(b.date.getTime() - previous))[0];
+    if (!target) return;
+    const to = target.date.getTime();
+    if (target.id === id && Math.abs(to - previous) < 60_000) return;
+    const fired = (reminder.fired ?? []).filter((timing) => now >= to - (reminderOffsets[timing] ?? 0));
+    delete next[id];
+    next[target.id] = { ...reminder, date: new Date(to).toISOString(), fired };
+    taken.add(target.id);
+    moves.push({ from: id, to: target.id, previous, reminder: next[target.id] });
+  });
+  return { reminders: next, moves };
+}

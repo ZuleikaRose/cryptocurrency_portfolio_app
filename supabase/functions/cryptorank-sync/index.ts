@@ -2,7 +2,10 @@
 // reads them over the REST API. Called by pg_cron every 10 minutes (cryptorank_live_prices migration).
 //
 // The function is public: pg_cron calls it without a secret. cpa.claim_market_sync() lets a run
-// start at most once every 9 minutes, so extra calls can't spend CryptoRank credits.
+// start at most once every 9 minutes, so extra calls can't spend CryptoRank credits. Anyone can
+// reach it, so it reads nothing from the request, rejects bodies over 1 KB, answers browsers only
+// from the origins in ALLOWED_ORIGINS (CORS), and never returns CryptoRank's or the database's
+// error text: details go to the function logs and the server-only cpa.market_sync row.
 // CRYPTORANK_API_KEY comes from the Edge Function secrets (set from the repo's .env with
 // `supabase secrets set --env-file`); it is never logged or returned.
 import { createClient } from "@supabase/supabase-js";
@@ -35,8 +38,28 @@ type Details = {
 
 type MappedCoin = { cryptorank_slug: string; cryptorank_id: number | null; details_updated_at: string | null };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+const MAX_BODY_BYTES = 1024;
+
+// Comma-separated list of web origins that may call the function from a browser. pg_cron sends
+// no Origin header, so it isn't affected. Defaults to the local dev server.
+const allowedOrigins = new Set(
+  (Deno.env.get("ALLOWED_ORIGINS") ?? "http://localhost:5173").split(",").map((origin) => origin.trim()).filter(Boolean),
+);
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  if (!origin || !allowedOrigins.has(origin)) return { Vary: "Origin" };
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
+const json = (req: Request, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders(req), "Content-Type": "application/json" } });
 
 function toNumber(value: unknown): number | null {
   const number = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
@@ -68,18 +91,30 @@ async function fetchPage(apiKey: string, page: number): Promise<Currency[]> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== "POST") return json({ error: "Use POST." }, 405);
+  const origin = req.headers.get("Origin");
+  if (origin && !allowedOrigins.has(origin)) return json(req, { error: "Origin not allowed." }, 403);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
+  if (req.method !== "POST") return json(req, { error: "Use POST." }, 405);
+  // The request body is never read; a large one is refused rather than buffered.
+  const length = Number(req.headers.get("Content-Length") ?? "0");
+  if (!Number.isFinite(length) || length > MAX_BODY_BYTES) return json(req, { error: "Request body too large." }, 413);
 
   const apiKey = Deno.env.get("CRYPTORANK_API_KEY");
-  if (!apiKey) return json({ error: "CRYPTORANK_API_KEY is not set." }, 500);
+  if (!apiKey) {
+    console.error("cryptorank-sync: CRYPTORANK_API_KEY is not set.");
+    return json(req, { status: "error", error: "The sync isn't configured." }, 500);
+  }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     db: { schema: "cpa" },
     auth: { persistSession: false },
   });
 
   const { data: claimed, error: claimError } = await db.rpc("claim_market_sync");
-  if (claimError) return json({ error: `Couldn't claim the run: ${claimError.message}` }, 500);
-  if (!claimed) return json({ status: "skipped", reason: "A sync ran in the last 9 minutes." });
+  if (claimError) {
+    console.error(`cryptorank-sync couldn't claim the run: ${claimError.message}`);
+    return json(req, { status: "error", error: "The sync couldn't start." }, 500);
+  }
+  if (!claimed) return json(req, { status: "skipped", reason: "A sync ran in the last 9 minutes." });
 
   let credits = 0;
   try {
@@ -153,12 +188,14 @@ Deno.serve(async (req) => {
 
     const { data: updated, error: applyError } = await db.rpc("apply_market_prices", { prices, credits, missing });
     if (applyError) throw new Error(`Couldn't save prices: ${applyError.message}`);
-    return json({ status: "ok", updated, credits, details: due.length - detailErrors.length, detailErrors, missing });
+    if (missing.length) console.error(`cryptorank-sync: no price for ${missing.join(", ")}`);
+    // Counts only: the messages are in the logs.
+    return json(req, { status: "ok", updated, credits, details: due.length - detailErrors.length, detailErrors: detailErrors.length, missing: missing.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`cryptorank-sync failed: ${message}`);
     const { error: logError } = await db.rpc("fail_market_sync", { message, credits });
     if (logError) console.error(`cryptorank-sync couldn't record the failure: ${logError.message}`);
-    return json({ status: "error", error: message, credits, recorded: !logError }, 502);
+    return json(req, { status: "error", error: "The sync failed. Details are in the function logs.", credits, recorded: !logError }, 502);
   }
 });

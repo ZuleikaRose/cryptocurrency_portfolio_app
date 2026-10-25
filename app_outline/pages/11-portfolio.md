@@ -2,7 +2,7 @@
 **Route:** `/portfolio` (`/portfolio/:coinSlug` for one holding)  ·  **Nav:** Portfolio tab  ·  **Personas:** Daniel, Maya, Leo  ·  **Source stories:** US-6.3, US-6.4, US-1.1
 
 ## Purpose
-A manual portfolio tracker: log buys, sells, and transfers, and see total value, 24h change, all-time P&L, and allocation. Read-only wallet import is a later phase and never asks for keys.
+A manual portfolio tracker: log buys, sells, and transfers, and see total value, 24h change, all-time P&L, and allocation. Read-only wallet import takes a public Bitcoin or Ethereum address and never asks for keys.
 
 ## Wireframe (phone, ~430px)
 ```
@@ -33,7 +33,7 @@ A manual portfolio tracker: log buys, sells, and transfers, and see total value,
 │ ┌──────────────────────────────────────────┐ │
 │ │          [ + Add transaction ]           │ │
 │ └──────────────────────────────────────────┘ │
-│ Import from wallet (read-only) · Coming soon │
+│ Import from wallet (read-only)   [Import]    │
 │ Not financial advice. Data provided for      │
 │ informational purposes.                      │
 ├──────────────────────────────────────────────┤
@@ -61,7 +61,8 @@ Add transaction sheet
 - Allocation donut with legend (colour + label + %), a text summary for screen readers.
 - Holdings: amount, avg buy price, value, P&L; tap → `/portfolio/:coinSlug` with transaction history (edit, delete with confirm).
 - Add transaction sheet: type, coin (search select), amount, price (defaults to sample market price at chosen time), date/time, fee, note; validation: amount > 0, sell/transfer-out can't exceed holding ("You hold 3.2 ETH").
-- Wallet import (US-6.4, P2): disabled row "Coming soon". Copy states the app will only ever accept public addresses and never asks for seed phrases or private keys.
+- Transactions as CSV (user's request, Oct 25, 2026): Export downloads `cpa-transactions-<date>.csv` (date, coin_id, symbol, type, amount, price_usd, fee_usd, note; text cells starting with = + − @ get a leading apostrophe). Import reads a CPA export or other tools' headers (Timestamp, Asset, Side, Quantity…), matches coins by id or ticker (former tickers too, e.g. MATIC), shows "N ready, M skipped" with a reason per skipped row (unknown or ambiguous coin, bad type/number/date, future date, already in the portfolio, sells more than held), and saves only after "Import N transactions". Max 1 MB and 2,000 rows.
+- Wallet import (US-6.4, P2; user's decision, Oct 25, 2026), signed-in and demo only: the "Import from wallet (read-only)" row opens a sheet with the note "Never enter a recovery phrase or private key. CPA only needs a public address, and it's read, never stored." The address field (JetBrains Mono) detects Bitcoin (1…, 3…, bc1…) or Ethereum (0x…) and refuses recovery phrases, private keys and extended private keys with a plain reason, before anything is sent. "Look up balances" calls the `wallet-lookup` Edge Function (mempool.space for BTC; Etherscan for ETH and the ERC-20 tokens CPA lists). The preview lists each coin's balance and the change to record: earlier imports of the same address (note "Wallet import <short address>") are subtracted, so a re-import shows "Already up to date"; a higher balance becomes a transfer in and a lower one a transfer out at today's price. "Import N changes" saves. Errors are plain ("That isn't a Bitcoin address.", "You can look up 10 wallets an hour. Try again later.", "Wallet import is unavailable right now. Try again later."). The demo uses fixed sample balances and says "demo balances, no lookup made".
 
 ## User stories & acceptance criteria
 - **US-6.3 Manual tracker.** As Daniel, I want to log buys and sells so that I can track my P&L.

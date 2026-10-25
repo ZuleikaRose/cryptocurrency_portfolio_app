@@ -97,6 +97,10 @@ function fillerName() {
 
 // `rand` defaults to the shared sample PRNG; coins added later pass their own so the
 // earlier coins' generated figures stay the same.
+// Tickers a coin traded under before a rebrand, so searching the old one still finds it.
+// Polygon migrated MATIC to POL in September 2024.
+const formerSymbols = { polygon: ["MATIC"] };
+
 function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, tint, listedDaysAgo, fdv, volume24h }, rank, rand = random) {
   const between = (min, max) => betweenWith(rand, min, max);
   const stable = category === "Stablecoin";
@@ -109,6 +113,7 @@ function buildCoin({ slug, name, symbol, price, change24h, marketCap, category, 
     rank,
     name,
     symbol,
+    formerSymbols: formerSymbols[slug] ?? [],
     category,
     tint,
     price,

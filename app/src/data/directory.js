@@ -77,7 +77,11 @@ export function searchAll(query, coins) {
 
   const coinHits = coins
     // An exact or prefix ticker match ranks just above the same name match.
-    .map((coin) => ({ coin, score: Math.max(score(coin.name), score(coin.symbol) && score(coin.symbol) + 0.5, score(coin.id)) }))
+    // A former ticker (MATIC for Polygon) matches like the current one.
+    .map((coin) => {
+      const ticker = Math.max(score(coin.symbol), ...(coin.formerSymbols ?? []).map(score));
+      return { coin, score: Math.max(score(coin.name), ticker && ticker + 0.5, score(coin.id)) };
+    })
     .filter((hit) => hit.score > 0)
     .sort((a, b) => b.score - a.score || b.coin.marketCap - a.coin.marketCap)
     .map(({ coin }) => {

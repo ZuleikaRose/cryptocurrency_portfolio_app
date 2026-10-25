@@ -114,45 +114,51 @@ The target is WCAG 2.2 AA:
 - **Text size:** up to 200%; tables become stacked cards above 130%.
 - **Accessibility menu:** profiles plus settings for text, fonts, spacing, contrast, saturation, link and heading highlights, a reading guide, a big cursor, hiding images and stopping animations.
 
-To simulate an error banner on Home, Market, Explore, Fundraising or Watchlist, add `?simulate=error` to the address.
+To simulate an error banner on Home, Market, Explore, Fundraising or Watchlist, add `?simulate=error` to the address. To see an unlock reminder reschedule (US-4.2), open any page with `?simulate=reschedule` and start the demo: its ARB reminder is stored 2 days early, so the next check moves it to the real date and shows "ARB unlock moved to …".
 
 ## CryptoRank lookup script
 
 `lookup.py` is a separate command-line tool that looks up live CryptoRank ranks and prices for ticker symbols you type in.
 
 ```bash
-cp .env.example .env     # then add CRYPTORANK_API_KEY
+cp .env.example .env     # then add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY
 python3 lookup.py
 ```
 
-The key is read from the environment or `.env`, and both are git-ignored. Never commit `.env` or paste the key anywhere public.
+- **Key:** the CryptoRank key stays in Supabase as the `CRYPTORANK_API_KEY` Edge Function secret. Supabase never returns a secret's value, so `lookup.py` doesn't read it: it sends the symbols to the `cryptorank-lookup` Edge Function, which looks them up with the key. The script needs only the project URL and publishable key, which are public.
+- **Limits:** up to 5 symbols per request (the script batches longer lists) and at most 6 CryptoRank requests per call, so it stays under the free plan's 10 a minute alongside the price sync. Lookups share a budget of 60 credits a day (`cpa.spend_lookup_credit()`, counted in the server-only `cpa.cryptorank_lookup_usage`); with the sync's ~305 that stays under 400. Over the budget the script says so; it resets at 00:00 UTC.
+- **Cost:** a ticker in the top 300 costs 1 to 3 credits; others cost up to 7 (the symbol map plus up to 3 same-ticker coins).
+- **Endpoint:** POST only, no browser origins (403), 1 KB body cap, tickers of 1 to 15 letters or digits, generic errors.
+- **Deploy:** `supabase functions deploy cryptorank-lookup --project-ref <ref> --no-verify-jwt --use-api`, after `deno check` and `deno lint`. The script sends the publishable key, which isn't a JWT, so the gateway's JWT check is off.
 
 ## Supabase
 
 ```bash
 cd supabase
 npm install
-npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe to re-run)
+npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe to re-run; keeps live CryptoRank prices)
 ```
 
 - `migrations/`: the `cpa` schema, RLS policies, the account functions, and the live price sync (columns, `market_sync`, RPCs, pg_cron schedule, comments). The migrations are already applied to the linked project.
 - `functions/cryptorank-sync/`: the Edge Function that writes live CryptoRank prices into `cpa.coins` (see [Live prices](#live-prices)). It's deployed to the linked project.
+- `functions/cryptorank-lookup/`: the Edge Function `lookup.py` calls, so the CryptoRank key stays a function secret (see [CryptoRank lookup script](#cryptorank-lookup-script)).
+- `functions/wallet-lookup/`: the Edge Function that reads a public Bitcoin or Ethereum address's balances for wallet import (see [Wallet import](#wallet-import)).
 - `seed/seed-sample-data.mjs`: uses `SUPABASE_SECRET_KEY` from `.env`. That key is server-only: never give it a `VITE_` prefix.
 - The app reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the root `.env` (`envDir: '..'` in `vite.config.js`).
 - Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; set a 13-character minimum and require lowercase, uppercase, digits and symbols under **Authentication → Password policy**; add `http://localhost:5173/reset-password`, `http://127.0.0.1:5173/reset-password`, and your deployed URL under **Authentication → URL configuration → Redirect URLs**.
 
 ## Data model
 
-![Entity-relationship diagram of the CPA schema: 48 tables in 8 groups](drawsql.png)
+![Entity-relationship diagram of the CPA schema: 52 tables in 8 groups](drawsql.png)
 
-`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 48 tables, 52 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram; regenerate it with `npm run diagram` in `tools/diagram/`. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
+`schema.sql` is the full PostgreSQL model of every feature and setting in the app: 52 tables, 55 foreign keys and 3 views, all in the `cpa` schema. `drawsql.png` is its diagram; regenerate it with `npm run diagram` in `tools/diagram/`. Comments on each table and column cite the page spec or story they come from. The tables fall into the same groups as the diagram:
 
 | Group | Tables | Holds |
 |---|---|---|
 | Reference | `categories`, `plans`, `promotions`, `faq_sections`, `faq_items`, `learn_articles`, `glossary_terms` | Fixed lists and help content |
-| Market | `coins`, `coin_prices`, `exchanges`, `coin_markets`, `market_sync` | Rankings, price history, where each coin trades, the last live price sync |
+| Market | `coins`, `coin_prices`, `exchanges`, `coin_markets`, `market_sync`, `cryptorank_lookup_usage` | Rankings, price history, where each coin trades, the last live price sync, CryptoRank credits spent by `lookup.py` |
 | Research | `vesting_schedules`, `vesting_allocations`, `unlock_events`, `funds`, `fund_sectors`, `funding_rounds`, `round_investors`, `token_sales` | Tokenomics, unlocks, fundraising, token sales |
-| Watchlist & portfolio | `watchlist_items`, `recent_coins`, `recent_searches`, `sentiment_votes`, `transactions`, `user_interest_coins`, `user_interest_sectors`, `fund_follows`, `project_follows` | What each user tracks, holds and follows |
+| Watchlist & portfolio | `watchlist_items`, `watchlists`, `watchlist_list_coins`, `recent_coins`, `recent_searches`, `sentiment_votes`, `transactions`, `wallet_lookup_quota`, `user_interest_coins`, `user_interest_sectors`, `fund_follows`, `project_follows` | What each user tracks, holds and follows |
 | Accounts | `users`, `sessions`, `login_attempts`, `password_reset_tokens`, `password_reset_requests`, `user_state`, `affiliates` | Sign-in, counters and flags, affiliate codes |
 | Alerts & billing | `price_alerts`, `reminders`, `notifications`, `saved_filters`, `subscriptions`, `promo_redemptions`, `billing_history`, `payment_methods` | Alerts and their inbox, saved Fundraising filters, plans and payments |
 | Settings | `user_settings` | One row per user: display, notifications, AI features, the accessibility menu and each tab's remembered filters |
@@ -161,10 +167,10 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 Views: `coin_sentiment`, `portfolio_holdings` (net amount and average buy price) and `user_points` (loyalty points).
 
 The live database runs the Supabase version in `supabase/migrations/`. It differs from `schema.sql` in these ways:
-- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 44 tables. `cpa.users` is a profile row keyed to `auth.users`.
+- **Accounts:** Supabase Auth replaces the password columns and the `sessions`, `login_attempts` and `password_reset_*` tables, so it has 48 tables. `cpa.users` is a profile row keyed to `auth.users`.
 - **Access:** row-level security is on every table.
 - **Sentiment:** `coin_sentiment` became the `coin_sentiment_today()` function, which returns totals without revealing who voted.
-- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule, and `market_sync_comments` copied `schema.sql`'s descriptions of them into the database. `cryptorank_more_live_data` added `coins.cryptorank_id` and `details_updated_at`, made `rank` uniqueness deferrable so adding a coin can re-rank the rest, and mapped Toncoin and Maker; `map_zcash` mapped Zcash. `review_feedback_fixes` (from PR #6) requires an active profile for every account-data rule, so a deleted account can't read or change its data before it's erased; makes `erase_my_data()` delete the account's tickets and feedback; applies the 10 saved-filter limit to new filters only; and stops issue IDs truncating past 9999.
+- **Later migrations:** `cpa_app_accounts` added `user_state.simulated_billing` and the account functions `delete_my_account()` and `erase_my_data()`. `cryptorank_live_prices` added the live price columns on `coins`, the `market_sync` table and the pg_cron schedule, and `market_sync_comments` copied `schema.sql`'s descriptions of them into the database. `cryptorank_more_live_data` added `coins.cryptorank_id` and `details_updated_at`, made `rank` uniqueness deferrable so adding a coin can re-rank the rest, and mapped Toncoin and Maker; `map_zcash` mapped Zcash. `review_feedback_fixes` (from PR #6) requires an active profile for every account-data rule, so a deleted account can't read or change its data before it's erased; makes `erase_my_data()` delete the account's tickets and feedback; applies the 10 saved-filter limit to new filters only; and stops issue IDs truncating past 9999. `named_watchlists` added `watchlists`, `watchlist_list_coins` and `user_settings.watchlist_list` (US-6.2), and `named_watchlists_upsert_limit` applies the 10-list limit to new lists only. `harden_guest_input` bounds what guests can write (see [Live prices](#live-prices), "Guest input"). `wallet_lookup_quota` adds the server-only rate limit and `claim_wallet_lookup()` for wallet import (see [Wallet import](#wallet-import)). `cryptorank_lookup_usage` adds the daily credit budget for `lookup.py` (see [CryptoRank lookup script](#cryptorank-lookup-script)).
 
 `schema.sql` stays the portable reference for running CPA on any PostgreSQL 15+ server.
 
@@ -174,11 +180,22 @@ The live database runs the Supabase version in `supabase/migrations/`. It differ
 - **Details:** each run also fetches CryptoRank's per-coin endpoint for up to 6 coins whose 7d change and FDV are over 48 hours old (1 credit each, 8 requests a run at most, under the 10-a-minute limit). That refreshes 7d change and FDV for every mapped coin about every 2 days, plus Maker's price, which isn't in the top 200. In all about 305 credits a day, inside the free plan's 400 a day and 10K a month.
 - **Coins:** Zcash (ZEC) was added on Oct 18, 2026. Toncoin is listed on CryptoRank as Gram (GRAM), the layer 1 first developed by Telegram, so its live figures come from that entry.
 - **Key:** `CRYPTORANK_API_KEY` is an Edge Function secret, set from `.env` with `supabase secrets set --env-file <(grep '^CRYPTORANK_API_KEY=' .env)`. It never reaches the browser.
-- **Abuse limit:** the function is public (pg_cron calls it without a JWT), so `cpa.claim_market_sync()` lets a run start at most once every 9 minutes.
+- **Abuse limit:** the function is public (pg_cron calls it without a JWT), so `cpa.claim_market_sync()` lets a run start at most once every 9 minutes. It reads nothing from the request, refuses bodies over 1 KB (413), and returns only counts and generic error text; the details go to the function logs and `cpa.market_sync`.
+- **CORS:** browsers may call it only from the origins in the `ALLOWED_ORIGINS` function setting (comma-separated; default `http://localhost:5173`). Other origins get 403, and preflight `OPTIONS` returns 204. pg_cron sends no `Origin` header and isn't affected. The app itself never calls the function: it reads `cpa.coins` over REST.
 - **App:** `app/src/lib/market.js` reads those rows over the REST API on load and every 30 s. If a request fails, the last data stays on screen with the error banner and Retry. Before the first sync, or without Supabase, the simulated feed stands in. 1h and 7d changes, FDV and sparklines are still sample data, and Coin detail names its source.
 - **Deploy:** `supabase functions deploy cryptorank-sync --project-ref <ref> --no-verify-jwt --use-api`. Run `deno check` and `deno lint` on the function first.
 - **Health:** `select * from cpa.market_sync;` shows the last run: status, coins updated, credits used, any slugs CryptoRank didn't return, and the last error.
 - **Test:** a POST to `/functions/v1/cryptorank-sync` returns `{"status":"ok","updated":31,...}`, or `skipped` within 9 minutes of the last run. A GET returns 405.
+- **Guest input:** guests can only insert support tickets, issue reports and feedback. `harden_guest_input` caps every free-text field at its form's limit, accepts screenshots only as PNG or JPEG data URLs under 2 MB, lets callers set only the fields the forms send (not `status` or `created_at`), and rejects ticket IDs that `next_ticket_id()` hasn't issued.
+
+### Wallet import
+
+- **What:** Portfolio → Import from wallet (read-only) takes a public Bitcoin or Ethereum address (US-6.4). Bitcoin balances come from mempool.space (no key). ETH and the ERC-20 tokens CPA lists come from Etherscan. The app never asks for a recovery phrase, private key or exchange key, and refuses input that looks like one before anything is sent.
+- **Where it runs:** the browser calls `supabase/functions/wallet-lookup`, never the explorers, so `ETHERSCAN_API_KEY` stays a function setting: `supabase secrets set --env-file <(grep '^ETHERSCAN_API_KEY=' .env)`. A free key comes from etherscan.io → API keys.
+- **Who can call it:** a signed-in user only; the function checks the Supabase session itself. Only `ALLOWED_ORIGINS` get CORS headers, the body is capped at 1 KB, the address must match the Bitcoin (base58 or bech32) or Ethereum (`0x` + 40 hex) format, and errors are generic.
+- **Rate limit:** 10 lookups an hour per user and 30 per IP, counted by `cpa.claim_wallet_lookup()` in the server-only `cpa.wallet_lookup_quota` (IPs stored only as SHA-256 hashes). Over the limit returns 429. Addresses are never stored on the server.
+- **Import:** a preview lists each balance; importing records the difference from earlier imports of the same address as transfers in (or out) at today's price, with the short address in the note, so re-importing doesn't double-count.
+- **Deploy:** `supabase functions deploy wallet-lookup --project-ref <ref> --no-verify-jwt --use-api`, after `deno check` and `deno lint`.
 
 ## Project layout
 
@@ -192,11 +209,12 @@ app/                  React 19 + Vite 8 + React Router 7 (BrowserRouter)
   src/lib/            formatting, auth, Supabase client and sync (cloud.js), live prices (market.js), billing, alerts, hooks
   src/styles/         tokens.css first, a11y.css last
 app_outline/          style guide, user journeys, user stories, page specs, wireframe
-supabase/             migrations, seed script, cryptorank-sync Edge Function, CLI config (config.toml)
-schema.sql            portable PostgreSQL schema for every feature (48 tables)
+supabase/             migrations, seed script, cryptorank-sync, cryptorank-lookup and wallet-lookup Edge Functions, CLI config (config.toml)
+schema.sql            portable PostgreSQL schema for every feature (52 tables)
+prompt_records.md     the prompts given during the build, with their commits
 drawsql.png           entity-relationship diagram of schema.sql
 tools/diagram/        regenerates drawsql.png from schema.sql (npm run diagram)
-lookup.py             CryptoRank v3 lookup (needs CRYPTORANK_API_KEY)
+lookup.py             CryptoRank rank and price lookup through the cryptorank-lookup Edge Function
 prompt.md             the original build brief and its clarifications
 CLAUDE.md             working rules for Claude Code in this repo
 .claude/skills/cpa-ui/SKILL.md   checklist for building or reviewing CPA screens
@@ -204,10 +222,11 @@ CLAUDE.md             working rules for Claude Code in this repo
 
 ## Build status
 
-Phases 0 to 8 are complete: shell and Market, Coin detail, Search/Watchlist/Portfolio, research pages, Home and Alerts, accounts, support and legal pages, then polish and QA. After that, accounts moved from the browser to Supabase, the sample data was loaded into the database, prices for 34 coins went live from CryptoRank through a scheduled Edge Function, and the offline banner (US-9.5) was added.
+Phases 0 to 8 are complete: shell and Market, Coin detail, Search/Watchlist/Portfolio, research pages, Home and Alerts, accounts, support and legal pages, then polish and QA. After that, accounts moved from the browser to Supabase, the sample data was loaded into the database, prices for 34 coins went live from CryptoRank through a scheduled Edge Function, and the offline banner (US-9.5) was added. Then came named watchlists (US-6.2), CSV export and import of portfolio transactions, unlock and sale reminders that follow a date change (US-4.2), the installable app with an offline cache (US-8.1 adapted, US-9.5), Polygon's former ticker MATIC in search, tighter limits on what guests can write, and read-only Bitcoin and Ethereum wallet import (US-6.4).
+
+**Installable app (`app/public/manifest.webmanifest`, `app/public/sw.js`, `app/src/lib/pwa.js`):** CPA installs from the browser or from Settings → Preferences → Install CPA. It opens on the Watchlist, with shortcuts to Watchlist, Unlocks and Alerts; a web app can't add a home-screen widget, so this stands in for US-8.1. In production builds a service worker caches the app shell, the build's scripts, styles and Latin fonts, and the last live prices (`/rest/v1/coins`, public data), so CPA opens offline on any route with "You're offline: showing saved data". Account data, sign-in and writes are never cached. The worker is off in `npm run dev`; test it with `npm run build && npx vite preview`. Technical requirements reports whether it's ready. Bump `VERSION` in `sw.js` when its caching rules change.
 
 These parts of the source documents aren't built, because they need native platforms or more server work:
 - Sign in with Apple or Google, and magic links (CPA uses email and password, plus the demo).
-- Home-screen widgets, haptics, and push or email delivery (CPA uses in-app and browser notifications).
-- Wallet and exchange import (US-6.4) and multiple watchlists (US-6.2).
-- A cache that keeps data across reloads while offline (US-9.5). The offline banner is built: it keeps the last loaded prices on screen and pauses the feed until the connection returns.
+- Home-screen widgets, haptics, and push or email delivery (CPA uses in-app and browser notifications, and installs as an app with shortcuts).
+- Exchange import and wallets on other chains (US-6.4 covers Bitcoin and Ethereum addresses only).

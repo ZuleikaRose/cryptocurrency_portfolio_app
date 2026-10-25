@@ -4,6 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App.jsx";
 import { AppProvider } from "./state/AppStore.jsx";
+import { registerServiceWorker, watchInstallPrompt } from "./lib/pwa.js";
+
+watchInstallPrompt();
+registerServiceWorker();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

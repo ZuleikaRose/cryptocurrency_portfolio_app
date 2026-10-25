@@ -61,7 +61,7 @@ drag handle + keyboard buttons      to see them here.
 - **Loading/Error:** as Market.
 
 ## Data & persistence
-- Accounts: `cpa:v1:user:<id>.watchlists` = `[{ id, name, coinIds[] }]`, saved on every change.
+- Accounts: Main is `cpa.watchlist_items`; named lists are `cpa.watchlists` + `cpa.watchlist_list_coins` (app shape `lists = [{ id, name, coinIds[] }]`), and the open list is `user_settings.watchlist_list`. Saved about 0.6 s after each change through `lib/cloud.js`.
 - Guest and demo: memory only; guest list merges on sign-in.
 
 ## Done when (phase passing conditions)

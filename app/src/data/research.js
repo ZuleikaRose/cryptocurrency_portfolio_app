@@ -114,10 +114,17 @@ export const fundingRounds = [...curatedRounds, ...generatedRounds()];
 export const roundSectors = fundSectors;
 export const roundTypeList = ["Pre-seed", "Seed", "Series A", "Series B", "Strategic"];
 
-// One-off scheduled unlocks outside a vesting schedule (08-unlocks.md example).
+// Scheduled unlocks outside a vesting schedule (08-unlocks.md example): monthly on a fixed day
+// and UTC hour, so the date (and the unlock's id) stays put until it has passed. A date that
+// moved with each page load would re-key saved reminders on every visit (US-4.2).
 const scheduledUnlocks = {
-  solana: [{ daysFromNow: 5.45, amount: 2.1e6, allocations: ["Staking rewards"] }],
+  solana: [{ day: 28, hourUtc: 14, amount: 2.1e6, allocations: ["Staking rewards"] }],
 };
+function nextMonthly(day, hourUtc) {
+  const when = new Date(Date.UTC(TODAY.getUTCFullYear(), TODAY.getUTCMonth(), day, hourUtc));
+  if (when <= TODAY) when.setUTCMonth(when.getUTCMonth() + 1);
+  return when;
+}
 
 // Allocation colours for vesting charts; amber stays reserved for unlock events.
 export const allocationColors = {
@@ -226,7 +233,7 @@ export function researchFor(coin) {
     });
 
   (scheduledUnlocks[coin.id] ?? []).forEach((item) => {
-    const when = new Date(TODAY.getTime() + item.daysFromNow * DAY_MS);
+    const when = nextMonthly(item.day, item.hourUtc);
     upcoming.push({ id: `${coin.id}-${when.toISOString().slice(0, 10)}`, coinId: coin.id, symbol: coin.symbol, date: when, amount: item.amount, allocations: item.allocations });
   });
   upcoming.sort((a, b) => a.date - b.date);

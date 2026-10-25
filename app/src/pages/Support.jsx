@@ -134,7 +134,7 @@ export default function Support() {
           )}
           <label className="form-field">
             <span>Email</span>
-            <input id="support-email" className="input" type="email" autoComplete="email" value={form.email} onChange={set("email")} aria-invalid={Boolean(errors.email) || undefined} aria-describedby={errors.email ? "support-email-error" : undefined} />
+            <input id="support-email" className="input" type="email" autoComplete="email" maxLength={254} value={form.email} onChange={set("email")} aria-invalid={Boolean(errors.email) || undefined} aria-describedby={errors.email ? "support-email-error" : undefined} />
             {fieldError("email")}
           </label>
           <label className="form-field">

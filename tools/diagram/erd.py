@@ -41,10 +41,18 @@ for match in re.finditer(r"CREATE TABLE (\w+) \(", src):
     while depth:
         depth += {"(": 1, ")": -1}.get(src[i], 0)
         i += 1
-    cols, pk = [], []
+    cols, pk, table_refs = [], [], []
     for item in split_top(src[match.end():i - 1]):
         head = item.split()[0]
         if head in ("CHECK", "UNIQUE", "CONSTRAINT"):
+            continue
+        # Composite key, e.g. FOREIGN KEY (user_id, watchlist_id) REFERENCES watchlists (user_id, id):
+        # draw it from its last column, the one that isn't shared with the parent.
+        fk = re.match(r"FOREIGN KEY \((.*?)\) REFERENCES (\w+) \((.*?)\)", item)
+        if fk:
+            local = [c.strip() for c in fk.group(1).split(",")]
+            remote = [c.strip() for c in fk.group(3).split(",")]
+            table_refs.append((local[-1], (fk.group(2), remote[-1])))
             continue
         if item.startswith("PRIMARY KEY"):
             pk = [c.strip() for c in re.search(r"\((.*?)\)", item).group(1).split(",")]
@@ -69,15 +77,18 @@ for match in re.finditer(r"CREATE TABLE (\w+) \(", src):
     for col in cols:
         if col["name"] in pk:
             col["pk"] = True
+        for name_, ref in table_refs:
+            if col["name"] == name_:
+                col["ref"] = ref
     tables[name] = cols
     order.append(name)
 
 # Layout: columns of tables, grouped by domain. Colour = group.
 GROUPS = [
     ("Reference", "#64748b", ["categories", "plans", "promotions", "faq_sections", "faq_items", "learn_articles", "glossary_terms"]),
-    ("Market", "#3d7bff", ["coins", "coin_prices", "exchanges", "coin_markets", "market_sync"]),
+    ("Market", "#3d7bff", ["coins", "coin_prices", "exchanges", "coin_markets", "market_sync", "cryptorank_lookup_usage"]),
     ("Research", "#0e9f8e", ["vesting_schedules", "vesting_allocations", "unlock_events", "funds", "fund_sectors", "funding_rounds", "round_investors", "token_sales"]),
-    ("Watchlist & portfolio", "#d97706", ["watchlist_items", "recent_coins", "recent_searches", "sentiment_votes", "transactions", "user_interest_coins", "user_interest_sectors", "fund_follows", "project_follows"]),
+    ("Watchlist & portfolio", "#d97706", ["watchlist_items", "watchlists", "watchlist_list_coins", "recent_coins", "recent_searches", "sentiment_votes", "transactions", "wallet_lookup_quota", "user_interest_coins", "user_interest_sectors", "fund_follows", "project_follows"]),
     ("Accounts", "#7c5cff", ["users", "sessions", "login_attempts", "password_reset_tokens", "password_reset_requests", "user_state", "affiliates"]),
     ("Alerts & billing", "#db2777", ["price_alerts", "reminders", "notifications", "saved_filters", "subscriptions", "promo_redemptions", "billing_history", "payment_methods"]),
     ("Settings", "#7c5cff", ["user_settings"]),

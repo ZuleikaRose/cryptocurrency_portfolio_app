@@ -4,7 +4,8 @@ import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi,
 import { prefersMoreContrast, prefersReducedMotion, summarySizes } from "../lib/a11y.js";
 import { initialCoins } from "../data/coins.js";
 import { researchFor } from "../data/research.js";
-import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets } from "../lib/alerts.js";
+import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets, rescheduleReminders } from "../lib/alerts.js";
+import { tokenSales } from "../data/directory.js";
 import { formatDate } from "../lib/format.js";
 import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
 import { authErrorKind, clearFailures, lockState, normalizeEmail, recordFailure } from "../lib/auth.js";
@@ -19,6 +20,7 @@ import { POINTS_PROMO, findPromo, pointsFor, promoStatus } from "../data/promoti
 
 const emptyData = {
   watchlist: [],
+  lists: [],
   settings: defaultSettings,
   recentCoins: [],
   recentSearches: [],
@@ -79,8 +81,12 @@ function demoAlertData() {
   const now = Date.now();
   const arbitrum = initialCoins.find((coin) => coin.id === "arbitrum");
   const unlock = arbitrum && researchFor(arbitrum).upcomingUnlocks[0];
+  // ?simulate=reschedule stores the reminder 2 days early, so the next clock check finds the
+  // unlock "moved" and shows the reschedule notice (US-4.2), like ?simulate=error for errors.
+  const shift = new URLSearchParams(window.location.search).get("simulate") === "reschedule" ? 2 * 86_400_000 : 0;
+  const early = unlock && new Date(unlock.date.getTime() - shift);
   const reminders = unlock
-    ? { [unlock.id]: { timings: ["1h"], kind: "unlock", symbol: "ARB", name: "Arbitrum", date: unlock.date.toISOString(), label: "ARB unlock", fired: [] } }
+    ? { [shift ? `arbitrum-${early.toISOString().slice(0, 10)}` : unlock.id]: { timings: ["1h"], kind: "unlock", symbol: "ARB", name: "Arbitrum", date: early.toISOString(), label: "ARB unlock", fired: [] } }
     : {};
   return {
     alerts: [
@@ -99,6 +105,7 @@ function demoAlertData() {
 const demoData = () => ({
   ...emptyData,
   watchlist: ["bitcoin", "ethereum", "solana", "arbitrum"],
+  lists: [{ id: "demo-list-l2", name: "L2 bets", coinIds: ["arbitrum", "optimism", "polygon"] }],
   transactions: demoTransactions,
   onboarded: true,
   billing: demoBilling(),
@@ -164,7 +171,7 @@ function normalizeStored(rawStored) {
   const stored = Object.fromEntries(
     Object.entries(rawStored && typeof rawStored === "object" && !Array.isArray(rawStored) ? rawStored : {}).filter(([, value]) => value !== undefined && value !== null),
   );
-  ["watchlist", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications", "tickets", "feedback"].forEach((key) => {
+  ["watchlist", "lists", "recentCoins", "recentSearches", "transactions", "followedProjects", "savedFilters", "alerts", "notifications", "tickets", "feedback"].forEach((key) => {
     if (!Array.isArray(stored[key])) delete stored[key];
   });
   if (stored.tickets) stored.tickets = stored.tickets.filter(isTicket);
@@ -192,6 +199,12 @@ function normalizeStored(rawStored) {
     coins: Array.isArray(interests.coins) ? interests.coins.filter((item) => typeof item === "string") : [],
     sectors: Array.isArray(interests.sectors) ? interests.sectors.filter((item) => typeof item === "string") : [],
   };
+  if (stored.lists) {
+    stored.lists = stored.lists
+      .filter((list) => list && typeof list.id === "string" && typeof list.name === "string" && list.name.trim() && Array.isArray(list.coinIds))
+      .slice(0, MAX_LISTS - 1)
+      .map((list) => ({ id: list.id, name: list.name.slice(0, 30), coinIds: [...new Set(list.coinIds.filter((id) => typeof id === "string"))] }));
+  }
   if (stored.savedFilters) stored.savedFilters = stored.savedFilters.filter((item) => item && typeof item.name === "string" && item.filters && typeof item.filters === "object");
   if (stored.savedFilters) {
     stored.savedFilters = stored.savedFilters.slice(0, 10).map((item) => ({
@@ -225,6 +238,9 @@ function normalizeStored(rawStored) {
     follows: Object.fromEntries(Object.entries(stored.follows ?? {}).filter(([, frequency]) => ["instant", "daily", "weekly"].includes(frequency))),
   };
 }
+
+// 10 watchlists in all: "Main" plus up to 9 named lists (10-watchlist.md).
+const MAX_LISTS = 10;
 
 const TICK_MS = 30_000;
 const SAVE_DELAY_MS = 600;
@@ -335,6 +351,18 @@ function AlertWatcher({ onPrices, onClock }) {
   return null;
 }
 
+// The events a reminder could now belong to (US-4.2): a sale by its id, or the coin's upcoming
+// unlocks (unlock ids are "<coin id>-<YYYY-MM-DD>", so a moved unlock gets a new id).
+function reminderCandidates(id, reminder, coins) {
+  if (reminder.kind === "sale") {
+    const sale = tokenSales.find((item) => item.id === id);
+    return sale ? [{ id: sale.id, date: sale.start }] : [];
+  }
+  const coinId = id.replace(/-\d{4}-\d{2}-\d{2}$/, "");
+  const coin = coins.find((item) => item.id === coinId) ?? initialCoins.find((item) => item.id === coinId);
+  return coin ? researchFor(coin).upcomingUnlocks : [];
+}
+
 // "Weekly digest summary" (25-ai-integration.md): a factual recap, no advice words.
 function digestRecap(watchlist, coins) {
   const held = watchlist.map((id) => coins.find((coin) => coin.id === id)).filter(Boolean);
@@ -431,6 +459,8 @@ export function AppProvider({ children }) {
       : data.settings.theme;
     // Contrast "dark" / "light" force that theme; "high" raises contrast within it.
     root.dataset.theme = a11y.contrast === "dark" || a11y.contrast === "light" ? a11y.contrast : theme;
+    // The installed app's title bar follows the theme (manifest default is dark).
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", getComputedStyle(root).getPropertyValue("--bg").trim());
     root.dataset.contrast = a11y.contrast === "high" ? "high" : "default";
     root.dataset.colors = data.settings.colors;
     root.dataset.motion = data.settings.stopAnimations ? "off" : "on";
@@ -549,24 +579,89 @@ export function AppProvider({ children }) {
     [requireAuth, showToast],
   );
 
-  // Watchlist order (US-6.1): move up/down or drop at a new index.
-  const moveWatch = useCallback((coinId, toIndex) => {
+  // Watchlist order (US-6.1): move up/down or drop at a new index. `listId` is "main" or a named list.
+  const moveWatch = useCallback((coinId, toIndex, listId = "main") => {
     setData((current) => {
-      const list = current.watchlist.filter((id) => id !== coinId);
-      list.splice(Math.max(0, Math.min(toIndex, list.length)), 0, coinId);
-      return { ...current, watchlist: list };
+      const place = (ids) => {
+        const list = ids.filter((id) => id !== coinId);
+        list.splice(Math.max(0, Math.min(toIndex, list.length)), 0, coinId);
+        return list;
+      };
+      if (listId === "main") return { ...current, watchlist: place(current.watchlist) };
+      return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: place(list.coinIds) } : list)) };
     });
   }, []);
 
   // Remove with a 5 s Undo that restores the coin to its old position (US-P10.2).
   const removeWatch = useCallback(
-    (coin) => {
-      const index = dataRef.current.watchlist.indexOf(coin.id);
+    (coin, listId = "main") => {
+      const ids = listId === "main" ? dataRef.current.watchlist : dataRef.current.lists.find((list) => list.id === listId)?.coinIds ?? [];
+      const index = ids.indexOf(coin.id);
       if (index < 0) return;
-      setData((current) => ({ ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }));
-      showToast(`${coin.name} removed`, { label: "Undo", run: () => moveWatch(coin.id, index) });
+      setData((current) =>
+        listId === "main"
+          ? { ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }
+          : { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: list.coinIds.filter((id) => id !== coin.id) } : list)) },
+      );
+      showToast(`${coin.name} removed`, { label: "Undo", run: () => moveWatch(coin.id, index, listId) });
     },
     [moveWatch, showToast],
+  );
+
+  // Named watchlists (US-6.2): up to 9 besides Main, names up to 30 characters.
+  const createList = useCallback(
+    (name, coinIds = []) => {
+      if (dataRef.current.lists.length >= MAX_LISTS - 1) {
+        showToast(`You can have up to ${MAX_LISTS} watchlists. Delete one to add another.`);
+        return null;
+      }
+      const list = { id: newId("list"), name: name.trim().slice(0, 30), coinIds };
+      setData((current) => ({ ...current, lists: [...current.lists, list] }));
+      showToast(`Created “${list.name}”`);
+      return list.id;
+    },
+    [showToast],
+  );
+  const renameList = useCallback((id, name) => {
+    setData((current) => ({ ...current, lists: current.lists.map((list) => (list.id === id ? { ...list, name: name.trim().slice(0, 30) } : list)) }));
+  }, []);
+  const deleteList = useCallback(
+    (id) => {
+      const index = dataRef.current.lists.findIndex((list) => list.id === id);
+      if (index < 0) return;
+      const removed = dataRef.current.lists[index];
+      setData((current) => ({
+        ...current,
+        lists: current.lists.filter((list) => list.id !== id),
+        settings: current.settings.watchlistList === id ? { ...current.settings, watchlistList: "main" } : current.settings,
+      }));
+      showToast(`Deleted “${removed.name}”`, {
+        label: "Undo",
+        run: () =>
+          setData((current) => {
+            if (current.lists.some((list) => list.id === id)) return current;
+            const lists = [...current.lists];
+            lists.splice(index, 0, removed);
+            return { ...current, lists };
+          }),
+      });
+    },
+    [showToast],
+  );
+  // Add or remove one coin in one list; "main" is the classic watchlist.
+  const setListMembership = useCallback(
+    (coin, listId, member) => {
+      requireAuth(`Sign in to save ${coin.name} to a watchlist`, () => {
+        setData((current) => {
+          const apply = (ids) => (member ? [...new Set([...ids, coin.id])] : ids.filter((id) => id !== coin.id));
+          if (listId === "main") return { ...current, watchlist: apply(current.watchlist) };
+          return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: apply(list.coinIds) } : list)) };
+        });
+        const name = listId === "main" ? "Main" : dataRef.current.lists.find((list) => list.id === listId)?.name ?? "watchlist";
+        showToast(member ? `${coin.name} added to ${name}` : `${coin.name} removed from ${name}`);
+      });
+    },
+    [requireAuth, showToast],
   );
 
   // Search overlay and recent searches (US-2.5, US-P04.2).
@@ -597,6 +692,15 @@ export function AppProvider({ children }) {
           : current.transactions.map((item) => (item.id === transaction.id ? transaction : item)),
       }));
       showToast(isNew ? "Transaction added" : "Transaction updated");
+    },
+    [showToast],
+  );
+  // CSV import (lib/csv.js has already validated and de-duplicated the rows).
+  const importTransactions = useCallback(
+    (list) => {
+      if (!list.length) return;
+      setData((current) => ({ ...current, transactions: [...current.transactions, ...list.map((tx) => ({ ...tx, id: newId("tx") }))] }));
+      showToast(`${list.length} ${list.length === 1 ? "transaction" : "transactions"} imported`);
     },
     [showToast],
   );
@@ -709,9 +813,19 @@ export function AppProvider({ children }) {
       if (session.kind === "guest") return;
       const current = dataRef.current;
       const notes = [];
-      const reminders = { ...current.reminders };
-      let changed = false;
-      Object.entries(current.reminders).forEach(([id, reminder]) => {
+      // Reminders follow their unlock or sale when its date changes, and say so (US-4.2).
+      const { reminders: followed, moves } = rescheduleReminders(current.reminders, (id, item) => reminderCandidates(id, item, coins), now);
+      moves.forEach(({ previous, reminder }) => {
+        const what = reminder.kind === "sale" ? `${reminder.symbol} token sale` : `${reminder.symbol} unlock`;
+        notes.push({
+          id: newId("note"), kind: reminder.kind, title: `${what} moved to ${formatDate(reminder.date)}`,
+          detail: `Your reminder was rescheduled. It was ${formatDate(previous)}.`,
+          path: reminder.kind === "sale" ? "/token-sales" : "/unlocks", at: now, read: false, bypassQuiet: false,
+        });
+      });
+      const reminders = { ...followed };
+      let changed = moves.length > 0;
+      Object.entries(followed).forEach(([id, reminder]) => {
         if (reminder.paused) return;
         const date = new Date(reminder.date).getTime();
         const due = reminder.timings.filter((timing) => !(reminder.fired ?? []).includes(timing) && now >= date - (reminderOffsets[timing] ?? 0));
@@ -746,11 +860,21 @@ export function AppProvider({ children }) {
 
       if (!changed) return;
       dataRef.current = { ...current, reminders, lastDigest };
-      setData((latest) => ({
-        ...latest,
-        lastDigest,
-        reminders: Object.fromEntries(Object.entries(latest.reminders).map(([id, item]) => [id, reminders[id] ? { ...item, fired: reminders[id].fired } : item])),
-      }));
+      setData((latest) => {
+        // Re-key moved reminders on the latest data, keeping any change made since this check.
+        const rekeyed = { ...latest.reminders };
+        moves.forEach(({ from, to, reminder }) => {
+          const item = rekeyed[from];
+          if (!item) return;
+          delete rekeyed[from];
+          rekeyed[to] = { ...item, date: reminder.date, fired: reminder.fired };
+        });
+        return {
+          ...latest,
+          lastDigest,
+          reminders: Object.fromEntries(Object.entries(rekeyed).map(([id, item]) => [id, reminders[id] ? { ...item, fired: reminders[id].fired } : item])),
+        };
+      });
       if (notes.length) {
         addNotifications(notes);
         deliver(notes);
@@ -1211,7 +1335,13 @@ export function AppProvider({ children }) {
       clearRecentSearches,
       moveWatch,
       removeWatch,
+      lists: data.lists,
+      createList,
+      renameList,
+      deleteList,
+      setListMembership,
       saveTransaction,
+      importTransactions,
       deleteTransaction,
       dismissToast,
       reminders: data.reminders,
@@ -1285,7 +1415,7 @@ export function AppProvider({ children }) {
       joinAffiliate,
       setAffiliatePayout,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
+    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, createList, renameList, deleteList, setListMembership, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, importTransactions, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
   );
 
   return (
