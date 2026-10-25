@@ -19,6 +19,14 @@ npm run build      # production build in app/dist
 
 To try it without an account, open **Log in** and choose **Try a private demo**. The demo has a populated watchlist, portfolio, alerts and notifications, and resets when you refresh.
 
+## Hosting
+
+CPA is live at **https://cpa-black.vercel.app** (Vercel project `cpa`, root directory `app/`).
+
+- **Deploy:** `vercel deploy --prod` from `app/`. `app/vercel.json` builds with Vite, sends every route to `index.html` (BrowserRouter), serves `sw.js` with `no-cache` so updates reach installed apps, caches the hashed `/assets/*` for a year, and sets `nosniff`, `X-Frame-Options: DENY`, a referrer policy and a permissions policy.
+- **Build variables:** only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, set in the Vercel project for production and preview. Server keys are never added to Vercel.
+- **Supabase settings for the hosted origin:** `https://cpa-black.vercel.app` must be in the Edge Functions' `ALLOWED_ORIGINS` (for wallet import) and in Auth → URL Configuration → Redirect URLs as `https://cpa-black.vercel.app/**` (for password-reset links).
+
 ## Who it's for
 
 The personas come from `app_outline/user_journey.md`:
@@ -200,7 +208,7 @@ The live database runs the Supabase version in `supabase/migrations/`. It differ
 ## Project layout
 
 ```
-app/                  React 19 + Vite 8 + React Router 7 (BrowserRouter)
+app/                  React 19 + Vite 8 + React Router 7 (BrowserRouter); vercel.json for hosting
   src/routes.js       every route, title and spec file
   src/pages/          one file per page (or page group)
   src/components/     shell, sheets, charts, rows, menus

@@ -85,3 +85,6 @@ tools/diagram/build/
 /supabase/data/
 /supabase/skills-lock.json
 /supabase/skills/
+
+# Vercel CLI project link
+.vercel/
