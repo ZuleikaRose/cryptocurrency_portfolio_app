@@ -716,30 +716,51 @@ $$;
 
 -- Support tickets (17-customer-support.md) and issue reports (19-report-issue.md).
 -- Guests can file them too, so user_id is optional.
+-- Guests can send these, so every free-text field has a limit that matches its form, and the
+-- id must be one next_ticket_id() has already issued (check_ticket_id trigger below).
 CREATE TABLE support_tickets (
-  id            text PRIMARY KEY,
+  id            text PRIMARY KEY CHECK (id ~ '^(CPA-[0-9]+|BUG-[0-9]{4,})$'),
   user_id       uuid REFERENCES users (id) ON DELETE SET NULL,
   kind          text NOT NULL CHECK (kind IN ('ticket', 'issue')),
   topic         text NOT NULL,
-  subject       text NOT NULL,
-  message       text,
-  email         citext,
+  subject       text NOT NULL CHECK (char_length(subject) BETWEEN 1 AND 140),
+  message       text CHECK (char_length(message) <= 2000),
+  email         citext CHECK (char_length(email::text) <= 254),
   status        text NOT NULL DEFAULT 'Received' CHECK (status IN ('Received', 'In progress', 'Resolved', 'Completed')),
   -- Issue reports only
-  page          text,
-  steps         text,
-  expected      text,
-  actual        text,
-  assistive_tech text,                                        -- accessibility reports
+  page          text CHECK (char_length(page) <= 200),
+  steps         text CHECK (char_length(steps) <= 2000),
+  expected      text CHECK (char_length(expected) <= 1000),
+  actual        text CHECK (char_length(actual) <= 1000),
+  assistive_tech text CHECK (char_length(assistive_tech) <= 200),   -- accessibility reports
   severity      text CHECK (severity IN ('blocking', 'annoying', 'minor')),
-  technical     text,                                         -- app version, browser, last error
-  screenshot_url text,                                        -- up to 2 MB
+  technical     text CHECK (char_length(technical) <= 1000),        -- app version, browser, last error
+  -- A PNG or JPEG data URL under 2 MB.
+  screenshot_url text CHECK (screenshot_url ~ '^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$' AND char_length(screenshot_url) <= 2796300),
   created_at    timestamptz NOT NULL DEFAULT now(),
   CHECK (
     (kind = 'ticket' AND topic IN ('account', 'billing', 'data', 'alerts', 'accessibility', 'data-removal', 'other'))
     OR (kind = 'issue' AND topic IN ('bug', 'data', 'accessibility', 'other') AND severity IS NOT NULL)
   )
 );
+
+CREATE OR REPLACE FUNCTION check_ticket_id() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+  issued bigint;
+BEGIN
+  IF NEW.id LIKE 'BUG-%' THEN
+    SELECT last_value INTO issued FROM issue_report_seq;
+  ELSE
+    SELECT last_value INTO issued FROM support_ticket_seq;
+  END IF;
+  IF substring(NEW.id FROM 5)::bigint > issued THEN
+    RAISE EXCEPTION 'Unknown ticket ID.' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER support_tickets_issued_id BEFORE INSERT ON support_tickets FOR EACH ROW EXECUTE FUNCTION check_ticket_id();
 CREATE INDEX support_tickets_user_idx ON support_tickets (user_id, created_at DESC);
 
 -- Completed data-removal requests (US-P17.2): id, topic, date and status only, no personal data.
