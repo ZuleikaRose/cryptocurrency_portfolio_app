@@ -148,6 +148,8 @@ export function walletImportPlan(wallet, address, transactions, coins, now = Dat
   const rows = [];
   new Set([...held.keys(), ...imported.keys(), ...days.keys()]).forEach((coinId) => {
     const coin = byId.get(coinId);
+    // An earlier import can hold a coin CPA no longer lists.
+    if (!coin) return;
     const balance = held.get(coinId) ?? 0;
     const earlier = imported.get(coinId);
     const before = earlier?.amount ?? 0;

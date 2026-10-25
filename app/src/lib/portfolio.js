@@ -76,6 +76,7 @@ export function priceAt(coin, time) {
   const days = (Date.now() - time) / 86_400_000;
   const range = days <= 1 ? "1D" : days <= 7 ? "7D" : days <= 30 ? "1M" : days <= 90 ? "3M" : days <= 365 ? "1Y" : "ALL";
   const points = priceHistory(coin, range);
+  if (!points.length) return coin.price;
   let best = points[points.length - 1];
   for (const point of points) {
     if (Math.abs(point.time - time) < Math.abs(best.time - time)) best = point;
