@@ -166,7 +166,21 @@ const glossaryRows = Object.entries(definitions).map(([key, definition]) => ({ k
 try {
   await upsert("categories", categories.map((name, index) => ({ name, sort_order: index + 1 })), "name");
   await upsert("exchanges", exchanges.map((e) => ({ id: e.id, name: e.name, type: e.type, volume_24h_usd: e.volume24h })), "id");
-  await upsert("coins", coinRows, "id");
+  // Coins the cryptorank-sync Edge Function feeds keep their live figures: the seed only
+  // writes sample values for coins that are still on sample data.
+  const { data: liveRows, error: liveError } = await db.from("coins").select("id").eq("price_source", "cryptorank");
+  if (liveError) throw new Error(`read live coins: ${liveError.message}`);
+  const live = new Set(liveRows.map((row) => row.id));
+  const LIVE_COLUMNS = ["price_usd", "change_24h", "change_7d", "market_cap_usd", "fdv_usd", "volume_24h_usd"];
+  const withoutLive = (row) => Object.fromEntries(Object.entries(row).filter(([key]) => !LIVE_COLUMNS.includes(key)));
+  await upsert("coins", coinRows.filter((row) => !live.has(row.id)), "id");
+  // Updates, not an upsert: an upsert's insert row would need the NOT NULL price columns.
+  const liveCoins = coinRows.filter((row) => live.has(row.id));
+  for (const row of liveCoins) {
+    const { id, ...rest } = withoutLive(row);
+    await run(`update coin ${id}`, db.from("coins").update(rest).eq("id", id));
+  }
+  console.log(`coins (live, prices kept): ${liveCoins.length}`);
   await upsert("funds", fundRows, "id");
 
   // Derived tables: no user rows point at these, so reload them in full.
