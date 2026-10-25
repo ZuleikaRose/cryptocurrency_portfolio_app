@@ -417,3 +417,8 @@ enabled = true
 # Called by pg_cron without a JWT; the function throttles itself (cpa.claim_market_sync).
 [functions.cryptorank-sync]
 verify_jwt = false
+
+# Checks the caller's Supabase session itself (auth.getUser) and rate-limits per user and IP
+# (cpa.claim_wallet_lookup), so the gateway's JWT check is off.
+[functions.wallet-lookup]
+verify_jwt = false
