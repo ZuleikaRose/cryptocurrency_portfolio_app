@@ -152,6 +152,14 @@ button.chip { cursor: pointer; }
 /* CSV export and import (11-portfolio.md) */
 .csv-row { border-style: solid; margin-bottom: 12px; flex-wrap: wrap; }
 .csv-actions { display: flex; gap: 8px; }
+/* Read-only wallet import (US-6.4) */
+.wallet-safety { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--text); }
+.wallet-safety svg { flex: 0 0 auto; margin-top: 2px; }
+.wallet-preview { display: grid; gap: 4px; margin: 8px 0; padding: 0; list-style: none; }
+.wallet-preview li { display: flex; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid var(--line-soft); }
+.wallet-preview strong { display: block; color: var(--text); font-size: 14px; overflow-wrap: anywhere; }
+.wallet-preview small { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.input.mono { font-family: var(--font-mono); font-size: 13px; }
 .import-skipped { max-height: 30vh; overflow-y: auto; margin: 0 0 8px; padding-left: 18px; color: var(--muted); font-size: 13px; }
 .entry-compare { font-size: 14px; }
 .tx-list { margin: 0; padding: 0; list-style: none; }
@@ -178,6 +186,7 @@ button.chip { cursor: pointer; }
 .input-row { display: flex; align-items: center; gap: 8px; }
 .input-row .input { flex: 1; min-width: 0; }
 .field-error { color: var(--down); font-size: 12px; }
+.form-field small.field-error { color: var(--down); }
 .tx-total { display: flex; justify-content: space-between; padding-top: 4px; color: var(--muted); font-size: 14px; }
 .tx-total strong { color: var(--text); }
 .tx-form .button-primary { margin-top: 0; }

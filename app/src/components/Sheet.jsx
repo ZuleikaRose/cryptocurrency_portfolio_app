@@ -16,7 +16,10 @@ export default function Sheet({ open, onClose, title, side = "right", initialFoc
     const onKeyDown = (event) => {
       if (event.key === "Escape") onClose();
       if (event.key !== "Tab" || !panel) return;
-      const focusable = panel.querySelectorAll("button, a[href], input, select, textarea, [tabindex='0']");
+      // Disabled controls can't take focus, so they can't be the trap's ends.
+      const focusable = panel.querySelectorAll(
+        "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex='0']",
+      );
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (event.shiftKey && document.activeElement === first) {

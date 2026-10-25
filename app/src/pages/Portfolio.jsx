@@ -13,6 +13,7 @@ import { chartSummary } from "../lib/chart.js";
 import { downloadText } from "../lib/clipboard.js";
 import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
 import { useNow } from "../lib/hooks.js";
+import { chainFor, lookupWallet, normaliseAddress, secretWarning, shortAddress, WALLET_CHAINS, walletImportPlan } from "../lib/wallet.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 
@@ -230,6 +231,120 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
   );
 }
 
+// Read-only wallet import (US-6.4): paste a public address, preview, then record the difference.
+function WalletSheet({ open, onClose, coins, transactions, demo, onImport, currency, rate }) {
+  const inputId = useId();
+  const [address, setAddress] = useState("");
+  const [state, setState] = useState({ status: "idle" });
+  const warning = secretWarning(address);
+  const chain = warning ? null : chainFor(address);
+  const chainLabel = WALLET_CHAINS.find((item) => item.id === chain)?.label;
+  const plan = useMemo(
+    () => (state.status === "done" ? walletImportPlan(state.balances, state.address, transactions, coins) : null),
+    [state, transactions, coins],
+  );
+
+  const lookUp = async (event) => {
+    event.preventDefault();
+    if (!chain || state.status === "loading") return;
+    const lookedUp = address.trim();
+    setState({ status: "loading" });
+    try {
+      const result = await lookupWallet(chain, lookedUp, { demo });
+      setState({ status: "done", address: normaliseAddress(lookedUp), ...result });
+    } catch (error) {
+      setState({ status: "error", message: error.message });
+    }
+  };
+
+  const fieldError = warning ?? (address.trim() && !chain ? "Enter a Bitcoin address (1…, 3… or bc1…) or an Ethereum address (0x…)." : null);
+  const count = plan?.transactions.length ?? 0;
+  return (
+    <Sheet open={open} onClose={onClose} title="Import from wallet" side="bottom">
+      <form className="tx-form" onSubmit={lookUp} noValidate>
+        <p className="sheet-note wallet-safety">
+          <Icon name="info" /> Never enter a recovery phrase or private key. CPA only needs a public address, and it's read, never stored.
+        </p>
+        <label className="form-field" htmlFor={inputId}>
+          <span>Bitcoin or Ethereum address</span>
+          <input
+            id={inputId}
+            className="input mono"
+            value={address}
+            onChange={(event) => {
+              setAddress(event.target.value);
+              if (state.status !== "loading") setState({ status: "idle" });
+            }}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={120}
+            placeholder="bc1q… or 0x…"
+            aria-invalid={Boolean(fieldError) || undefined}
+            aria-describedby={`${inputId}-hint`}
+          />
+          {fieldError ? (
+            <small id={`${inputId}-hint`} className="field-error">{fieldError}</small>
+          ) : (
+            <small id={`${inputId}-hint`} className="field-hint">
+              {chainLabel ? `${chainLabel} address.` : "ETH also brings in the ERC-20 tokens CPA lists, such as USDT, LINK and UNI."}
+            </small>
+          )}
+        </label>
+        <button type="submit" className="button-secondary" disabled={!chain || state.status === "loading"}>
+          {state.status === "loading" ? "Looking up…" : "Look up balances"}
+        </button>
+
+        <div role="status" aria-live="polite">
+          {state.status === "error" && <p className="field-error">{state.message}</p>}
+          {plan && (
+            <>
+              <p className="num">
+                {shortAddress(state.address)}
+                {state.demo ? " · demo balances, no lookup made" : ` · as of ${formatDate(state.asOf)}`}
+              </p>
+              {plan.rows.length === 0 ? (
+                <p>This address holds none of the coins CPA lists.</p>
+              ) : (
+                <ul className="wallet-preview">
+                  {plan.rows.map((row) => (
+                    <li key={row.coin.id}>
+                      <CoinLogo coin={row.coin} />
+                      <span>
+                        <strong className="num">{formatAmount(row.balance)} {row.coin.symbol}</strong>
+                        <small className="num">
+                          {row.tx
+                            ? `${row.tx.type === "transfer-in" ? "+" : "−"}${formatAmount(row.tx.amount)} as a ${row.tx.type === "transfer-in" ? "transfer in" : "transfer out"} at ${formatPrice(row.coin.price, currency, rate)}`
+                            : row.reason}
+                        </small>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {count > 0 && <p className="sheet-note">Cost basis is today's price. Edit a transaction to change it.</p>}
+            </>
+          )}
+        </div>
+        {plan && (
+          <button
+            type="button"
+            className="button-primary"
+            disabled={!count}
+            onClick={() => {
+              onImport(plan.transactions);
+              onClose();
+            }}
+          >
+            {count ? `Import ${count} ${count === 1 ? "change" : "changes"}` : "Nothing to import"}
+          </button>
+        )}
+      </form>
+    </Sheet>
+  );
+}
+
 function GuestPreview({ onDemo, onLogin }) {
   return (
     <div className="guest-preview">
@@ -264,6 +379,7 @@ export default function Portfolio() {
   const [sort, setSort] = useState("value");
   const [sheet, setSheet] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   useEffect(() => {
     document.title = "Portfolio · CPA";
@@ -392,13 +508,17 @@ export default function Portfolio() {
         </div>
       )}
 
-      <div className="import-row" aria-disabled="true">
-        <span>
-          <strong>Import from wallet (read-only)</strong>
-          <small>Coming soon. CPA will only ever accept public addresses and never asks for seed phrases or private keys.</small>
-        </span>
-        <span className="tag">Soon</span>
-      </div>
+      {session.kind !== "guest" && (
+        <div className="import-row csv-row">
+          <span>
+            <strong>Import from wallet (read-only)</strong>
+            <small>Bitcoin and Ethereum public addresses. CPA never asks for recovery phrases or private keys.</small>
+          </span>
+          <span className="csv-actions">
+            <button className="button-secondary compact" onClick={() => setWalletOpen(true)}>Import</button>
+          </span>
+        </div>
+      )}
 
       <Disclaimer />
 
@@ -406,6 +526,18 @@ export default function Portfolio() {
         <TransactionSheet open onClose={() => setSheet(null)} initial={sheet} coins={coins} transactions={transactions} onSave={saveTransaction} />
       )}
       {importOpen && <ImportSheet open onClose={() => setImportOpen(false)} coins={coins} transactions={transactions} onImport={importTransactions} />}
+      {walletOpen && (
+        <WalletSheet
+          open
+          onClose={() => setWalletOpen(false)}
+          coins={coins}
+          transactions={transactions}
+          demo={session.kind === "demo"}
+          onImport={importTransactions}
+          currency={currency}
+          rate={rate}
+        />
+      )}
     </div>
   );
 }
