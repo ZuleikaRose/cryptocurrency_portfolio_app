@@ -114,6 +114,14 @@ CREATE TABLE market_sync (
   last_error       text
 );
 
+-- CryptoRank credits spent each UTC day by the cryptorank-lookup Edge Function, which lookup.py
+-- calls so the API key stays a function secret. Capped at 60 a day, leaving the price sync its
+-- ~305 of the free plan's 400. Server-only; rows older than 30 days are removed.
+CREATE TABLE cryptorank_lookup_usage (
+  day          date PRIMARY KEY DEFAULT current_date,
+  credits_used integer NOT NULL DEFAULT 0 CHECK (credits_used >= 0)
+);
+
 -- Tokenomics: vesting schedule per coin and its allocations (03-coin-detail.md Tokenomics).
 CREATE TABLE vesting_schedules (
   coin_id      text PRIMARY KEY REFERENCES coins (id) ON DELETE CASCADE,

@@ -12,6 +12,7 @@ Run these from `app/`:
 From the repo root:
 - `supabase functions deploy cryptorank-sync --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the live price sync. Type-check and lint it with Deno first (`deno check`, `deno lint`); the deploy hook expects that dry run in the same command.
 - `supabase functions deploy wallet-lookup --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the read-only wallet lookup (US-6.4). Same Deno dry run first. It checks the caller's Supabase session itself, so the gateway's JWT check is off.
+- `supabase functions deploy cryptorank-lookup --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the lookup `lookup.py` calls. Same Deno dry run first. The script sends the publishable key (not a JWT), so the gateway's JWT check is off; a daily credit budget limits use.
 
 ## Sources of truth, in order
 
@@ -22,7 +23,7 @@ From the repo root:
 5. **`app_outline/user_stories.md`** (US-x.y, priorities P0/P1/P2) and **`app_outline/user_journey.md`** (personas Maya, Daniel, Priya and Leo, journey maps, cross-journey rules, moments that matter).
 6. **Data model:**
    - `supabase/migrations/` is what the live database runs.
-   - `schema.sql` (51 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
+   - `schema.sql` (52 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
    - Where the two differ (Supabase Auth instead of password and session tables, RLS, `simulated_billing`), the migrations win.
 
 Before changing a page, read its spec and the stories it cites. Before storing anything new for a user, find its table in `schema.sql` / `drawsql.png`.
@@ -37,7 +38,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
     - The `cryptorank-sync` Edge Function (`supabase/functions/`) writes CryptoRank price, 24h change, market cap and volume into `cpa.coins` every 10 minutes (pg_cron) for coins with a `cryptorank_slug`, and 7d change and FDV from the per-coin endpoint about every 2 days (6 coins a run). Each run is recorded in the server-only `cpa.market_sync`.
     - The 10-minute refresh rate is accepted (user's decision, Oct 18, 2026). Toncoin's live entry is CryptoRank's Gram (GRAM); Maker comes only through the per-coin endpoint.
     - The app reads them over REST through `lib/market.js` only, on load and every 30 s, and merges them onto the sample coins. Keep the fallbacks: last data plus `ErrorBanner` when a request fails, and the simulated feed before the first sync.
-    - The free CryptoRank plan allows 400 credits a day and 10 requests a minute. Pages cost 2 credits a run and details about 17 a day: about 305 a day in all. Don't raise the schedule, the page count or `DETAILS_PER_RUN` without a paid plan.
+    - The free CryptoRank plan allows 400 credits a day and 10 requests a minute. Pages cost 2 credits a run and details about 17 a day: about 305 a day in all. `lookup.py` gets up to 60 more through `cryptorank-lookup` (`DAILY_CREDITS`), 365 in all. Don't raise the schedule, the page count, `DETAILS_PER_RUN` or `DAILY_CREDITS` without a paid plan.
     - To add a coin, append it to `added` in `src/data/coins.js` (its own PRNG keeps the other coins' sample figures unchanged), run `npm run seed`, then map its `cryptorank_slug` in a migration.
     - Name the source wherever prices show: "CryptoRank" for synced figures, "CPA sample data" for the rest.
   - **Wallet import** (user's decision, Oct 25, 2026; `prompt.md` clarification 21): public Bitcoin and Ethereum addresses only, looked up by the `wallet-lookup` Edge Function (mempool.space for BTC, Etherscan for ETH and listed ERC-20 tokens). It needs a signed-in user, is rate-limited in the server-only `cpa.wallet_lookup_quota`, and never stores the address. Never ask for, accept or send a recovery phrase, private key or exchange key.
@@ -61,7 +62,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 ## Security
 
 - `SUPABASE_SECRET_KEY` (in `.env`) bypasses RLS: use it only in server-side scripts such as `supabase/seed`. Never give it a `VITE_` prefix or import it in `app/`. After a build, check `app/dist` doesn't contain it.
-- `lookup.py` reads `CRYPTORANK_API_KEY` from the environment or `.env`. The Edge Function reads it from its secrets, set from `.env` with `supabase secrets set --env-file <(grep '^CRYPTORANK_API_KEY=' .env)`; `supabase secrets list` shows only its SHA-256 digest. **Never commit `.env`, never print the key, and never paste it into code, docs, logs or commit messages.** `.env.example` holds names only.
+- `CRYPTORANK_API_KEY` lives only in the Edge Function secrets (user's decision, Oct 25, 2026). `lookup.py` doesn't read it: it calls the `cryptorank-lookup` Edge Function with the publishable key. The Edge Functions read it from their secrets, set from `.env` with `supabase secrets set --env-file <(grep '^CRYPTORANK_API_KEY=' .env)`; `supabase secrets list` shows only its SHA-256 digest. **Never commit `.env`, never print the key, and never paste it into code, docs, logs or commit messages.** `.env.example` holds names only.
 - `ETHERSCAN_API_KEY` follows the same rules: it's a `wallet-lookup` function setting (`supabase secrets set --env-file <(grep '^ETHERSCAN_API_KEY=' .env)`), never a `VITE_` variable.
 - Edge Functions are public endpoints. Each one answers only the origins in `ALLOWED_ORIGINS`, caps the request body, validates every input field, and returns generic error text (details go to the function logs).
 - Before every commit, check the staged diff for the key and confirm `git check-ignore .env`.

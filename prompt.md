@@ -43,7 +43,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 4. Text written for a streaming service (autoplay, captions, episodes) is adapted to crypto equivalents.
 5. **Only the demo account and guest browsing reset on refresh.** Real accounts persist in the browser's `localStorage`. This replaces "all of the data should reset" above.
 6. The stories file is `app_outline/user_stories.md`.
-7. `lookup.py` uses the CryptoRank API, returns the rank as an integer, and reads its key from environment variables or `.env`.
+7. `lookup.py` uses the CryptoRank API and returns the rank as an integer. Since Oct 25, 2026 (clarification 22) it gets the data through the `cryptorank-lookup` Edge Function, which holds the key, instead of reading the key from `.env`.
 8. **Never commit the API key to the repository or share it publicly. Use environment variables to keep it secure.**
 9. All the support and info pages are built.
 10. The layout is a phone-width app shell that's also usable on desktop.
@@ -56,7 +56,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
     - Sign-up logs straight in ("Confirm email" is off).
     - Simulated billing is stored in `user_state.simulated_billing`, and the real subscription tables stay server-only.
     - Delete account marks the profile deleted. Logging in to a deleted account offers **Remove my data**, which erases it for good.
-13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 51 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
+13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 52 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
 14. **Live prices from CryptoRank (Oct 18, 2026).** This replaces "There will be no API interactions" above, for prices only.
     - The `cryptorank-sync` Supabase Edge Function fetches the top 200 coins from CryptoRank v3 every 10 minutes (pg_cron) and writes price, 24h change, market cap and volume into `cpa.coins`.
     - 34 coins are mapped by `coins.cryptorank_slug`, including Zcash (ZEC, added Oct 18, 2026), Toncoin (listed on CryptoRank as Gram) and Maker. 7d change and FDV come from CryptoRank's per-coin endpoint about every 2 days. The other coins, and 1h change, sparklines, unlocks, rounds and sales, stay sample data.
@@ -71,6 +71,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 19. **MATIC finds Polygon (Oct 25, 2026).** Polygon is listed as POL; searching, CSV import and the watchlist picker also accept its former ticker MATIC, and Coin detail shows "Formerly MATIC". DOT was already listed.
 20. **Supabase hardening (Oct 25, 2026).** Guests can insert only fixed columns of `support_tickets` and `feedback`, with length and format checks. Edge Functions answer only `ALLOWED_ORIGINS`, cap the body size and return generic errors.
 21. **Read-only wallet import (Oct 25, 2026).** Bitcoin and Ethereum public addresses only (US-6.4), through the `wallet-lookup` Edge Function, so explorer keys stay server-side. Sign-in required, rate-limited per user and IP, address never stored. The app never asks for seed phrases, private keys or exchange keys.
+22. **`lookup.py` uses the stored CryptoRank key (Oct 25, 2026).** `CRYPTORANK_API_KEY`, `API_V3_URL`, `ALLOWED_ORIGINS` and `ETHERSCAN_API_KEY` are Edge Function secrets. Supabase never returns a secret, so `lookup.py` calls the `cryptorank-lookup` Edge Function, which does the lookup with the key, within a 60-credit daily budget (`cryptorank_lookup_usage`).
 
 # Required material from the outline documents
 
@@ -179,12 +180,12 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 
 ## Data model (schema.sql, drawsql.png)
 
-`schema.sql` models every feature and setting as 51 PostgreSQL tables (55 foreign keys, 3 views) in the `cpa` schema. `drawsql.png` draws them in eight groups:
+`schema.sql` models every feature and setting as 52 PostgreSQL tables (55 foreign keys, 3 views) in the `cpa` schema. `drawsql.png` draws them in eight groups:
 
 | Group | Tables |
 |---|---|
 | Reference | categories, plans, promotions, faq_sections, faq_items, learn_articles, glossary_terms |
-| Market | coins, coin_prices, exchanges, coin_markets, market_sync |
+| Market | coins, coin_prices, exchanges, coin_markets, market_sync, cryptorank_lookup_usage |
 | Research | vesting_schedules, vesting_allocations, unlock_events, funds, fund_sectors, funding_rounds, round_investors, token_sales |
 | Watchlist & portfolio | watchlist_items, watchlists, watchlist_list_coins, recent_coins, recent_searches, sentiment_votes, transactions, wallet_lookup_quota, user_interest_coins, user_interest_sectors, fund_follows, project_follows |
 | Accounts | users, sessions, login_attempts, password_reset_tokens, password_reset_requests, user_state, affiliates |
@@ -192,13 +193,13 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 | Settings | user_settings (one row per user: display, notifications, AI, accessibility menu, each tab's filters) |
 | Support | support_tickets, support_log, feedback |
 
-The Supabase migrations run a 47-table version of this model:
+The Supabase migrations run a 48-table version of this model:
 - Supabase Auth replaces the password and session tables.
 - Row-level security is on every table.
 - `coin_sentiment` became the `coin_sentiment_today()` function.
 - `user_state` gains `simulated_billing`.
 - `coins` gains `cryptorank_slug`, `price_source` and `price_updated_at`, and `market_sync` records each live price sync.
-- `wallet_lookup_quota` rate-limits the `wallet-lookup` Edge Function; like `market_sync`, it's server-only.
+- `wallet_lookup_quota` rate-limits the `wallet-lookup` Edge Function, and `cryptorank_lookup_usage` budgets the `cryptorank-lookup` Edge Function's CryptoRank credits; like `market_sync`, both are server-only.
 
 ## Style guide essentials (style_guide.md)
 
