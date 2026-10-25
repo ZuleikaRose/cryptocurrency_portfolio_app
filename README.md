@@ -156,7 +156,11 @@ npm run seed       # loads app/src/data/*.js into the cpa reference tables (safe
 - `migrations/`: the `cpa` schema, RLS policies, the account functions, and the live price sync (columns, `market_sync`, RPCs, pg_cron schedule, comments). The migrations are already applied to the linked project.
 - `functions/cryptorank-sync/`: the Edge Function that writes live CryptoRank prices into `cpa.coins` (see [Live prices](#live-prices)). It's deployed to the linked project.
 - `functions/cryptorank-lookup/`: the Edge Function `lookup.py` calls, so the CryptoRank key stays a function secret (see [CryptoRank lookup script](#cryptorank-lookup-script)).
-- `functions/wallet-lookup/`: the Edge Function that reads a public Bitcoin or Ethereum address's balances for wallet import (see [Wallet import](#wallet-import)).
+- `functions/wallet-lookup/`: the Edge Function that reads a public Bitcoin or Ethereum address's balances and transfer history for wallet import (see [Wallet import](#wallet-import)).
+- **Advisors** (reviewed Oct 25, 2026, Supabase CLI 2.122): the remaining notices are intended.
+  - "RLS enabled, no policy" on the four server-only tables (`market_sync`, `support_log`, `wallet_lookup_quota`, `cryptorank_lookup_usage`).
+  - SECURITY DEFINER warnings on `delete_my_account()` and `erase_my_data()` (they must reach Auth and every user table, and act only on the caller) and on `coin_sentiment_today()` (public vote totals, no voter data).
+  - 33 "unused index" notices: 23 cover foreign keys, which every FK keeps (data model rules), and 10 back the server-side search, sort and due-date queries `schema.sql` is designed for (trigram name search, market-cap order, upcoming sales and rounds, due reminders). The app reads sample data locally for now, so they're idle; on tables this small they cost almost nothing. Keep them.
 - `seed/seed-sample-data.mjs`: uses `SUPABASE_SECRET_KEY` from `.env`. That key is server-only: never give it a `VITE_` prefix.
 - The app reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the root `.env` (`envDir: '..'` in `vite.config.js`).
 - Auth settings to check in the Dashboard: turn off **Confirm email**, so sign-up logs straight in; set a 13-character minimum and require lowercase, uppercase, digits and symbols under **Authentication → Password policy**; add `http://localhost:5173/reset-password`, `http://127.0.0.1:5173/reset-password`, and your deployed URL under **Authentication → URL configuration → Redirect URLs**.

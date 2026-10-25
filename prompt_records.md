@@ -20,3 +20,11 @@ The prompts given to Claude Code while building CPA, in order, with the decision
 | 12 | "I imported 2 ETH public wallets in the CPA app demo" | The demo uses fixed sample balances and makes no lookup, so a real wallet import needs a signed-in account. | none |
 | 13 | "UPDATE THE lookup.py script to ready from the supabase edge function called CRYPTORANK_API_KEY" | Supabase never returns a secret's value, so `lookup.py` now calls a new `cryptorank-lookup` Edge Function that uses the key, with a 60-credit daily budget. | `981f934`, `5dc1869` |
 | 14 | "i confirm the Import from wallet (read-only) works with a real account. I imported ETH tranactions" | Wallet import confirmed by the user on a signed-in account, after a signed-in smoke test (BTC, ETH with ERC-20 tokens, bad address refused). | this commit |
+
+## Oct 25, 2026: follow-ups (branch `followups-sparkline-hosting`)
+
+| # | Prompt | Decision or outcome | Commits |
+|---|---|---|---|
+| 15 | "what's next?" then "let's do 1-5" (hosting: Vercel; wallet: real cost basis; PR: "Open it, I'll merge") | PR #10 opened for `watchlists-reminders-pwa` and merged by the user. Then four follow-ups on a new branch. | none |
+| 16 | "pull request has been merged please continue" | Sparkline: the unitless sample shape is no longer scaled by the live price, and it's mirrored when it runs against the live 7d change. Hosting: CPA is live at https://cpa-black.vercel.app (`app/vercel.json`: SPA rewrite, headers, `sw.js` no-cache; only the two `VITE_` variables in Vercel). | `6813e88`, `76542f9` |
+| 17 | "please commit and push and please continue" | Wallet import records transfers per day at that day's Coinbase close, with an opening balance for partial history, adjustments at today's price and "Rebuild from history"; `wallet-lookup` deployed and tested signed in. Housekeeping: Supabase CLI 2.122.0 (checksum-verified); advisor notices reviewed and kept with reasons. | `5fc5666`, this commit |
