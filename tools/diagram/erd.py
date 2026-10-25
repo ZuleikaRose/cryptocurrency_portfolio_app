@@ -88,7 +88,7 @@ GROUPS = [
     ("Reference", "#64748b", ["categories", "plans", "promotions", "faq_sections", "faq_items", "learn_articles", "glossary_terms"]),
     ("Market", "#3d7bff", ["coins", "coin_prices", "exchanges", "coin_markets", "market_sync"]),
     ("Research", "#0e9f8e", ["vesting_schedules", "vesting_allocations", "unlock_events", "funds", "fund_sectors", "funding_rounds", "round_investors", "token_sales"]),
-    ("Watchlist & portfolio", "#d97706", ["watchlist_items", "watchlists", "watchlist_list_coins", "recent_coins", "recent_searches", "sentiment_votes", "transactions", "user_interest_coins", "user_interest_sectors", "fund_follows", "project_follows"]),
+    ("Watchlist & portfolio", "#d97706", ["watchlist_items", "watchlists", "watchlist_list_coins", "recent_coins", "recent_searches", "sentiment_votes", "transactions", "wallet_lookup_quota", "user_interest_coins", "user_interest_sectors", "fund_follows", "project_follows"]),
     ("Accounts", "#7c5cff", ["users", "sessions", "login_attempts", "password_reset_tokens", "password_reset_requests", "user_state", "affiliates"]),
     ("Alerts & billing", "#db2777", ["price_alerts", "reminders", "notifications", "saved_filters", "subscriptions", "promo_redemptions", "billing_history", "payment_methods"]),
     ("Settings", "#7c5cff", ["user_settings"]),

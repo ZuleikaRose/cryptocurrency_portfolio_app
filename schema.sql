@@ -524,6 +524,15 @@ CREATE TABLE transactions (
 );
 CREATE INDEX transactions_user_idx ON transactions (user_id, occurred_at);
 
+-- Rate limit for read-only wallet import (US-6.4): the wallet-lookup Edge Function counts
+-- lookups per signed-in user and per hashed caller IP each hour. Server-only; rows expire
+-- after an hour. Wallet addresses are never stored.
+CREATE TABLE wallet_lookup_quota (
+  bucket       text PRIMARY KEY CHECK (bucket ~ '^(user:[0-9a-f-]{36}|ip:[0-9a-f]{64})$'),
+  window_start timestamptz NOT NULL DEFAULT now(),
+  used         integer NOT NULL DEFAULT 0 CHECK (used >= 0)  -- lookups in the current hour
+);
+
 -- =====================================================================
 -- 6. Following (07-fundraising.md, 10-fund-profile.md, US-5.4)
 -- =====================================================================
