@@ -68,8 +68,15 @@ Deno.serve(async (req) => {
 
   // Signed-in users only: the token must be a live Supabase session.
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  const { data: auth, error: authError } = token ? await db.auth.getUser(token) : { data: null, error: null };
-  if (authError || !auth?.user) return json(req, { error: "Sign in to import a wallet." }, 401);
+  let userId: string | null = null;
+  try {
+    const { data: auth, error: authError } = token ? await db.auth.getUser(token) : { data: null, error: null };
+    if (!authError) userId = auth?.user?.id ?? null;
+  } catch (error) {
+    console.error(`wallet-lookup couldn't check the session: ${error instanceof Error ? error.message : String(error)}`);
+    return json(req, { error: "Wallet import is unavailable. Try again later." }, 503);
+  }
+  if (!userId) return json(req, { error: "Sign in to import a wallet." }, 401);
 
   let body: unknown;
   try {
@@ -87,16 +94,20 @@ Deno.serve(async (req) => {
     return json(req, { error: chain === "bitcoin" ? "That isn't a Bitcoin address." : "That isn't an Ethereum address (0x followed by 40 characters)." }, 400);
   }
 
-  const buckets = [`user:${auth.user.id}`];
+  const buckets = [`user:${userId}`];
   const limits = [LIMIT_PER_USER];
-  const ip = await ipBucket(req, serviceKey);
-  if (ip) {
-    buckets.push(ip);
-    limits.push(LIMIT_PER_IP);
-  }
-  const { data: allowed, error: quotaError } = await db.rpc("claim_wallet_lookup", { buckets, limits });
-  if (quotaError) {
-    console.error(`wallet-lookup couldn't check the rate limit: ${quotaError.message}`);
+  let allowed: unknown;
+  try {
+    const ip = await ipBucket(req, serviceKey);
+    if (ip) {
+      buckets.push(ip);
+      limits.push(LIMIT_PER_IP);
+    }
+    const { data, error: quotaError } = await db.rpc("claim_wallet_lookup", { buckets, limits });
+    if (quotaError) throw new Error(quotaError.message);
+    allowed = data;
+  } catch (error) {
+    console.error(`wallet-lookup couldn't check the rate limit: ${error instanceof Error ? error.message : String(error)}`);
     return json(req, { error: "Wallet import is unavailable. Try again later." }, 500);
   }
   if (!allowed) return json(req, { error: `You can look up ${LIMIT_PER_USER} wallets an hour. Try again later.` }, 429);
