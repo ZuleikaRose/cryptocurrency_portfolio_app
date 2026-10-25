@@ -55,7 +55,7 @@ These override the brief and the `app_outline` documents where they differ.
     - Sign-up logs straight in ("Confirm email" is off).
     - Simulated billing is stored in `user_state.simulated_billing`, and the real subscription tables stay server-only.
     - Delete account marks the profile deleted. Logging in to a deleted account offers **Remove my data**, which erases it for good.
-13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 50 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
+13. **`schema.sql` and `drawsql.png` are the data model.** They hold every feature and setting in 51 tables (see "Data model" below). The Supabase migrations in `supabase/migrations/` are the live version and win where they differ.
 14. **Live prices from CryptoRank (Oct 18, 2026).** This replaces "There will be no API interactions" above, for prices only.
     - The `cryptorank-sync` Supabase Edge Function fetches the top 200 coins from CryptoRank v3 every 10 minutes (pg_cron) and writes price, 24h change, market cap and volume into `cpa.coins`.
     - 34 coins are mapped by `coins.cryptorank_slug`, including Zcash (ZEC, added Oct 18, 2026), Toncoin (listed on CryptoRank as Gram) and Maker. 7d change and FDV come from CryptoRank's per-coin endpoint about every 2 days. The other coins, and 1h change, sparklines, unlocks, rounds and sales, stay sample data.
@@ -63,6 +63,13 @@ These override the brief and the `app_outline` documents where they differ.
     - `CRYPTORANK_API_KEY` is an Edge Function secret set from `.env`. It never reaches the browser or the repository.
     - Freshness: the free CryptoRank plan allows 400 credits a day, so prices can be up to about 10 minutes old instead of 30 s. This refresh rate is accepted (Oct 18, 2026). The "Last updated" time and stale marker show the real age.
     - Coin detail names the source of each figure (CryptoRank or CPA sample data).
+15. **Named watchlists (Oct 25, 2026).** Main plus up to 9 named lists (US-6.2), stored in `watchlists` and `watchlist_list_coins`.
+16. **Moved reminders (Oct 25, 2026).** When an unlock or sale moves by up to 14 days, its reminder moves with it and the user is told the old and new dates (US-4.2).
+17. **Installable app (Oct 25, 2026).** A web app manifest and service worker replace home-screen widgets (US-8.1) and cache the app shell and last prices across reloads (US-9.5).
+18. **CSV export and import (Oct 25, 2026)** of portfolio transactions for signed-in users (11-portfolio.md).
+19. **MATIC finds Polygon (Oct 25, 2026).** Polygon is listed as POL; searching, CSV import and the watchlist picker also accept its former ticker MATIC, and Coin detail shows "Formerly MATIC". DOT was already listed.
+20. **Supabase hardening (Oct 25, 2026).** Guests can insert only fixed columns of `support_tickets` and `feedback`, with length and format checks. Edge Functions answer only `ALLOWED_ORIGINS`, cap the body size and return generic errors.
+21. **Read-only wallet import (Oct 25, 2026).** Bitcoin and Ethereum public addresses only (US-6.4), through the `wallet-lookup` Edge Function, so explorer keys stay server-side. Sign-in required, rate-limited per user and IP, address never stored. The app never asks for seed phrases, private keys or exchange keys.
 
 # Required material from the outline documents
 
@@ -141,7 +148,7 @@ The journey maps name a pain point at each stage and the fix they propose. All o
 | Platform | 8.3 | Deep links to coin, unlock, round, fund and token-sale screens |
 | Settings and trust | 9.1, 9.3, 9.4, 9.6 | Dark/light/system theme and display currency; screen readers read values in full; "Last updated" on every data screen, stale after 5 minutes; account deletion inside the app |
 
-P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filters, follow funds, token sales, the manual portfolio, weekly digest, quiet hours, share cards, colour conventions) are built where the browser allows. Widgets, haptics, social sign-in, wallet import, multiple watchlists and a cache across reloads are not; the offline banner is. See `README.md`.
+P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filters, follow funds, token sales, the manual portfolio, weekly digest, quiet hours, share cards, colour conventions) are built where the browser allows. Multiple watchlists, CSV import and export, read-only Bitcoin and Ethereum wallet import, and an installable app with a cache across reloads were added on Oct 25, 2026 (clarifications 15–21). Widgets, haptics and social sign-in are not built. See `README.md`.
 
 ## Non-functional requirements (user_stories.md)
 
@@ -158,7 +165,7 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 - **Collected, and only where a feature needs it:**
   - account name and email
   - plan and simulated payment details (card brand, last 4 digits and expiry only)
-  - watchlists, portfolio transactions, alerts and follows
+  - watchlists, portfolio transactions, alerts and follows (a wallet address is used for one lookup and never stored)
   - search queries and filter settings
   - feedback, tickets and bug reports
   - promo and points use
@@ -171,25 +178,26 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 
 ## Data model (schema.sql, drawsql.png)
 
-`schema.sql` models every feature and setting as 47 PostgreSQL tables (52 foreign keys, 3 views) in the `cpa` schema. `drawsql.png` draws them in eight groups:
+`schema.sql` models every feature and setting as 51 PostgreSQL tables (55 foreign keys, 3 views) in the `cpa` schema. `drawsql.png` draws them in eight groups:
 
 | Group | Tables |
 |---|---|
 | Reference | categories, plans, promotions, faq_sections, faq_items, learn_articles, glossary_terms |
 | Market | coins, coin_prices, exchanges, coin_markets, market_sync |
 | Research | vesting_schedules, vesting_allocations, unlock_events, funds, fund_sectors, funding_rounds, round_investors, token_sales |
-| Watchlist & portfolio | watchlist_items, recent_coins, recent_searches, sentiment_votes, transactions, user_interest_coins, user_interest_sectors, fund_follows, project_follows |
+| Watchlist & portfolio | watchlist_items, watchlists, watchlist_list_coins, recent_coins, recent_searches, sentiment_votes, transactions, wallet_lookup_quota, user_interest_coins, user_interest_sectors, fund_follows, project_follows |
 | Accounts | users, sessions, login_attempts, password_reset_tokens, password_reset_requests, user_state, affiliates |
 | Alerts & billing | price_alerts, reminders, notifications, saved_filters, subscriptions, promo_redemptions, billing_history, payment_methods |
 | Settings | user_settings (one row per user: display, notifications, AI, accessibility menu, each tab's filters) |
 | Support | support_tickets, support_log, feedback |
 
-The Supabase migrations run a 44-table version of this model:
+The Supabase migrations run a 47-table version of this model:
 - Supabase Auth replaces the password and session tables.
 - Row-level security is on every table.
 - `coin_sentiment` became the `coin_sentiment_today()` function.
 - `user_state` gains `simulated_billing`.
 - `coins` gains `cryptorank_slug`, `price_source` and `price_updated_at`, and `market_sync` records each live price sync.
+- `wallet_lookup_quota` rate-limits the `wallet-lookup` Edge Function; like `market_sync`, it's server-only.
 
 ## Style guide essentials (style_guide.md)
 

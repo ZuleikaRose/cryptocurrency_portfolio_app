@@ -221,3 +221,9 @@ ARB · Arbitrum                       in 3d 04h
 | Widgets | Home & Lock Screen widgets (watchlist, next unlock) | Glance widgets |
 | Notifications | Time-sensitive for price alerts the user set | High-priority channel for user alerts only |
 | Sharing | Native share sheet with generated chart image | Same |
+
+> **CPA build (Oct 25, 2026), web:**
+> - **Install:** the web app manifest uses `bg/base` for the splash and the theme colour of the current theme for the browser bar. Icons are the violet CPA mark, with a maskable version for Android.
+> - **Wallet addresses** use JetBrains Mono, and are shortened in the middle in lists (`bc1qar…5mdq`).
+> - **Security copy** is plain and specific: "Never enter a recovery phrase or private key. CPA only needs a public address." Show it before the address field, not after an error.
+> - **Moved reminders** use the urgent tone only for the new date: "ARB unlock moved to Nov 3, 2026", then "Your reminder was rescheduled. It was Oct 30, 2026."

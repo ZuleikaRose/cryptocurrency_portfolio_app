@@ -128,6 +128,8 @@
 - Timing options: 1 hour, 24 hours, or both. The default comes from the last choice.
 - **Given** the unlock date changes, **when** the data updates, **then** my reminder reschedules and I'm told about the change.
 
+> **CPA build (Oct 25, 2026):** when an unlock or token sale moves by up to 14 days, the reminder moves with it, timings that haven't fired yet re-arm, and a notification says "ARB unlock moved to Nov 3, 2026" with the old date. `?simulate=reschedule` shows it in the demo.
+
 ### US-4.3 Calendar view · P2 · 5 pts
 **As a** user, **I want** a month calendar with unlock dots **so that** I can see busy weeks at a glance.
 
@@ -178,6 +180,8 @@
 ### US-6.2 Multiple watchlists · P2 · 3 pts
 **As** Maya, **I want** several named watchlists **so that** I can group coins by strategy.
 
+> **CPA build (Oct 25, 2026):** Main plus up to 9 named lists, shown as chips on Watchlist. Lists can be created, renamed and deleted (with Undo), and coins added from a search sheet. On Coin detail the star opens "Save to watchlists" once a named list exists. Signed-in lists are stored in `watchlists` and `watchlist_list_coins`.
+
 ### US-6.3 Manual portfolio tracker · P1 · 8 pts
 **As** Daniel, **I want** to log buys and sells **so that** I can track my P&L.
 
@@ -185,11 +189,15 @@
 - Shows total value, 24h change, all-time P&L ($ and %), and allocation donut.
 - Hide-balances toggle (eye icon) masks values as `••••`.
 
+> **CPA build (Oct 25, 2026):** signed-in users can export transactions as CSV and import a CSV (up to 1 MB and 2,000 rows). The import previews what will be added, skips duplicates, unknown coins, future dates and sells larger than the holding, and says why for each skipped row. Cells that start with = + − @ are escaped on export so spreadsheets don't run them.
+
 ### US-6.4 Read-only wallet / exchange import · P2 · 13 pts
 **As a** user, **I want** to import holdings from a public wallet address or a read-only exchange API **so that** I don't have to enter trades by hand.
 
 - Public addresses only, or read-only API keys. The app never asks for seed phrases or private keys.
 - API keys are stored encrypted in the OS keychain/keystore and are never shown again after saving.
+
+> **CPA build (Oct 25, 2026):** public **Bitcoin** and **Ethereum** addresses only. Bitcoin balances come from mempool.space; ETH and the ERC-20 tokens CPA lists come from Etherscan. The browser never calls the explorers: the `wallet-lookup` Supabase Edge Function does, so the Etherscan key stays a server-side function setting. The function needs a signed-in user, checks the address format strictly, answers only the origins in `ALLOWED_ORIGINS`, and allows 10 lookups an hour per user and 30 per IP (`wallet_lookup_quota`, server-only). Addresses are never stored on the server. Before anything is sent, the app refuses input that looks like a recovery phrase or a private key and says why. The import shows a preview, then records the difference from earlier imports of the same address as transfers in or out at today's price, so importing twice doesn't double-count. Exchange API keys aren't supported: a browser app has no OS keychain to hold them.
 
 ---
 
@@ -224,6 +232,8 @@
 
 - Sizes: small (1 coin), medium (4 coins), large (8 coins + next unlock).
 - Refreshes as often as the OS allows and shows a "last updated" time.
+
+> **CPA build (Oct 25, 2026):** browsers can't add home-screen widgets, so CPA is an installable app instead (web app manifest and service worker). Installing it adds an icon that opens Watchlist, with shortcuts to Watchlist, Unlocks and Alerts. Settings → Preferences has the Install row.
 
 ### US-8.2 Share cards · P1 · 3 pts
 **As** Priya, **I want** to share a clean image of a coin, round, or unlock **so that** my team sees it in context.
@@ -263,6 +273,8 @@
 - Shows an offline banner and cached watchlist, portfolio, and unlocks. Actions are queued and sync when back online.
 
 > **CPA build (Oct 18, 2026):** the banner "You're offline: showing saved data" appears at the top while the browser is offline. The last loaded prices and the bundled data stay on screen, the price feed pauses and refreshes on reconnect, and Refresh is disabled. Unsaved account changes are retried every 15 s until they save. Data isn't cached across reloads.
+
+> **CPA build (Oct 25, 2026):** a service worker now caches the app shell and the last coin prices, so CPA reloads offline in production builds and shows the last synced prices under the offline banner.
 
 ### US-9.6 Account deletion · P0 · 2 pts
 **As a** user, **I want** to delete my account and data from inside the app **so that** I control my privacy (App Store and Google Play requirement).
