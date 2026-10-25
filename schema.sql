@@ -518,16 +518,20 @@ CREATE INDEX sentiment_votes_coin_idx ON sentiment_votes (coin_id, vote_day);
 -- 5. Portfolio (11-portfolio.md, US-6.x)
 -- =====================================================================
 
+-- Manual, CSV-imported and wallet-imported transactions; holdings are derived from them by
+-- average cost, never stored. A wallet import (US-6.4) records one transfer per coin per UTC
+-- day of the address's history, priced at that day's close, plus an opening balance or an
+-- adjustment at the import day's price where the history doesn't explain the balance.
 CREATE TABLE transactions (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   coin_id     text NOT NULL REFERENCES coins (id),
   type        text NOT NULL CHECK (type IN ('buy', 'sell', 'transfer-in', 'transfer-out')),
   amount      numeric(30, 12) NOT NULL CHECK (amount > 0),
-  price_usd   numeric(30, 12) NOT NULL CHECK (price_usd >= 0),
+  price_usd   numeric(30, 12) NOT NULL CHECK (price_usd >= 0),  -- cost basis per coin; wallet imports: that day's closing price (Coinbase, UTC)
   fee_usd     numeric(18, 2) NOT NULL DEFAULT 0 CHECK (fee_usd >= 0),
-  occurred_at timestamptz NOT NULL,
-  note        text NOT NULL DEFAULT '',
+  occurred_at timestamptz NOT NULL,                              -- wallet imports: 12:00 UTC on the transfer day (00:00 for an opening balance)
+  note        text NOT NULL DEFAULT '',                          -- wallet imports: "Wallet import <short address>", which re-imports and "Rebuild from history" match
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX transactions_user_idx ON transactions (user_id, occurred_at);
