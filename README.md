@@ -114,7 +114,7 @@ The target is WCAG 2.2 AA:
 - **Text size:** up to 200%; tables become stacked cards above 130%.
 - **Accessibility menu:** profiles plus settings for text, fonts, spacing, contrast, saturation, link and heading highlights, a reading guide, a big cursor, hiding images and stopping animations.
 
-To simulate an error banner on Home, Market, Explore, Fundraising or Watchlist, add `?simulate=error` to the address.
+To simulate an error banner on Home, Market, Explore, Fundraising or Watchlist, add `?simulate=error` to the address. To see an unlock reminder reschedule (US-4.2), open any page with `?simulate=reschedule` and start the demo: its ARB reminder is stored 2 days early, so the next check moves it to the real date and shows "ARB unlock moved to …".
 
 ## CryptoRank lookup script
 

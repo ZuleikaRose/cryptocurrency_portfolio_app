@@ -4,7 +4,8 @@ import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi,
 import { prefersMoreContrast, prefersReducedMotion, summarySizes } from "../lib/a11y.js";
 import { initialCoins } from "../data/coins.js";
 import { researchFor } from "../data/research.js";
-import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets } from "../lib/alerts.js";
+import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets, rescheduleReminders } from "../lib/alerts.js";
+import { tokenSales } from "../data/directory.js";
 import { formatDate } from "../lib/format.js";
 import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
 import { authErrorKind, clearFailures, lockState, normalizeEmail, recordFailure } from "../lib/auth.js";
@@ -80,8 +81,12 @@ function demoAlertData() {
   const now = Date.now();
   const arbitrum = initialCoins.find((coin) => coin.id === "arbitrum");
   const unlock = arbitrum && researchFor(arbitrum).upcomingUnlocks[0];
+  // ?simulate=reschedule stores the reminder 2 days early, so the next clock check finds the
+  // unlock "moved" and shows the reschedule notice (US-4.2), like ?simulate=error for errors.
+  const shift = new URLSearchParams(window.location.search).get("simulate") === "reschedule" ? 2 * 86_400_000 : 0;
+  const early = unlock && new Date(unlock.date.getTime() - shift);
   const reminders = unlock
-    ? { [unlock.id]: { timings: ["1h"], kind: "unlock", symbol: "ARB", name: "Arbitrum", date: unlock.date.toISOString(), label: "ARB unlock", fired: [] } }
+    ? { [shift ? `arbitrum-${early.toISOString().slice(0, 10)}` : unlock.id]: { timings: ["1h"], kind: "unlock", symbol: "ARB", name: "Arbitrum", date: early.toISOString(), label: "ARB unlock", fired: [] } }
     : {};
   return {
     alerts: [
@@ -344,6 +349,18 @@ function AlertWatcher({ onPrices, onClock }) {
     return () => window.clearInterval(id);
   }, [onClock]);
   return null;
+}
+
+// The events a reminder could now belong to (US-4.2): a sale by its id, or the coin's upcoming
+// unlocks (unlock ids are "<coin id>-<YYYY-MM-DD>", so a moved unlock gets a new id).
+function reminderCandidates(id, reminder, coins) {
+  if (reminder.kind === "sale") {
+    const sale = tokenSales.find((item) => item.id === id);
+    return sale ? [{ id: sale.id, date: sale.start }] : [];
+  }
+  const coinId = id.replace(/-\d{4}-\d{2}-\d{2}$/, "");
+  const coin = coins.find((item) => item.id === coinId) ?? initialCoins.find((item) => item.id === coinId);
+  return coin ? researchFor(coin).upcomingUnlocks : [];
 }
 
 // "Weekly digest summary" (25-ai-integration.md): a factual recap, no advice words.
@@ -785,9 +802,19 @@ export function AppProvider({ children }) {
       if (session.kind === "guest") return;
       const current = dataRef.current;
       const notes = [];
-      const reminders = { ...current.reminders };
-      let changed = false;
-      Object.entries(current.reminders).forEach(([id, reminder]) => {
+      // Reminders follow their unlock or sale when its date changes, and say so (US-4.2).
+      const { reminders: followed, moves } = rescheduleReminders(current.reminders, (id, item) => reminderCandidates(id, item, coins), now);
+      moves.forEach(({ previous, reminder }) => {
+        const what = reminder.kind === "sale" ? `${reminder.symbol} token sale` : `${reminder.symbol} unlock`;
+        notes.push({
+          id: newId("note"), kind: reminder.kind, title: `${what} moved to ${formatDate(reminder.date)}`,
+          detail: `Your reminder was rescheduled. It was ${formatDate(previous)}.`,
+          path: reminder.kind === "sale" ? "/token-sales" : "/unlocks", at: now, read: false, bypassQuiet: false,
+        });
+      });
+      const reminders = { ...followed };
+      let changed = moves.length > 0;
+      Object.entries(followed).forEach(([id, reminder]) => {
         if (reminder.paused) return;
         const date = new Date(reminder.date).getTime();
         const due = reminder.timings.filter((timing) => !(reminder.fired ?? []).includes(timing) && now >= date - (reminderOffsets[timing] ?? 0));
@@ -822,11 +849,21 @@ export function AppProvider({ children }) {
 
       if (!changed) return;
       dataRef.current = { ...current, reminders, lastDigest };
-      setData((latest) => ({
-        ...latest,
-        lastDigest,
-        reminders: Object.fromEntries(Object.entries(latest.reminders).map(([id, item]) => [id, reminders[id] ? { ...item, fired: reminders[id].fired } : item])),
-      }));
+      setData((latest) => {
+        // Re-key moved reminders on the latest data, keeping any change made since this check.
+        const rekeyed = { ...latest.reminders };
+        moves.forEach(({ from, to, reminder }) => {
+          const item = rekeyed[from];
+          if (!item) return;
+          delete rekeyed[from];
+          rekeyed[to] = { ...item, date: reminder.date, fired: reminder.fired };
+        });
+        return {
+          ...latest,
+          lastDigest,
+          reminders: Object.fromEntries(Object.entries(rekeyed).map(([id, item]) => [id, reminders[id] ? { ...item, fired: reminders[id].fired } : item])),
+        };
+      });
       if (notes.length) {
         addNotifications(notes);
         deliver(notes);
