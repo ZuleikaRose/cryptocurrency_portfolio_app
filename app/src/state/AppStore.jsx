@@ -695,11 +695,16 @@ export function AppProvider({ children }) {
     },
     [showToast],
   );
-  // CSV import (lib/csv.js has already validated and de-duplicated the rows).
+  // CSV and wallet import (lib/csv.js and lib/wallet.js have already validated the rows). A wallet
+  // re-import can replace its earlier rows (`replace`: their ids) in the same update.
   const importTransactions = useCallback(
-    (list) => {
+    (list, { replace = [] } = {}) => {
       if (!list.length) return;
-      setData((current) => ({ ...current, transactions: [...current.transactions, ...list.map((tx) => ({ ...tx, id: newId("tx") }))] }));
+      const removed = new Set(replace);
+      setData((current) => ({
+        ...current,
+        transactions: [...current.transactions.filter((tx) => !removed.has(tx.id)), ...list.map((tx) => ({ ...tx, id: newId("tx") }))],
+      }));
       showToast(`${list.length} ${list.length === 1 ? "transaction" : "transactions"} imported`);
     },
     [showToast],

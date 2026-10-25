@@ -1,7 +1,7 @@
 // Read-only wallet import (US-6.4, 11-portfolio.md). Public Bitcoin and Ethereum addresses are
 // looked up by the wallet-lookup Edge Function, which holds the explorer key and rate-limits calls.
 // The browser never sends anything that looks like a recovery phrase or a private key.
-import { amountHeld } from "./portfolio.js";
+import { amountHeld, priceAt } from "./portfolio.js";
 import { supabase } from "./supabase.js";
 
 export const WALLET_CHAINS = [
@@ -53,15 +53,30 @@ export function normaliseAddress(input) {
 export const shortAddress = (address) => (address.length > 16 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address);
 export const walletNote = (address) => `Wallet import ${shortAddress(address)}`;
 
-// Fixed balances for the demo account, which has no Supabase session to call the function with.
-const DEMO_BALANCES = {
-  bitcoin: [{ coinId: "bitcoin", amount: 0.25 }],
-  ethereum: [{ coinId: "ethereum", amount: 1.5 }, { coinId: "chainlink", amount: 120 }, { coinId: "arbitrum", amount: 800 }],
+// Fixed wallets for the demo account, which has no Supabase session to call the function with:
+// transfers as [coinId, days ago, amount]. Their prices come from the sample price history.
+const DEMO_TRANSFERS = {
+  bitcoin: [["bitcoin", 320, 0.1], ["bitcoin", 190, 0.2], ["bitcoin", 45, -0.05]],
+  ethereum: [["ethereum", 410, 2], ["chainlink", 260, 120], ["arbitrum", 150, 800], ["ethereum", 30, -0.5]],
 };
 
-// Calls the Edge Function. Resolves { balances, asOf, demo } or throws an Error with a plain message.
+function demoWallet(chain, now) {
+  const entries = DEMO_TRANSFERS[chain].map(([coinId, daysAgo, amount]) => ({
+    coinId,
+    day: new Date(now - daysAgo * 86_400_000).toISOString().slice(0, 10),
+    amount,
+    price: null,
+  }));
+  const totals = new Map();
+  entries.forEach(({ coinId, amount }) => totals.set(coinId, (totals.get(coinId) ?? 0) + amount));
+  const balances = [...totals].map(([coinId, amount]) => ({ coinId, amount: Number(amount.toFixed(12)) }));
+  return { balances, history: { entries, complete: true }, asOf: new Date(now).toISOString(), demo: true };
+}
+
+// Calls the Edge Function. Resolves { balances, history, asOf, demo } or throws an Error with a
+// plain message.
 export async function lookupWallet(chain, address, { demo = false } = {}) {
-  if (demo) return { balances: DEMO_BALANCES[chain], asOf: new Date().toISOString(), demo: true };
+  if (demo) return demoWallet(chain, Date.now());
   if (!supabase) throw new Error("Wallet import needs CPA's Supabase connection, which isn't set up in this build.");
   let response;
   try {
@@ -88,45 +103,92 @@ export async function lookupWallet(chain, address, { demo = false } = {}) {
     throw new Error(message ?? "We couldn't read that wallet. Try again in a minute.");
   }
   if (!data || !Array.isArray(data.balances)) throw new Error("We couldn't read that wallet. Try again in a minute.");
-  return { balances: data.balances, asOf: data.asOf, demo: false };
+  // An older deploy returns balances only; the plan then falls back to today's price.
+  const entries = Array.isArray(data.history?.entries) ? data.history.entries : [];
+  return { balances: data.balances, history: { entries, complete: data.history?.complete === true }, asOf: data.asOf, demo: false };
 }
 
-// What importing these balances would change. Earlier imports of the same address are
-// recognised by their note, so only the difference is recorded: a transfer in when the wallet
-// holds more, a transfer out when it holds less. New rows use today's price as cost basis.
-export function walletImportPlan(balances, address, transactions, coins, now = Date.now()) {
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const round = (value) => Number(value.toFixed(12));
+const signed = (tx) => (tx.type === "transfer-in" || tx.type === "buy" ? tx.amount : -tx.amount);
+
+// What importing this wallet would change (US-6.4). Earlier imports of the same address are
+// recognised by their note.
+// - First import of a coin: each day's net transfer, dated that day at that day's closing price.
+//   When older history wasn't read, the balance before it is an opening transfer in at the
+//   earliest day read.
+// - Re-import: only days after the last imported one.
+// - Anything the history doesn't explain (a staking payout, an unlisted contract) is an adjustment
+//   at today's price, so the holding always matches the wallet.
+// Days without a closing price use today's price; `unpriced` counts them.
+export function walletImportPlan(wallet, address, transactions, coins, now = Date.now()) {
+  const { balances = [], history = { entries: [], complete: true }, demo = false } = wallet;
   const note = walletNote(normaliseAddress(address));
   const byId = new Map(coins.map((coin) => [coin.id, coin]));
+
   const imported = new Map();
   transactions.filter((tx) => tx.note === note).forEach((tx) => {
-    const sign = tx.type === "transfer-in" || tx.type === "buy" ? 1 : -1;
-    imported.set(tx.coinId, (imported.get(tx.coinId) ?? 0) + sign * tx.amount);
+    const entry = imported.get(tx.coinId) ?? { amount: 0, lastDay: "" };
+    entry.amount += signed(tx);
+    const day = new Date(tx.date).toISOString().slice(0, 10);
+    if (day > entry.lastDay) entry.lastDay = day;
+    imported.set(tx.coinId, entry);
   });
-  const wallet = new Map();
+  const held = new Map();
   balances.forEach(({ coinId, amount }) => {
-    if (byId.has(coinId) && Number.isFinite(amount) && amount >= 0) wallet.set(coinId, (wallet.get(coinId) ?? 0) + amount);
+    if (byId.has(coinId) && Number.isFinite(amount) && amount >= 0) held.set(coinId, (held.get(coinId) ?? 0) + amount);
+  });
+  const days = new Map();
+  history.entries.forEach((entry) => {
+    if (!byId.has(entry.coinId) || !DAY.test(entry.day) || !Number.isFinite(entry.amount) || Math.abs(entry.amount) < DUST) return;
+    days.set(entry.coinId, [...(days.get(entry.coinId) ?? []), entry]);
   });
 
-  const date = new Date(now).toISOString();
+  const today = new Date(now).toISOString();
   const rows = [];
-  new Set([...wallet.keys(), ...imported.keys()]).forEach((coinId) => {
+  new Set([...held.keys(), ...imported.keys(), ...days.keys()]).forEach((coinId) => {
     const coin = byId.get(coinId);
-    if (!coin) return;
-    const balance = wallet.get(coinId) ?? 0;
-    const before = imported.get(coinId) ?? 0;
-    const delta = Number((balance - before).toFixed(12));
-    const row = { coin, balance, before, delta, tx: null, reason: null };
-    if (Math.abs(delta) < DUST) {
-      row.reason = before ? "Already up to date." : "No balance.";
-    } else if (delta > 0) {
-      row.tx = { coinId, type: "transfer-in", amount: delta, price: coin.price, fee: 0, date, note };
-    } else if (amountHeld(transactions, coinId, null) + DUST < -delta) {
-      row.reason = `The wallet holds ${coin.symbol} less than before, but your portfolio holds less than that. Check your transactions.`;
-    } else {
-      row.tx = { coinId, type: "transfer-out", amount: -delta, price: coin.price, fee: 0, date, note };
+    const balance = held.get(coinId) ?? 0;
+    const earlier = imported.get(coinId);
+    const before = earlier?.amount ?? 0;
+    const transfers = (days.get(coinId) ?? [])
+      .filter((entry) => !earlier || entry.day > earlier.lastDay)
+      .sort((a, b) => a.day.localeCompare(b.day));
+    const row = { coin, balance, before, txs: [], transfers: transfers.length, firstDay: transfers[0]?.day ?? null, openingDay: null, adjustment: 0, unpriced: 0, reason: null };
+    const add = (type, amount, price, date) => row.txs.push({ coinId, type, amount: round(amount), price, fee: 0, date, note });
+    const priceOn = (entry) => {
+      if (entry.price > 0) return entry.price;
+      if (demo) return priceAt(coin, Date.parse(`${entry.day}T12:00:00Z`));
+      row.unpriced += 1;
+      return coin.price;
+    };
+
+    const net = transfers.reduce((sum, entry) => sum + entry.amount, 0);
+    const opening = round(balance - net);
+    if (!earlier && !history.complete && transfers.length && opening >= DUST) {
+      row.openingDay = transfers[0].day;
+      add("transfer-in", opening, priceOn(transfers[0]), `${transfers[0].day}T00:00:00.000Z`);
     }
+    transfers.forEach((entry) => {
+      add(entry.amount > 0 ? "transfer-in" : "transfer-out", Math.abs(entry.amount), priceOn(entry), `${entry.day}T12:00:00.000Z`);
+    });
+
+    const recorded = row.txs.reduce((sum, tx) => sum + signed(tx), 0);
+    const rest = round(balance - before - recorded);
+    if (rest >= DUST) {
+      row.adjustment = rest;
+      add("transfer-in", rest, coin.price, today);
+    } else if (rest <= -DUST) {
+      if (amountHeld(transactions, coinId, null) + recorded + DUST < -rest) {
+        row.reason = `The wallet holds ${coin.symbol} less than before, but your portfolio holds less than that. Check your transactions.`;
+      } else {
+        row.adjustment = rest;
+        add("transfer-out", -rest, coin.price, today);
+      }
+    }
+    if (!row.txs.length && !row.reason) row.reason = before ? "Already up to date." : "No balance.";
     rows.push(row);
   });
   rows.sort((a, b) => b.balance * b.coin.price - a.balance * a.coin.price || a.coin.name.localeCompare(b.coin.name));
-  return { rows, transactions: rows.map((row) => row.tx).filter(Boolean) };
+  return { rows, transactions: rows.flatMap((row) => row.txs) };
 }
