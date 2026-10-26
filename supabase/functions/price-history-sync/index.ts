@@ -27,7 +27,7 @@ const PRODUCTS: Record<string, string[]> = {
 };
 // Kraken pairs for the coins Coinbase lacks (clarification 36). Maker became SKY at a fixed
 // 24,000 SKY per MKR, so Maker's closes are SKY's times 24,000; the app names this under its chart.
-// Keep in step with HISTORY_SOURCES in app/src/lib/history.js.
+// Keep in step with KRAKEN_COINS in app/src/lib/history.js.
 const KRAKEN: Record<string, { pair: string; scale: number }> = {
   tron: { pair: "TRXUSD", scale: 1 },
   "usd-coin": { pair: "USDCUSD", scale: 1 },
