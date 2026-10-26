@@ -86,7 +86,7 @@ for match in re.finditer(r"CREATE TABLE (\w+) \(", src):
 # Layout: columns of tables, grouped by domain. Colour = group.
 GROUPS = [
     ("Reference", "#64748b", ["categories", "plans", "promotions", "faq_sections", "faq_items", "learn_articles", "glossary_terms"]),
-    ("Market", "#3d7bff", ["coins", "coin_prices", "exchanges", "coin_markets", "market_sync", "cryptorank_lookup_usage"]),
+    ("Market", "#3d7bff", ["coins", "coin_prices", "exchanges", "coin_markets", "market_sync", "price_history_sync", "cryptorank_lookup_usage"]),
     ("Research", "#0e9f8e", ["vesting_schedules", "vesting_allocations", "unlock_events", "funds", "fund_sectors", "funding_rounds", "round_investors", "token_sales"]),
     ("Watchlist & portfolio", "#d97706", ["watchlist_items", "watchlists", "watchlist_list_coins", "recent_coins", "recent_searches", "sentiment_votes", "transactions", "wallet_lookup_quota", "user_interest_coins", "user_interest_sectors", "fund_follows", "project_follows"]),
     ("Accounts", "#7c5cff", ["users", "sessions", "login_attempts", "password_reset_tokens", "password_reset_requests", "user_state", "affiliates"]),

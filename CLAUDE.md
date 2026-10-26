@@ -13,6 +13,7 @@ Run these from `app/`:
 From the repo root:
 - `supabase functions deploy cryptorank-sync --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the live price sync. Type-check and lint it with Deno first (`deno check`, `deno lint`); the deploy hook expects that dry run in the same command.
 - `supabase functions deploy wallet-lookup --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the read-only wallet lookup (US-6.4). Same Deno dry run first. It checks the caller's Supabase session itself, so the gateway's JWT check is off.
+- `supabase functions deploy price-history-sync --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the Coinbase price history sync (clarification 26). Same Deno dry run first. pg_cron calls it without a JWT, and `claim_price_history_sync()` throttles it.
 - `supabase functions deploy cryptorank-lookup --project-ref hxckrfjrmhdloqpctemy --no-verify-jwt --use-api`: deploys the lookup `lookup.py` calls. Same Deno dry run first. The script sends the publishable key (not a JWT), so the gateway's JWT check is off; a daily credit budget limits use.
 
 ## Sources of truth, in order
@@ -24,7 +25,7 @@ From the repo root:
 5. **`app_outline/user_stories.md`** (US-x.y, priorities P0/P1/P2) and **`app_outline/user_journey.md`** (personas Maya, Daniel, Priya and Leo, journey maps, cross-journey rules, moments that matter).
 6. **Data model:**
    - `supabase/migrations/` is what the live database runs.
-   - `schema.sql` (52 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
+   - `schema.sql` (53 tables) and its diagram `drawsql.png` are the portable model of every feature. They're grouped as Reference, Market, Research, Watchlist & portfolio, Accounts, Alerts & billing, Settings and Support.
    - Where the two differ (Supabase Auth instead of password and session tables, RLS, `simulated_billing`), the migrations win.
 
 Before changing a page, read its spec and the stories it cites. Before storing anything new for a user, find its table in `schema.sql` / `drawsql.png`.
@@ -43,6 +44,10 @@ Before changing a page, read its spec and the stories it cites. Before storing a
     - To add a coin, append it to `added` in `src/data/coins.js` (its own PRNG keeps the other coins' sample figures unchanged), run `npm run seed`, then map its `cryptorank_slug` in a migration.
     - Name the source wherever prices show: "CryptoRank" for synced figures, "CPA sample data" for the rest.
   - **Wallet import** (user's decision, Oct 25, 2026; `prompt.md` clarification 21): public Bitcoin and Ethereum addresses only, looked up by the `wallet-lookup` Edge Function (mempool.space for BTC, Etherscan for ETH and listed ERC-20 tokens). It needs a signed-in user, is rate-limited in the server-only `cpa.wallet_lookup_quota`, and never stores the address. Never ask for, accept or send a recovery phrase, private key or exchange key.
+    - Cost basis (`prompt.md` clarification 24): transfers are netted per coin per UTC day and priced at Coinbase Exchange's daily close (`wallet-lookup/prices.ts`, at most 12 requests a lookup). `walletImportPlan()` in `lib/wallet.js` turns them into dated `transactions` rows tagged "Wallet import <short address>"; keep the opening balance, the today's-price adjustment and the "Coinbase, UTC" source note, so holdings always match the wallet and the price source is named.
+  - **Price history** (user's decision, Oct 26, 2026; `prompt.md` clarification 26): the `price-history-sync` Edge Function writes Coinbase Exchange closes into `cpa.coin_prices` every 15 minutes, and `change_1h`, `sparkline_7d` and `history_updated_at` into `cpa.coins`. Charts read one range through `cpa.price_history()` via `lib/history.js` (`usePriceHistory`), never by selecting `coin_prices` directly (PostgREST caps rows at 1,000). Coins with `historyUpdatedAt` take their 7d change from the sparkline so the two always agree. Name the source under every chart ("Coinbase closes, USD, UTC" or "CPA sample data"), and show a skeleton, not sample data, while a live coin's range loads.
+    - Without Coinbase history the 7-day sparkline is a unitless sample shape: never scale it by a price. `sparkFacing()` in `lib/market.js` keeps its direction on the live 7d change (clarification 25).
+  - **Risk indicators** (clarification 27): `lib/risk.js` flags unlock pressure, low liquidity and low float against the fixed thresholds in `RISK_RULES`. Each indicator states the coin's figures and the threshold; never add a score, a rating or wording that suggests an action.
   - **Guest** and **demo** state live in memory and reset on refresh.
   - **Accounts** use Supabase (user's decision, Oct 17, 2026): Supabase Auth for sign-in, and the `cpa` schema for account data. All of it goes through `lib/supabase.js` (publishable key only) and `lib/cloud.js`, which saves only the rows that changed. Every new per-user field needs a column, a mapping in `cloud.js`, and RLS in a new migration under `supabase/migrations/`.
   - Simulated billing lives in `user_state.simulated_billing`. `subscriptions` and `billing_history` stay server-only. Account deletion and data removal go through `cpa.delete_my_account()` and `cpa.erase_my_data()`.

@@ -66,6 +66,7 @@ Next 5 unlocks                         Lead [N] Northstar Capital ›
 - Primary action "Add to watchlist" (toggles to "In watchlist ★"); secondary "Alert" opens the alert sheet from 12-alerts.md prefilled with this coin.
 - Tabs (`role="tablist"`): Overview, Tokenomics, Funding, Markets. Tab persists in URL.
 - **Chart:** ranges 1D 7D 1M 3M 1Y ALL (keys `1`–`6`), line/candle toggle, crosshair on pointer/touch drag and `←`/`→` keys, event markers (unlock amber, funding violet, listing cyan) toggle, tapping a marker opens an event sheet. Chart summary text toggle below the chart (size follows accessibility menu "summary text size").
+- **Risk indicators (not advice)** under the stats (clarification 27): "High unlock pressure" (2% or more of circulating supply unlocking in 30 days), "Low liquidity" (24h volume under $5M or under 0.1% of market cap) and "Low float" (under 30% of maximum supply circulating). Each shows the coin's figures and the threshold; with none, "None of CPA's indicators apply to BTC today."
 - Key stats with ⓘ tooltips (plain-language definitions, e.g. FDV: "Price × maximum supply. Shows value if every token were circulating.").
 - Supply at a glance stacked bar; next unlock card.
 - Community sentiment: one vote per coin per day for signed-up users; demo votes reset; guests see results only. Replaces "ratings and reviews".
@@ -90,7 +91,8 @@ Next 5 unlocks                         Lead [N] Northstar Capital ›
 - **Guest:** watchlist/alert/vote open the sign-in sheet.
 
 ## Data & persistence
-- Coin, chart series, events, rounds, markets from sample dataset.
+- Coin, events, rounds, markets from sample dataset; live coins take price figures from CryptoRank.
+- Chart series: Coinbase closes through `cpa.price_history()` for the 31 coins Coinbase lists, sample history for the rest (clarification 26). A line under the chart names the source; a live coin shows a chart skeleton while its range loads and the error banner with Retry if it fails.
 - Watchlist, alerts, recently viewed, sentiment votes: localStorage under the user for accounts; memory for guest/demo.
 
 ## Done when (phase passing conditions)

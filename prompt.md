@@ -72,6 +72,11 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 20. **Supabase hardening (Oct 25, 2026).** Guests can insert only fixed columns of `support_tickets` and `feedback`, with length and format checks. Edge Functions answer only `ALLOWED_ORIGINS`, cap the body size and return generic errors.
 21. **Read-only wallet import (Oct 25, 2026).** Bitcoin and Ethereum public addresses only (US-6.4), through the `wallet-lookup` Edge Function, so explorer keys stay server-side. Sign-in required, rate-limited per user and IP, address never stored. The app never asks for seed phrases, private keys or exchange keys.
 22. **`lookup.py` uses the stored CryptoRank key (Oct 25, 2026).** `CRYPTORANK_API_KEY`, `API_V3_URL`, `ALLOWED_ORIGINS` and `ETHERSCAN_API_KEY` are Edge Function secrets. Supabase never returns a secret, so `lookup.py` calls the `cryptorank-lookup` Edge Function, which does the lookup with the key, within a 60-credit daily budget (`cryptorank_lookup_usage`).
+23. **Hosting on Vercel (Oct 25, 2026).** CPA is live at https://cpa-black.vercel.app. The Vercel project `cpa` (root directory `app`) is connected to GitHub: merging to `main` deploys production, and branches and PRs get previews. Vercel holds only the two `VITE_` variables. `ALLOWED_ORIGINS` includes the hosted origin, and Supabase Auth redirects allow it.
+24. **Wallet import cost basis (Oct 25, 2026).** Imported transfers are dated and priced per UTC day from the address's history (Coinbase daily closes), with an opening balance for partial history and adjustments at today's price; "Rebuild from history" replaces earlier rows (US-6.4).
+25. **Sparkline direction (Oct 25, 2026).** The 7-day sparkline stays sample data, but its direction must match the live 7d change and its colour.
+26. **Real price history (Oct 26, 2026).** Coin detail charts, all-time high and low, 1h and 7d change and the list sparklines use Coinbase Exchange closes for the 31 live coins Coinbase lists (all but TRON, USDC and Maker). The `price-history-sync` Edge Function fills `coin_prices` every 15 minutes; the other coins keep sample charts, and every chart names its source. This supersedes clarification 25 for those coins.
+27. **Neutral risk indicators (Oct 26, 2026).** Coin detail shows "High unlock pressure", "Low liquidity" and "Low float" when a coin crosses a fixed threshold, with its own figures and the threshold in plain words. They're facts, never a score, rating or advice.
 
 # Required material from the outline documents
 
@@ -104,7 +109,7 @@ The journey maps name a pain point at each stage and the fix they propose. All o
   - A Simple view with fewer columns.
   - Tap-to-explain ⓘ on every metric.
   - A watchlist pre-filled from his chosen interests.
-  - Neutral risk indicators, such as high unlock pressure or low liquidity, with explanations and never advice (not built yet).
+  - Neutral risk indicators, such as high unlock pressure or low liquidity, with explanations and never advice (built Oct 26, 2026; clarification 27).
 
 ## Moments that matter (user_journey.md §7)
 
@@ -150,7 +155,7 @@ The journey maps name a pain point at each stage and the fix they propose. All o
 | Platform | 8.3 | Deep links to coin, unlock, round, fund and token-sale screens |
 | Settings and trust | 9.1, 9.3, 9.4, 9.6 | Dark/light/system theme and display currency; screen readers read values in full; "Last updated" on every data screen, stale after 5 minutes; account deletion inside the app |
 
-P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filters, follow funds, token sales, the manual portfolio, weekly digest, quiet hours, share cards, colour conventions) are built where the browser allows. Multiple watchlists, CSV import and export, read-only Bitcoin and Ethereum wallet import, and an installable app with a cache across reloads were added on Oct 25, 2026 (clarifications 15–21). Widgets, haptics and social sign-in are not built. See `README.md`.
+P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filters, follow funds, token sales, the manual portfolio, weekly digest, quiet hours, share cards, colour conventions) are built where the browser allows. Multiple watchlists, CSV import and export, read-only Bitcoin and Ethereum wallet import, and an installable app with a cache across reloads were added on Oct 25, 2026 (clarifications 15–21), followed by hosting on Vercel, wallet-import cost basis and the sparkline direction fix (clarifications 23–25). Widgets, haptics and social sign-in are not built. See `README.md`.
 
 ## Non-functional requirements (user_stories.md)
 

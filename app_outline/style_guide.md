@@ -144,6 +144,7 @@ A persistent **search** button sits in the top app bar on every root screen.
 ```
 - Rank, name, and ticker on the left. Price and 24h change right-aligned with tabular numbers.
 - 7-day sparkline (56×24 pt), colored by 7-day direction.
+  > **CPA build (Oct 25, 2026):** the line's direction always matches its colour. It's still a sample shape scaled to its own height, so a live price never distorts it; when the live 7d change runs the other way, the shape is mirrored.
 - Swipe left reveals **★ Watchlist** and **🔔 Alert**.
 
 ### 7.2 Change pill
@@ -226,4 +227,5 @@ ARB · Arbitrum                       in 3d 04h
 > - **Install:** the web app manifest uses `bg/base` for the splash and the theme colour of the current theme for the browser bar. Icons are the violet CPA mark, with a maskable version for Android.
 > - **Wallet addresses** use JetBrains Mono, and are shortened in the middle in lists (`bc1qar…5mdq`).
 > - **Security copy** is plain and specific: "Never enter a recovery phrase or private key. CPA only needs a public address." Show it before the address field, not after an error.
+> - **Import previews** say what will be recorded, one line per coin ("transfers on 6 days from Mar 3, 2025 · +0.02 adjustment at $80,647.10"), and name the price source in a note below ("Cost basis: each transfer at that day's closing price (Coinbase, UTC)"). The button counts transactions ("Import 7 transactions").
 > - **Moved reminders** use the urgent tone only for the new date: "ARB unlock moved to Nov 3, 2026", then "Your reminder was rescheduled. It was Oct 30, 2026."

@@ -158,6 +158,7 @@ flowchart LR
 6. **Guest mode:** let users browse fully without an account. Require sign-in only for sync, alerts, and portfolio.
    > **CPA build (Oct 25, 2026):** CSV import and export and wallet import need sign-in, since they change a saved portfolio. What guests can send (support tickets, bug reports, feedback) is limited to fixed columns with length checks in the database.
 7. **Safe imports:** never ask for a recovery phrase or private key. Wallet import takes a public address only, and the app refuses anything that looks like a secret before it leaves the device (US-6.4).
+   > **CPA build (Oct 25, 2026):** imports are also honest about cost: each transfer is priced on the day it happened, and the preview says when a price is missing or history was partial. For Daniel, that makes the portfolio's P&L a real one rather than "everything bought today".
 
 
 

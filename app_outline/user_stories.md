@@ -83,6 +83,8 @@
 - Scrubbing shows a crosshair, price, and timestamp, with a selection haptic.
 - An accessible text summary is available to screen readers.
 
+> **CPA build (Oct 26, 2026):** the 31 live coins Coinbase lists chart Coinbase Exchange closes (15-minute for 1D, hourly for 7D, 6-hourly for 1M, daily for 3M, 1Y and ALL), ending at the live CryptoRank price. All-time high and low are the highest and lowest daily close. The other coins keep sample charts, and a line under each chart names its source.
+
 ### US-3.2 Event markers on chart · P1 · 5 pts
 **As** Daniel, **I want** unlocks, funding rounds, and listings marked on the chart **so that** I can understand why the price moved.
 
@@ -197,7 +199,10 @@
 - Public addresses only, or read-only API keys. The app never asks for seed phrases or private keys.
 - API keys are stored encrypted in the OS keychain/keystore and are never shown again after saving.
 
-> **CPA build (Oct 25, 2026):** public **Bitcoin** and **Ethereum** addresses only. Bitcoin balances come from mempool.space; ETH and the ERC-20 tokens CPA lists come from Etherscan. The browser never calls the explorers: the `wallet-lookup` Supabase Edge Function does, so the Etherscan key stays a server-side function setting. The function needs a signed-in user, checks the address format strictly, answers only the origins in `ALLOWED_ORIGINS`, and allows 10 lookups an hour per user and 30 per IP (`wallet_lookup_quota`, server-only). Addresses are never stored on the server. Before anything is sent, the app refuses input that looks like a recovery phrase or a private key and says why. The import shows a preview, then records the difference from earlier imports of the same address as transfers in or out at today's price, so importing twice doesn't double-count. Exchange API keys aren't supported: a browser app has no OS keychain to hold them.
+> **CPA build (Oct 25, 2026):** public **Bitcoin** and **Ethereum** addresses only. Bitcoin balances come from mempool.space; ETH and the ERC-20 tokens CPA lists come from Etherscan. The browser never calls the explorers: the `wallet-lookup` Supabase Edge Function does, so the Etherscan key stays a server-side function setting. The function needs a signed-in user, checks the address format strictly, answers only the origins in `ALLOWED_ORIGINS`, and allows 10 lookups an hour per user and 30 per IP (`wallet_lookup_quota`, server-only). Addresses are never stored on the server. Before anything is sent, the app refuses input that looks like a recovery phrase or a private key and says why. The import shows a preview, then records the difference from earlier imports of the same address, so importing twice doesn't double-count. Exchange API keys aren't supported: a browser app has no OS keychain to hold them.
+>
+> **Cost basis (Oct 25, 2026):** the function also returns the address's transfers, netted per coin per UTC day and priced at that day's close from Coinbase Exchange. A first import records each day as a dated transfer at that day's price. When older history wasn't read, the balance before it is an opening transfer at the earliest day read. A re-import adds only later days. Anything the history doesn't explain becomes an adjustment at today's price, so holdings always match the wallet. "Rebuild from history" replaces an address's earlier rows.
+> - Done when: a wallet's realized and unrealized P&L reflect the prices on the days the coins arrived, the preview names the price source, and days without a price say they use today's.
 
 ---
 
