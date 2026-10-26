@@ -9,6 +9,7 @@ It adapts to phones, tablets, notebooks and desktops: a bottom nav on phones, fu
 ## Quick start
 
 ```bash
+nvm use           # Node 26.12.1 from .nvmrc (Vercel builds on Node 24.x)
 cp .env.example .env   # then fill in the Supabase values (Dashboard → Project Settings → API)
 cd app
 npm install
