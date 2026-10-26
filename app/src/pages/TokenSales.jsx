@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { saleCurrentPrice, saleStatus, tokenSales } from "../data/directory.js";
 import { formatCompact, formatDate, formatMultiple, formatPrice, rateFor } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useNow, usePageTitle } from "../lib/hooks.js";
 import { t, tc } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
@@ -61,9 +61,7 @@ export default function TokenSales() {
   const rate = rateFor(settings.currency, coins);
   const status = statuses.some((item) => item.id === params.get("status")) ? params.get("status") : "upcoming";
 
-  useEffect(() => {
-    document.title = `${t("Token sales")} · CPA`;
-  }, []);
+  usePageTitle(t("Token sales"));
 
   const counts = Object.fromEntries(statuses.map((item) => [item.id, tokenSales.filter((sale) => saleStatus(sale, now) === item.id).length]));
   const launchpads = ["All", ...new Set(tokenSales.map((sale) => sale.launchpad))];

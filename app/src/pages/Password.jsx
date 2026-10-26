@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { PasswordChecklist, PasswordInput } from "../components/PasswordFields.jsx";
@@ -6,6 +6,7 @@ import { completeReset, isEmail, passwordChecks, passwordErrors, requestReset } 
 import { t } from "../lib/i18n.js";
 import { recoveryLink } from "../lib/supabase.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 // Request form + confirmation (14-forgot-reset-password.md). Supabase Auth emails the link;
 // the confirmation is the same whether or not the account exists.
@@ -72,9 +73,7 @@ function ResetRequest({ initialEmail = "", buttonLabel = "Send reset link" }) {
 }
 
 export default function ForgotPassword() {
-  useEffect(() => {
-    document.title = `${t("Reset your password")} · CPA`;
-  }, []);
+  usePageTitle(t("Reset your password"));
   return (
     <div className="auth-page">
       <Link to="/login" className="link-button back">
@@ -156,9 +155,7 @@ export function ResetPassword() {
   const { session } = useApp();
   const valid = recoveryLink.status === "valid" && session.kind === "user";
 
-  useEffect(() => {
-    document.title = `${t("Choose a new password")} · CPA`;
-  }, []);
+  usePageTitle(t("Choose a new password"));
 
   return (
     <div className="auth-page">

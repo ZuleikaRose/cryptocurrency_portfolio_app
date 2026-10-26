@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
 import { SkeletonDetail } from "../components/LoadState.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds } from "../data/research.js";
-import { direction, formatCompact, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
-import { useFirstLoad } from "../lib/hooks.js";
+import { arrow, direction, formatCompact, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
+import { useFirstLoad, usePageTitle } from "../lib/hooks.js";
 import { t, tn } from "../lib/i18n.js";
 import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
@@ -27,9 +27,7 @@ export default function FundProfile() {
   const fund = fundById(slug);
   const loading = useFirstLoad(`fund:${slug}`);
 
-  useEffect(() => {
-    if (fund) document.title = `${fund.name} · CPA`;
-  }, [fund]);
+  usePageTitle(fund?.name);
 
   if (!fund) return <NotFound />;
   if (loading) {
@@ -149,7 +147,7 @@ export default function FundProfile() {
                   <strong>{coin.symbol}</strong>
                   <span className="num">{formatPrice(coin.price, settings.currency, rate)}</span>
                   <span className={`num ${direction(coin.change24h)}`}>
-                    {direction(coin.change24h) === "up" ? "▲" : "▼"} {formatPercent(coin.change24h)}
+                    {arrow(coin.change24h)} {formatPercent(coin.change24h)}
                   </span>
                 </Link>
               </li>

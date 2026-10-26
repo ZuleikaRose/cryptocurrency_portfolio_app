@@ -7,7 +7,7 @@
 // - Live prices (GET <supabase>/rest/v1/coins): network first, so after a reload offline the
 //   last prices still show. The coins table is public reference data, the same for everyone.
 // - Everything else, including account data, sign-in and writes: never cached.
-const VERSION = "cpa-v1";
+const VERSION = "cpa-v2";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const PRICES = `${VERSION}-prices`;
@@ -16,17 +16,30 @@ const PRICES = `${VERSION}-prices`;
 const MATCH = { ignoreVary: true };
 const SHELL_FILES = ["/", "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png"];
 
-// Precache the shell and the build's hashed scripts and styles (read from index.html), so the
-// app opens offline even if the old version's asset cache was just cleared by an update.
+// The build's own list of every script and stylesheet (vite.config.js), including the pages and
+// languages that load on demand; empty in development.
+async function builtAssets() {
+  try {
+    const response = await fetch("/precache.json", { cache: "no-store" });
+    const list = response.ok ? await response.json() : [];
+    return Array.isArray(list) ? list.filter((path) => typeof path === "string" && path.startsWith("/assets/")) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Precache the shell and the build's hashed scripts and styles (index.html's and the build list's),
+// so the app opens offline, on any page, even if the old version's asset cache was just cleared.
 async function precache() {
   const shell = await caches.open(SHELL);
   await shell.addAll(SHELL_FILES);
   const html = await (await shell.match("/")).text();
-  const assets = [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]))];
+  const linked = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
+  const assets = [...new Set([...linked, ...(await builtAssets())])];
   const cache = await caches.open(ASSETS);
   await cache.addAll(assets);
-  // Fonts are referenced from the stylesheets, not index.html. CPA is English-only, so just the
-  // Latin subsets; other subsets still load from the network when online.
+  // Fonts are referenced from the stylesheets, not index.html. English, Spanish and Portuguese
+  // all use the Latin subsets; other subsets still load from the network when online.
   for (const sheet of assets.filter((path) => path.endsWith(".css"))) {
     const css = await (await cache.match(sheet, MATCH)).text();
     const fonts = [...new Set([...css.matchAll(/url\((?:"|')?(\/assets\/[^"')]+\.woff2)/g)].map((match) => match[1]))].filter((path) => /-latin-wght-/.test(path));

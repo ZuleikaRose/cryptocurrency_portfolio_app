@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "./Icon.jsx";
+import { SkeletonCards } from "./LoadState.jsx";
 import Sheet from "./Sheet.jsx";
 import { DemoBanner, OfflineBanner, SignInSheet, Toasts } from "./GlobalOverlays.jsx";
 import SearchOverlay from "./SearchOverlay.jsx";
 import AccessibilityMenu from "./AccessibilityMenu.jsx";
 import ReadingGuide from "./ReadingGuide.jsx";
 import { shortcuts } from "../data/shortcuts.js";
+import { listenForPageTitles } from "../lib/hooks.js";
 import { languages, t, tc } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 import { menuGroups, pagesInGroup, tabs } from "../routes.js";
@@ -90,7 +92,7 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const location = useLocation();
-  const { openSearch, session, settings, updateSettings, accessibilityOpen: a11yOpen, setAccessibilityOpen: setA11yOpen } = useApp();
+  const { openSearch, session, settings, language, updateSettings, accessibilityOpen: a11yOpen, setAccessibilityOpen: setA11yOpen } = useApp();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeA11y = useCallback(() => setA11yOpen(false), [setA11yOpen]);
@@ -105,21 +107,29 @@ export default function AppShell() {
     if (!location.hash) window.scrollTo(0, 0);
   }, [location.pathname, location.hash]);
 
-  // Route changes are silent in a single-page app, so announce the new page title and move
-  // focus to the content, unless the page already focused something there (search box, form field).
+  // Route changes are silent in a single-page app, so when a new path's page sets its title
+  // (usePageTitle, also after a lazy page loads) announce it and move focus to the content, unless
+  // the page already focused something there (search box, form field).
   const [announcement, setAnnouncement] = useState("");
-  const firstPath = useRef(location.pathname);
+  const announcedPath = useRef(location.pathname);
   useEffect(() => {
-    if (location.pathname === firstPath.current) return undefined;
-    firstPath.current = null;
-    // After closing sheets have restored their focus, and after the page has set document.title.
-    const id = window.setTimeout(() => {
-      setAnnouncement(document.title.replace(/ · CPA$/, ""));
-      const main = document.getElementById("main");
-      if (main && !main.contains(document.activeElement) && !document.querySelector(".sheet-layer")) main.focus({ preventScroll: true });
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [location.pathname]);
+    let id;
+    const stop = listenForPageTitles((label) => {
+      if (window.location.pathname === announcedPath.current) return;
+      announcedPath.current = window.location.pathname;
+      window.clearTimeout(id);
+      // After closing sheets have restored their focus.
+      id = window.setTimeout(() => {
+        setAnnouncement(label);
+        const main = document.getElementById("main");
+        if (main && !main.contains(document.activeElement) && !document.querySelector(".sheet-layer")) main.focus({ preventScroll: true });
+      }, 0);
+    });
+    return () => {
+      stop();
+      window.clearTimeout(id);
+    };
+  }, []);
 
   // ⌘K / Ctrl+K, or "/" outside a text field, opens search from anywhere (US-2.5).
   useEffect(() => {
@@ -156,8 +166,11 @@ export default function AppShell() {
         {/* Before <main> so Tab order matches the sidebar on wide screens; the skip link passes it. */}
         <BottomNav />
         <main id="main" className="content" tabIndex={-1}>
-          {/* Re-mount the page when the language changes, so its title and labels set once on open follow. */}
-          <Outlet key={settings.language} />
+          {/* Re-mount the page when the shown language changes, so its title and labels set once on open follow.
+              A page's chunk loads on first visit; the skeleton stands in meanwhile. */}
+          <Suspense fallback={<SkeletonCards label={t("Loading page")} />}>
+            <Outlet key={language} />
+          </Suspense>
         </main>
         <SiteFooter />
       </div>

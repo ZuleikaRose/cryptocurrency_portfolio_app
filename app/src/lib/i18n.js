@@ -1,8 +1,7 @@
 // Translation (Spanish and Portuguese, Oct 26, 2026). The English text is the key, so UI strings stay readable
 // where they're used; a missing Spanish entry falls back to English instead of breaking a page.
 // `t()` reads the language AppStore sets before each render, so it also works in lib/ helpers.
-import { es } from "../locales/es/index.js";
-import { pt } from "../locales/pt/index.js";
+// Each dictionary is its own chunk, loaded when its language is first chosen (loadDictionary).
 
 export const languages = [
   { id: "en", label: "English", locale: "en-US" },
@@ -10,8 +9,21 @@ export const languages = [
   { id: "pt", label: "Português", locale: "pt-BR" },
 ];
 
-const dictionaries = { es, pt };
+const loaders = {
+  es: () => import("../locales/es/index.js").then((module) => module.es),
+  pt: () => import("../locales/pt/index.js").then((module) => module.pt),
+};
+const dictionaries = {};
 let current = "en";
+
+// English needs no dictionary; the others are ready once loadDictionary has resolved.
+export const hasDictionary = (id) => id === "en" || Boolean(dictionaries[id]);
+
+// Fetches a language's dictionary once. Rejects when the chunk can't be loaded (offline, say).
+export async function loadDictionary(id) {
+  if (hasDictionary(id) || !loaders[id]) return;
+  dictionaries[id] = await loaders[id]();
+}
 
 export const isLanguage = (id) => languages.some((language) => language.id === id);
 
@@ -26,8 +38,9 @@ export function detectLanguage() {
   }
 }
 
+// Only a language whose dictionary has loaded; until then the current one stays.
 export function setLanguage(id) {
-  current = isLanguage(id) ? id : "en";
+  if (isLanguage(id) && hasDictionary(id)) current = id;
 }
 
 export const getLanguage = () => current;

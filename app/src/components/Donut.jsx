@@ -1,6 +1,6 @@
-import { locale, t } from "../lib/i18n.js";
+import { t } from "../lib/i18n.js";
+import { formatNumber } from "../lib/format.js";
 
-const fixed1 = (value) => value.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 // Allocation donut (11-portfolio.md) with a legend; colours never carry meaning alone.
 const donutColors = ["#8b7cf8", "#3d7bff", "#22c55e", "#f5a524", "#ec4899", "#06b6d4", "#8a909c"];
@@ -17,7 +17,7 @@ export default function Donut({ slices, size = 120 }) {
         height={size}
         role="img"
         aria-label={t("Allocation: {slices}", {
-          slices: slices.map((slice) => t("{label} {value} percent", { label: slice.label, value: fixed1((slice.value / total) * 100) })).join(", "),
+          slices: slices.map((slice) => t("{label} {value} percent", { label: slice.label, value: formatNumber((slice.value / total) * 100, 1) })).join(", "),
         })}
       >
         <circle cx="21" cy="21" r={radius} fill="none" stroke="var(--line-soft)" strokeWidth="6" />
@@ -45,7 +45,7 @@ export default function Donut({ slices, size = 120 }) {
             <li key={slice.label}>
               <span className="legend-swatch" style={{ background: donutColors[index % donutColors.length] }} aria-hidden="true" />
               <span>{slice.label}</span>
-              <span className="num">{fixed1((slice.value / total) * 100)}%</span>
+              <span className="num">{formatNumber((slice.value / total) * 100, 1)}%</span>
             </li>
           ))}
         </ul>

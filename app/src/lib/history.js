@@ -17,6 +17,13 @@ export async function fetchPriceHistory(coinId, rangeId) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
   if (!supabase) throw new Error("Supabase isn't configured.");
+  if (!inflight.has(key)) inflight.set(key, readHistory(coinId, rangeId, key).finally(() => inflight.delete(key)));
+  return inflight.get(key);
+}
+
+const inflight = new Map();
+
+async function readHistory(coinId, rangeId, key) {
   const { data, error } = await supabase.rpc("price_history", { coin_id: coinId, range_id: rangeId });
   if (error) throw new Error(error.message);
   const value = {

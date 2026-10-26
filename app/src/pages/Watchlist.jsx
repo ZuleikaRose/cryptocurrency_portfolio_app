@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import CoinRow, { ProTable, SkeletonRows } from "../components/CoinRow.jsx";
 import Icon from "../components/Icon.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { researchFor } from "../data/research.js";
-import { direction, formatCountdown, formatPercent, rateFor, relativeTime } from "../lib/format.js";
-import { useFirstLoad, useNow, useSimulatedError } from "../lib/hooks.js";
+import { arrow, direction, formatCountdown, formatPercent, rateFor, relativeTime } from "../lib/format.js";
+import { useFirstLoad, useNow, usePageTitle, useSimulatedError } from "../lib/hooks.js";
 import { locale, t, tn } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
@@ -124,9 +124,7 @@ export default function Watchlist() {
   const loading = useFirstLoad("watchlist");
   const [failed, clearFailure] = useSimulatedError();
 
-  useEffect(() => {
-    document.title = `${t("Watchlist")} · CPA`;
-  }, []);
+  usePageTitle(t("Watchlist"));
 
   const currency = settings.currency;
   const rate = rateFor(currency, coins);
@@ -174,7 +172,7 @@ export default function Watchlist() {
         <p className="page-sub num">
           {tn(ordered.length, "{count} coin", "{count} coins")} ·{" "}
           <span className={direction(average)}>
-            {direction(average) === "up" ? "▲" : direction(average) === "down" ? "▼" : ""} {formatPercent(average)}
+            {arrow(average)} {formatPercent(average)}
           </span>{" "}
           {t("avg 24h · Updated {time}", { time: relativeTime(lastUpdated, now) })}
         </p>

@@ -5,12 +5,11 @@ import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { fundById } from "../data/research.js";
 import { resultPath, searchAll } from "../data/directory.js";
-import { formatCompact, formatDate } from "../lib/format.js";
+import { formatCompact, formatDate, shortContract } from "../lib/format.js";
 import { TRENDING, useDebounced } from "../lib/hooks.js";
 import { t, tn } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
-const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
 const groupTitles = { coins: "Coins", funds: "Funds", exchanges: "Exchanges", sales: "Token sales" };
 
 export function ResultLabel({ hit }) {
@@ -33,7 +32,7 @@ export function ResultLabel({ hit }) {
           </strong>
           <span className="num">
             {t("MCap")} {formatCompact(hit.coin.marketCap)}
-            {hit.contract ? ` · ${shortAddress(hit.contract)}` : ""}
+            {hit.contract ? ` · ${shortContract(hit.contract)}` : ""}
           </span>
         </span>
       </>

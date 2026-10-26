@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AlertSheet from "../components/AlertSheet.jsx";
 import CoinLogo from "../components/CoinLogo.jsx";
@@ -8,7 +8,7 @@ import Sheet from "../components/Sheet.jsx";
 import { fundById } from "../data/research.js";
 import { describeAlert } from "../lib/alerts.js";
 import { formatDate, rateFor } from "../lib/format.js";
-import { useNow } from "../lib/hooks.js";
+import { useNow, usePageTitle } from "../lib/hooks.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useApp, useMarket } from "../state/context.js";
 import { locale, t } from "../lib/i18n.js";
@@ -87,9 +87,7 @@ export default function Alerts() {
   const newCoin = params.get("new");
   const draft = editing ?? (newCoin && coins.some((coin) => coin.id === newCoin) ? { coinId: newCoin } : null);
 
-  useEffect(() => {
-    document.title = unreadCount ? `(${unreadCount}) ${t("Alerts")} · CPA` : `${t("Alerts")} · CPA`;
-  }, [unreadCount]);
+  usePageTitle(unreadCount ? `(${unreadCount}) ${t("Alerts")}` : t("Alerts"));
 
   const setTab = (id) => {
     const next = new URLSearchParams(params);

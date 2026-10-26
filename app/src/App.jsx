@@ -1,32 +1,42 @@
+import { lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell.jsx";
-import Alerts from "./pages/Alerts.jsx";
-import CoinDetail from "./pages/CoinDetail.jsx";
-import Explore from "./pages/Explore.jsx";
-import Fundraising from "./pages/Fundraising.jsx";
-import FundProfile from "./pages/FundProfile.jsx";
 import Home from "./pages/Home.jsx";
-import Login from "./pages/Login.jsx";
-import Logout, { AccountDeleted } from "./pages/Logout.jsx";
-import Market from "./pages/Market.jsx";
-import ForgotPassword, { ResetPassword } from "./pages/Password.jsx";
-import Portfolio, { Holding } from "./pages/Portfolio.jsx";
-import Search from "./pages/Search.jsx";
-import Settings from "./pages/Settings.jsx";
-import TokenSales from "./pages/TokenSales.jsx";
-import Unlocks from "./pages/Unlocks.jsx";
-import Watchlist from "./pages/Watchlist.jsx";
-import Affiliate from "./pages/Affiliate.jsx";
-import AiFeatures from "./pages/AiFeatures.jsx";
-import Faqs from "./pages/Faqs.jsx";
-import Feedback from "./pages/Feedback.jsx";
-import Terms, { AccessibilityPolicy, Privacy } from "./pages/Legal.jsx";
-import Promotions from "./pages/Promotions.jsx";
-import ReportIssue from "./pages/ReportIssue.jsx";
-import Support from "./pages/Support.jsx";
-import TechRequirements from "./pages/TechRequirements.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import { pages } from "./routes.js";
+
+// Pages load on demand (Home, the landing page, ships with the app); AppShell shows a skeleton
+// while one loads. `page(load, name)` picks a named export.
+const page = (load, name = "default") => lazy(() => load().then((module) => ({ default: module[name] })));
+const Alerts = page(() => import("./pages/Alerts.jsx"));
+const CoinDetail = page(() => import("./pages/CoinDetail.jsx"));
+const Explore = page(() => import("./pages/Explore.jsx"));
+const Fundraising = page(() => import("./pages/Fundraising.jsx"));
+const FundProfile = page(() => import("./pages/FundProfile.jsx"));
+const Login = page(() => import("./pages/Login.jsx"));
+const Logout = page(() => import("./pages/Logout.jsx"));
+const AccountDeleted = page(() => import("./pages/Logout.jsx"), "AccountDeleted");
+const Market = page(() => import("./pages/Market.jsx"));
+const ForgotPassword = page(() => import("./pages/Password.jsx"));
+const ResetPassword = page(() => import("./pages/Password.jsx"), "ResetPassword");
+const Portfolio = page(() => import("./pages/Portfolio.jsx"));
+const Holding = page(() => import("./pages/Portfolio.jsx"), "Holding");
+const Search = page(() => import("./pages/Search.jsx"));
+const Settings = page(() => import("./pages/Settings.jsx"));
+const TokenSales = page(() => import("./pages/TokenSales.jsx"));
+const Unlocks = page(() => import("./pages/Unlocks.jsx"));
+const Watchlist = page(() => import("./pages/Watchlist.jsx"));
+const Affiliate = page(() => import("./pages/Affiliate.jsx"));
+const AiFeatures = page(() => import("./pages/AiFeatures.jsx"));
+const Faqs = page(() => import("./pages/Faqs.jsx"));
+const Feedback = page(() => import("./pages/Feedback.jsx"));
+const Terms = page(() => import("./pages/Legal.jsx"));
+const AccessibilityPolicy = page(() => import("./pages/Legal.jsx"), "AccessibilityPolicy");
+const Privacy = page(() => import("./pages/Legal.jsx"), "Privacy");
+const Promotions = page(() => import("./pages/Promotions.jsx"));
+const ReportIssue = page(() => import("./pages/ReportIssue.jsx"));
+const Support = page(() => import("./pages/Support.jsx"));
+const TechRequirements = page(() => import("./pages/TechRequirements.jsx"));
 
 // Route path → page component; the paths and titles live in routes.js.
 const built = {

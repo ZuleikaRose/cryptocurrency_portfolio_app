@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react
 import Icon from "../components/Icon.jsx";
 import { PasswordChecklist, PasswordInput } from "../components/PasswordFields.jsx";
 import { isEmail, passwordChecks, passwordErrors, safeNext } from "../lib/auth.js";
-import { useNow } from "../lib/hooks.js";
+import { useNow, usePageTitle } from "../lib/hooks.js";
 import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
@@ -81,11 +81,12 @@ function DeletedAccount({ onLeave }) {
 function LogInForm({ next }) {
   const { logIn } = useApp();
   const navigate = useNavigate();
-  const now = useNow(1000);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [lockedUntil, setLockedUntil] = useState(0);
+  // Ticks only after a lockout has started (the countdown).
+  const now = useNow(lockedUntil ? 1000 : null);
   const [busy, setBusy] = useState(false);
   const emailRef = useRef(null);
   const locked = lockedUntil > now;
@@ -255,9 +256,7 @@ export default function Login() {
   const mode = location.pathname === "/signup" ? "signup" : "login";
   const [arrivedSignedIn] = useState(session.kind === "user");
 
-  useEffect(() => {
-    document.title = `${mode === "signup" ? t("Create account") : t("Log in")} · CPA`;
-  }, [mode]);
+  usePageTitle(mode === "signup" ? t("Create account") : t("Log in"));
 
   // Already signed in when the page opened: nothing to do here.
   if (arrivedSignedIn) return <Navigate to="/" replace />;

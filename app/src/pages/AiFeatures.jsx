@@ -1,7 +1,7 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const features = [
   { key: "chartSummaries", app: true, title: "Chart summaries", body: "Plain-text descriptions under charts, for example “1M range $1.02 to $1.31, currently $1.24, up 12.70 percent over the period.” Also an accessibility feature." },
@@ -15,12 +15,10 @@ const features = [
 export default function AiFeatures() {
   const { settings, updateSettings } = useApp();
 
-  useEffect(() => {
-    document.title = `${t("AI features")} · CPA`;
-  }, []);
+  usePageTitle(t("AI features"));
 
   const value = (feature) => (feature.app ? settings[feature.key] : settings.ai[feature.key]);
-  const toggle = (feature, on) => (feature.app ? updateSettings({ [feature.key]: on }) : updateSettings({ ai: { ...settings.ai, [feature.key]: on } }));
+  const toggle = (feature, on) => (feature.app ? updateSettings({ [feature.key]: on }) : updateSettings({ ai: { [feature.key]: on } }));
 
   return (
     <div className="info-page">

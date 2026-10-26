@@ -1,14 +1,12 @@
 import { useId, useMemo, useState } from "react";
 import Sheet from "./Sheet.jsx";
-import { direction, formatDate, formatPrice } from "../lib/format.js";
+import { arrow, direction, formatAmount, formatDate, formatPrice, formatSignedPrice, isoDay, MASK } from "../lib/format.js";
 import { downloadText } from "../lib/clipboard.js";
 import { rowsInYear, TAX_METHODS, taxLotReport, taxLotsToCsv, taxTotals, taxYears } from "../lib/taxlots.js";
-import { locale, t, tn } from "../lib/i18n.js";
+import { t, tn } from "../lib/i18n.js";
 
-const MASK = "••••";
 const PREVIEW_ROWS = 10;
-const fileName = (method, year) => `cpa-tax-lots-${method}-${year}-${new Date().toISOString().slice(0, 10)}.csv`;
-const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString(locale(), { maximumFractionDigits: 8 });
+const fileName = (method, year) => `cpa-tax-lots-${method}-${year}-${isoDay()}.csv`;
 
 // Tax-lot report (clarification 28): realized gains by FIFO or average cost, as CSV. Amounts are
 // in USD, like the transactions they come from.
@@ -22,8 +20,8 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
   const totals = taxTotals(rows);
   const fifo = method === "fifo";
   const usd = (value) => (hide ? MASK : formatPrice(value));
-  const signed = (value) => (hide ? MASK : `${value >= 0 ? "+" : "−"}${formatPrice(Math.abs(value))}`);
-  const arrow = (value) => (direction(value) === "up" ? "▲ " : direction(value) === "down" ? "▼ " : "");
+  const signed = (value) => (hide ? MASK : formatSignedPrice(value));
+  const marker = (value) => (arrow(value) ? `${marker(value)} ` : "");
 
   const download = () => {
     const ok = downloadText(fileName(method, shownYear), taxLotsToCsv(rows, method), "text/csv");
@@ -63,7 +61,7 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
               <div><dt>{t("Cost basis")}</dt><dd className="num">{usd(totals.cost)}</dd></div>
               <div>
                 <dt>{t("Gain or loss")}</dt>
-                <dd className={`num ${direction(totals.gain)}`}>{arrow(totals.gain)}{signed(totals.gain)}</dd>
+                <dd className={`num ${direction(totals.gain)}`}>{marker(totals.gain)}{signed(totals.gain)}</dd>
               </div>
               {fifo && (
                 <>
@@ -79,7 +77,7 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
                   <small>
                     {row.acquired == null ? t("Acquired on several dates") : t("Acquired {date}", { date: formatDate(row.acquired) })}
                     {row.term ? ` · ${row.term === "long" ? t("long-term") : t("short-term")}` : ""} · {t("cost {amount}", { amount: usd(row.cost) })} ·{" "}
-                    <span className={direction(row.gain)}>{arrow(row.gain)}{signed(row.gain)}</span>
+                    <span className={direction(row.gain)}>{marker(row.gain)}{signed(row.gain)}</span>
                   </small>
                 </li>
               ))}

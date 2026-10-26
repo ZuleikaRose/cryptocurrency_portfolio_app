@@ -9,11 +9,12 @@ import { shortcuts } from "../data/shortcuts.js";
 import { isEmail, passwordChecks, passwordErrors } from "../lib/auth.js";
 import { blocksDeletion, cancel, changeBillingDay, isPaid, pause, planById, plans, resume, subscribe, validateCard } from "../lib/billing.js";
 import { downloadText } from "../lib/clipboard.js";
-import { currencies, formatDate, formatPrice } from "../lib/format.js";
+import { currencies, formatDate, formatPrice, isoDay } from "../lib/format.js";
 import { languages, t, tn } from "../lib/i18n.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useInstallPrompt } from "../lib/pwa.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const sections = [
   { id: "profile", label: "Profile" },
@@ -262,9 +263,7 @@ export default function Settings() {
   const [promoError, setPromoError] = useState(null);
   const savedTimer = useRef(null);
 
-  useEffect(() => {
-    document.title = `${t("Account settings")} · CPA`;
-  }, []);
+  usePageTitle(t("Account settings"));
   useEffect(() => () => window.clearTimeout(savedTimer.current), []);
   // Deep links like /settings#danger-zone.
   useEffect(() => {
@@ -354,7 +353,7 @@ export default function Settings() {
       ? { name: session.name, email: session.email, createdAt: session.createdAt, plan: billing.plan }
       : { name: session.name };
     const json = JSON.stringify({ exportedAt: new Date().toISOString(), profile: profileOut, data: app.exportData() }, null, 2);
-    const ok = downloadText(`cpa-export-${new Date().toISOString().slice(0, 10)}.json`, json, "application/json");
+    const ok = downloadText(`cpa-export-${isoDay()}.json`, json, "application/json");
     showToast(ok ? t("Export downloaded") : t("Couldn't start the download in this browser."));
   };
 
@@ -573,14 +572,14 @@ export default function Settings() {
           label={t("Quiet hours")}
           hint={t("Only alerts set to bypass quiet hours make a sound or banner")}
           checked={settings.quietHours.enabled}
-          onChange={(enabled) => setting("notifications", { quietHours: { ...settings.quietHours, enabled } })}
+          onChange={(enabled) => setting("notifications", { quietHours: { enabled } })}
         />
         {settings.quietHours.enabled && (
           <div className="custom-range">
             {["start", "end"].map((key) => (
               <label key={key} className="form-field">
                 <span>{key === "start" ? t("From") : t("To")}</span>
-                <input type="time" className="input" value={settings.quietHours[key]} onChange={(event) => setting("notifications", { quietHours: { ...settings.quietHours, [key]: event.target.value } })} />
+                <input type="time" className="input" value={settings.quietHours[key]} onChange={(event) => setting("notifications", { quietHours: { [key]: event.target.value } })} />
               </label>
             ))}
           </div>

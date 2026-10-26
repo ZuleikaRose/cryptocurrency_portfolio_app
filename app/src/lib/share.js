@@ -2,6 +2,7 @@
 // sent through the Web Share API when available, otherwise downloaded.
 // Returns "shared" | "cancelled" | "downloaded" | "failed"; never throws.
 import { locale, t } from "./i18n.js";
+import { downloadBlob } from "./clipboard.js";
 
 const tones = { up: "#55d6a7", down: "#f1727f", neutral: "#b4b0d0" };
 
@@ -56,15 +57,5 @@ export async function shareCard({ fileName, ...content }) {
       return "cancelled";
     }
   }
-  try {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = file.name;
-    link.click();
-    URL.revokeObjectURL(url);
-    return "downloaded";
-  } catch {
-    return "failed";
-  }
+  return downloadBlob(file.name, blob) ? "downloaded" : "failed";
 }

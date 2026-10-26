@@ -4,6 +4,7 @@ import Disclosure, { Highlight } from "../components/Disclosure.jsx";
 import Icon from "../components/Icon.jsx";
 import { faqSections, matchesHelp, planTable } from "../data/help.js";
 import { t, tn } from "../lib/i18n.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 // FAQs (18-faqs.md): four themed sections, search with highlighting, deep links.
 export default function Faqs() {
@@ -13,9 +14,7 @@ export default function Faqs() {
   const term = query.trim().toLowerCase();
   const searching = term.length >= 2;
 
-  useEffect(() => {
-    document.title = `${t("FAQs")} · CPA`;
-  }, []);
+  usePageTitle(t("FAQs"));
   useEffect(() => {
     if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
   }, [location.hash]);

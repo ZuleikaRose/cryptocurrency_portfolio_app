@@ -1,8 +1,7 @@
 import InfoTip from "./InfoTip.jsx";
-import { formatTokens } from "../lib/format.js";
-import { locale, t } from "../lib/i18n.js";
+import { formatNumber, formatTokens } from "../lib/format.js";
+import { t } from "../lib/i18n.js";
 
-const fixed1 = (value) => value.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 
 // Supply at a glance (US-3.3): circulating / unlocked-not-circulating / locked.
@@ -21,7 +20,7 @@ export default function SupplyBar({ supply, symbol }) {
       <h2 id="supply-title" className="subsection-title">
         {t("Supply at a glance")} <InfoTip term="supply" label={t("supply at a glance")} />
       </h2>
-      <div className="supply-bar" role="img" aria-label={segments.map((segment) => t("{label} {value} percent", { label: t(segment.label), value: fixed1(pct(segment.value)) })).join(", ")}>
+      <div className="supply-bar" role="img" aria-label={segments.map((segment) => t("{label} {value} percent", { label: t(segment.label), value: formatNumber(pct(segment.value), 1) })).join(", ")}>
         {segments.map((segment) => (
           <span key={segment.id} className={`supply-seg seg-${segment.id}`} style={{ flexGrow: segment.value }} />
         ))}
@@ -33,7 +32,7 @@ export default function SupplyBar({ supply, symbol }) {
             <span>{t(segment.label)}</span>
             {segment.id !== "other" && <InfoTip term={segment.id} label={t(segment.label).toLowerCase()} />}
             <span className="num legend-value">
-              {fixed1(pct(segment.value))}% · {formatTokens(segment.value)} {symbol}
+              {formatNumber(pct(segment.value), 1)}% · {formatTokens(segment.value)} {symbol}
             </span>
           </li>
         ))}

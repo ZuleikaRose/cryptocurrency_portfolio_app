@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { useApp } from "../state/context.js";
 import { locale, t } from "../lib/i18n.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const areas = ["Market", "Coin detail", "Unlocks", "Fundraising", "Portfolio", "Alerts", "Other"];
 const MAX = 1000;
@@ -19,9 +20,7 @@ export default function Feedback() {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
 
-  useEffect(() => {
-    document.title = `${t("Send feedback")} · CPA`;
-  }, []);
+  usePageTitle(t("Send feedback"));
 
   const onSubmit = async (event) => {
     event.preventDefault();

@@ -190,8 +190,7 @@ export async function saveAccountData(userId, previous, data) {
   const result = { ...previous };
   let firstError = null;
 
-  const singles = [["user_settings", "user_id"], ["user_state", "user_id"]];
-  for (const [table] of singles) {
+  for (const table of ["user_settings", "user_state"]) {
     const row = next[table].get("me");
     if (same(row, previous[table]?.get("me"))) continue;
     try {

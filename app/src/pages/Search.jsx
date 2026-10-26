@@ -4,8 +4,8 @@ import CoinRow, { SkeletonRows } from "../components/CoinRow.jsx";
 import Icon from "../components/Icon.jsx";
 import { ResultLabel } from "../components/SearchOverlay.jsx";
 import { resultPath, searchAll } from "../data/directory.js";
-import { formatCompact, rateFor } from "../lib/format.js";
-import { TRENDING, useDebounced } from "../lib/hooks.js";
+import { formatCompact, rateFor, shortContract } from "../lib/format.js";
+import { TRENDING, useDebounced, usePageTitle } from "../lib/hooks.js";
 import { t, tn } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
@@ -22,7 +22,6 @@ const sorts = [
   { id: "popularity", label: "Popularity" },
 ];
 const groupTitles = { coins: "Coins", funds: "Funds", exchanges: "Exchanges", sales: "Token sales" };
-const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
 const sortValue = (hit, sort) => {
   if (sort === "popularity") return hit.views;
@@ -53,9 +52,7 @@ export default function Search() {
   const sort = sorts.some((item) => item.id === params.get("sort")) ? params.get("sort") : "marketCap";
   const rate = rateFor(settings.currency, coins);
 
-  useEffect(() => {
-    document.title = query ? `“${query}” · ${t("Search")} · CPA` : `${t("Search")} · CPA`;
-  }, [query]);
+  usePageTitle(query ? `“${query}” · ${t("Search")}` : t("Search"));
 
   // Keep ?q= in step with the debounced input.
   useEffect(() => {
@@ -202,7 +199,7 @@ export default function Search() {
                             <span className="num">
                               {hit.verified ? <span className="verified-text">✓ {t("Verified")}</span> : <span className="unverified">⚠ {t("Unverified")}</span>} · {t("MCap")}{" "}
                               {formatCompact(hit.coin.marketCap, settings.currency, rate)}
-                              {hit.contract && <> · <span className="mono">{shortAddress(hit.contract)}</span></>}
+                              {hit.contract && <> · <span className="mono">{shortContract(hit.contract)}</span></>}
                             </span>
                           }
                         />

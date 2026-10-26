@@ -6,8 +6,8 @@ import { categories, marketPulse } from "../data/coins.js";
 import { exchanges, saleStatus, tokenSales } from "../data/directory.js";
 import { promoStatus, promotions } from "../data/promotions.js";
 import { funds } from "../data/research.js";
-import { direction, formatCompact, formatPercent, rateFor } from "../lib/format.js";
-import { useFirstLoad, useSimulatedError } from "../lib/hooks.js";
+import { arrow, direction, formatCompact, formatPercent, rateFor } from "../lib/format.js";
+import { useFirstLoad, usePageTitle, useSimulatedError } from "../lib/hooks.js";
 import { t } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
@@ -24,9 +24,7 @@ export default function Explore() {
   const loading = useFirstLoad("explore");
   const [failed, retry] = useSimulatedError();
 
-  useEffect(() => {
-    document.title = `${t("Explore")} · CPA`;
-  }, []);
+  usePageTitle(t("Explore"));
 
   // Land on #market-pulse when coming from Market's "View all".
   useEffect(() => {
@@ -111,7 +109,7 @@ export default function Explore() {
                   <strong>{t(tile.category)}</strong>
                   <span className="num">{formatCompact(tile.cap, settings.currency, rate)}</span>
                   <span className={`num ${direction(tile.change)}`}>
-                    {direction(tile.change) === "up" ? "▲" : "▼"} {formatPercent(tile.change)}
+                    {arrow(tile.change)} {formatPercent(tile.change)}
                   </span>
                 </Link>
               </li>

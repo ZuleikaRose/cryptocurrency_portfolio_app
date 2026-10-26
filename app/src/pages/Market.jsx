@@ -15,7 +15,7 @@ import {
   relativeTime,
   spokenPercent,
 } from "../lib/format.js";
-import { useNow, useOnline } from "../lib/hooks.js";
+import { useFirstLoad, useNow, useOnline, usePageTitle, useSimulatedError } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { marketCapChange24h } from "../lib/market.js";
 import { locale, t } from "../lib/i18n.js";
@@ -43,7 +43,6 @@ const PAGE_SIZE = 100;
 const STALE_AFTER_MS = 5 * 60_000;
 const initialCapTotal = initialCoins.reduce((sum, coin) => sum + coin.marketCap, 0);
 
-let hasLoadedOnce = false;
 
 
 function subtitleFor(view, market) {
@@ -277,7 +276,7 @@ export default function Market() {
   const [params, setParams] = useSearchParams();
   const [sortOpen, setSortOpen] = useState(false);
   const [aboutFearGreed, setAboutFearGreed] = useState(false);
-  const [loading, setLoading] = useState(!hasLoadedOnce);
+  const loading = useFirstLoad("market", 500);
   const now = useNow(15_000);
 
   const market = settings.market;
@@ -286,18 +285,10 @@ export default function Market() {
   const viewMeta = views.find((item) => item.id === view);
   const rate = rateFor(currency, coins);
   const stale = now - lastUpdated > STALE_AFTER_MS;
-  const simulatedError = params.get("simulate") === "error";
+  const [simulatedError, clearSimulatedError] = useSimulatedError();
   const online = useOnline();
 
-  useEffect(() => {
-    document.title = `${t("Market")} · CPA`;
-    if (hasLoadedOnce) return undefined;
-    const id = window.setTimeout(() => {
-      hasLoadedOnce = true;
-      setLoading(false);
-    }, 500);
-    return () => window.clearTimeout(id);
-  }, []);
+  usePageTitle(t("Market"));
 
   // Explore's category tiles link here with ?category=…; apply it once, then tidy the URL.
   const categoryParam = params.get("category");
@@ -389,9 +380,7 @@ export default function Market() {
           <button
             className="button-tertiary"
             onClick={() => {
-              const next = new URLSearchParams(params);
-              next.delete("simulate");
-              setParams(next, { replace: true });
+              clearSimulatedError();
               refresh();
             }}
           >

@@ -4,6 +4,7 @@ import Icon from "../components/Icon.jsx";
 import { funds } from "../data/research.js";
 import { t } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const squash = (text) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -51,8 +52,8 @@ export default function NotFound() {
   const suggestion = suggestionFor(location.pathname, coins);
   const lastSegment = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() ?? "").replace(/[-_]+/g, " ");
 
+  usePageTitle(t("Page not found"));
   useEffect(() => {
-    document.title = `${t("Page not found")} · CPA`;
     heading.current?.focus();
   }, [location.pathname]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import Disclosure from "../components/Disclosure.jsx";
 import Icon from "../components/Icon.jsx";
@@ -7,6 +7,7 @@ import { copyText } from "../lib/clipboard.js";
 import { formatDate } from "../lib/format.js";
 import { t, tc } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const promoErrors = {
   invalid: () => t("This code isn't valid or has ended."),
@@ -22,9 +23,7 @@ export default function Promotions() {
   const active = promotions.filter((promo) => promoStatus(promo) === "active");
   const past = promotions.filter((promo) => promoStatus(promo) === "ended");
 
-  useEffect(() => {
-    document.title = `${t("Promotions")} · CPA`;
-  }, []);
+  usePageTitle(t("Promotions"));
 
   // Guests sign in first; the code is applied once they're in (US-P21.2).
   const apply = (value) =>
