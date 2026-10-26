@@ -427,3 +427,7 @@ verify_jwt = false
 # daily credit budget (cpa.spend_lookup_credit).
 [functions.cryptorank-lookup]
 verify_jwt = false
+
+# Called by pg_cron without a JWT; the function throttles itself (cpa.claim_price_history_sync).
+[functions.price-history-sync]
+verify_jwt = false
