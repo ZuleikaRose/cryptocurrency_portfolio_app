@@ -9,7 +9,7 @@ import { shortcuts } from "../data/shortcuts.js";
 import { isEmail, passwordChecks, passwordErrors } from "../lib/auth.js";
 import { blocksDeletion, cancel, changeBillingDay, isPaid, pause, planById, plans, resume, subscribe, validateCard } from "../lib/billing.js";
 import { downloadText } from "../lib/clipboard.js";
-import { currencies, formatDate } from "../lib/format.js";
+import { currencies, formatDate, formatPrice } from "../lib/format.js";
 import { languages, t, tn } from "../lib/i18n.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useInstallPrompt } from "../lib/pwa.js";
@@ -401,10 +401,10 @@ export default function Settings() {
         <div className="card plan-card">
           <p className="plan-name">
             <strong>CPA {paid ? "Pro" : "Free"}</strong>
-            {paid && promoPrice == null && <span className="num"> · ${plan.price.toFixed(2)}/{t(plan.period)}</span>}
+            {paid && promoPrice == null && <span className="num"> · {formatPrice(plan.price)}/{t(plan.period)}</span>}
             {paid && promoPrice != null && (
               <span className="num">
-                {" · "}<s>${plan.price.toFixed(2)}</s> ${promoPrice.toFixed(2)}/{t(plan.period)}
+                {" · "}<s>{formatPrice(plan.price)}</s> {formatPrice(promoPrice)}/{t(plan.period)}
               </span>
             )}
           </p>
@@ -441,7 +441,7 @@ export default function Settings() {
           <Segmented
             label={t("Switch plan")}
             value={billing.status === "cancelled" ? "free" : billing.plan}
-            options={plans.map((item) => [item.id, item.price ? `${t(item.label)} $${item.price.toFixed(2)}` : t(item.label)])}
+            options={plans.map((item) => [item.id, item.price ? `${t(item.label)} ${formatPrice(item.price)}` : t(item.label)])}
             onChange={choosePlan}
           />
           <p className="muted-line">{t("Simulated billing: no money is charged.")}</p>
@@ -476,7 +476,7 @@ export default function Settings() {
                 <tr key={entry.date + entry.description}>
                   <td className="num">{formatDate(entry.date)}</td>
                   <td>{entry.description.split(" · ").map((part, index) => (index ? part : t(part))).join(" · ")}</td>
-                  <td className="num">${entry.amount.toFixed(2)}</td>
+                  <td className="num">{formatPrice(entry.amount)}</td>
                   <td>{t(entry.status)}</td>
                 </tr>
               ))}
@@ -750,7 +750,7 @@ export default function Settings() {
       <Sheet open={sheet === "plan"} onClose={closeSheet} title={t("Switch to {plan}?", { plan: t(planById(planTarget).label) })} side="bottom">
         <p className="sheet-note num">
           {t("{amount} charged today to {method} (simulated), then every {period}.", {
-            amount: `$${(discountedPrice(promo, planById(planTarget)) ?? planById(planTarget).price).toFixed(2)}`,
+            amount: formatPrice(discountedPrice(promo, planById(planTarget)) ?? planById(planTarget).price),
             method: defaultMethod?.type === "card" ? `${defaultMethod.brand} •••• ${defaultMethod.last4}` : "PayPal",
             period: t(planById(planTarget).period ?? "month"),
           })}

@@ -100,6 +100,10 @@ export function relativeTime(timestamp, now = Date.now()) {
 }
 
 // Token amounts: 92.65M, 2.50B, 18.0K.
+// Plain numbers and multiples in the current language: 1.8 → "1,8", ROI 2.5 → "2,50x".
+export const formatNumber = (value, digits = 2) => decimal(value, digits);
+export const formatMultiple = (value) => `${decimal(value, 2)}x`;
+
 export function formatTokens(value) {
   const abs = Math.abs(value);
   const es = spanish();

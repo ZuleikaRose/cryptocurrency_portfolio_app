@@ -4,9 +4,9 @@ import Icon from "../components/Icon.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { saleCurrentPrice, saleStatus, tokenSales } from "../data/directory.js";
-import { formatCompact, formatDate, formatPrice, rateFor } from "../lib/format.js";
+import { formatCompact, formatDate, formatMultiple, formatPrice, rateFor } from "../lib/format.js";
 import { useNow } from "../lib/hooks.js";
-import { t } from "../lib/i18n.js";
+import { t, tc } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const statuses = [
@@ -23,7 +23,7 @@ function relativeDays(target, now) {
   return days > 0 ? t("in {time}", { time: `${days}d` }) : t("{n}d ago", { n: -days });
 }
 
-const roiText = (value) => `${value >= 1 ? "▲" : "▼"} ${value.toFixed(2)}x`;
+const roiText = (value) => `${value >= 1 ? "▲" : "▼"} ${formatMultiple(value)}`;
 
 function Disclaimer() {
   return (
@@ -97,7 +97,7 @@ export default function TokenSales() {
             className={status === item.id ? "filter active" : "filter"}
             onClick={() => setStatus(item.id)}
           >
-            {t(item.label)} <span className="num">{counts[item.id]}</span>
+            {tc("sales", item.label)} <span className="num">{counts[item.id]}</span>
           </button>
         ))}
       </div>
@@ -163,7 +163,7 @@ export default function TokenSales() {
                   <p className="num">
                     {t("Sale")} {formatPrice(sale.price, settings.currency, rate)} → {current ? formatPrice(current, settings.currency, rate) : "—"}{" "}
                     {roi && <span className={roi >= 1 ? "up" : "down"}>{t("ROI")} {roiText(roi)}</span>}
-                    {sale.athRoi && <span className="muted-inline"> · ATH {sale.athRoi.toFixed(2)}x</span>}
+                    {sale.athRoi && <span className="muted-inline"> · ATH {formatMultiple(sale.athRoi)}</span>}
                   </p>
                 ) : (
                   <p className="num">
@@ -204,9 +204,9 @@ export default function TokenSales() {
           <>
             <dl className="stats">
               <div><dt>{t("Past sales")}</dt><dd className="num">{stats.count}</dd></div>
-              <div><dt>{t("Average ROI")}</dt><dd className={`num ${stats.average >= 1 ? "up" : "down"}`}>{stats.average.toFixed(2)}x</dd></div>
-              <div><dt>{t("Median ROI")}</dt><dd className={`num ${stats.median >= 1 ? "up" : "down"}`}>{stats.median.toFixed(2)}x</dd></div>
-              <div><dt>{t("Best · worst")}</dt><dd className="num">{stats.best.sale.symbol} {stats.best.roi.toFixed(2)}x · {stats.worst.sale.symbol} {stats.worst.roi.toFixed(2)}x</dd></div>
+              <div><dt>{t("Average ROI")}</dt><dd className={`num ${stats.average >= 1 ? "up" : "down"}`}>{formatMultiple(stats.average)}</dd></div>
+              <div><dt>{t("Median ROI")}</dt><dd className={`num ${stats.median >= 1 ? "up" : "down"}`}>{formatMultiple(stats.median)}</dd></div>
+              <div><dt>{t("Best · worst")}</dt><dd className="num">{stats.best.sale.symbol} {formatMultiple(stats.best.roi)} · {stats.worst.sale.symbol} {formatMultiple(stats.worst.roi)}</dd></div>
             </dl>
             <p className="sheet-note">{t("Past ROI doesn't predict future results. Not financial advice.")}</p>
           </>
