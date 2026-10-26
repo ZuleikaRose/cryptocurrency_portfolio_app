@@ -161,6 +161,11 @@ button.chip { cursor: pointer; }
 .wallet-preview small { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .input.mono { font-family: var(--font-mono); font-size: 13px; }
 .import-skipped { max-height: 30vh; overflow-y: auto; margin: 0 0 8px; padding-left: 18px; color: var(--muted); font-size: 13px; }
+/* Tax-lot report (clarification 28) */
+.tax-totals { margin: 4px 0; }
+.tax-rows { display: grid; margin: 0; padding: 0; list-style: none; }
+.tax-rows li { padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; overflow-wrap: anywhere; }
+.tax-rows small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
 .entry-compare { font-size: 14px; }
 .tx-list { margin: 0; padding: 0; list-style: none; }
 .tx-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }

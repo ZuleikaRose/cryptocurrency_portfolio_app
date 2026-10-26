@@ -82,7 +82,8 @@ CREATE TRIGGER coins_touch BEFORE UPDATE ON coins FOR EACH ROW EXECUTE FUNCTION 
 -- Price history for charts: ranges 1D · 7D · 1M · 3M · 1Y · ALL (03-coin-detail.md). Coinbase
 -- Exchange closes in USD, stamped at the candle's close (UTC): 15-minute closes kept 26 hours,
 -- hourly 8 days, 6-hourly 32 days, daily for the whole history. price_history(coin_id, range_id)
--- returns one range plus the highest and lowest daily close (ATH / ATL).
+-- returns one range plus the highest and lowest daily close (ATH / ATL); price_at(coin_id, at_ms)
+-- returns the nearest close to a moment (the transaction sheet's "Use market price").
 CREATE TABLE coin_prices (
   coin_id   text NOT NULL REFERENCES coins (id) ON DELETE CASCADE,
   at        timestamptz NOT NULL,

@@ -43,6 +43,7 @@ export function computeHoldings(transactions, coins) {
         coin,
         value,
         avgPrice: entry.amount ? entry.cost / entry.amount : 0,
+        unrealized,
         pnl: unrealized + entry.realized,
         pnlPct: entry.invested ? ((unrealized + entry.realized) / entry.invested) * 100 : 0,
         change24h: value - value / (1 + coin.change24h / 100),
@@ -57,6 +58,8 @@ export function summarize(holdings) {
   const pnl = holdings.reduce((sum, item) => sum + item.pnl, 0);
   const invested = holdings.reduce((sum, item) => sum + item.invested, 0);
   return {
+    realized: holdings.reduce((sum, item) => sum + item.realized, 0),
+    unrealized: holdings.reduce((sum, item) => sum + item.unrealized, 0),
     value,
     change24h,
     change24hPct: value - change24h ? (change24h / (value - change24h)) * 100 : 0,
@@ -85,10 +88,11 @@ export function priceAt(coin, time) {
 }
 
 const rangeDays = { "24h": 1, "7D": 7, "1M": 30, "3M": 90, "1Y": 365 };
-const chartRange = { "24h": "1D", "7D": "7D", "1M": "1M", "3M": "3M", "1Y": "1Y", ALL: "ALL" };
+export const chartRange = { "24h": "1D", "7D": "7D", "1M": "1M", "3M": "3M", "1Y": "1Y", ALL: "ALL" };
 
-// Portfolio value over time: amount held at each moment × that moment's sample price.
-export function valueHistory(transactions, coins, rangeId) {
+// Portfolio value over time: amount held at each moment × that moment's price. `series` maps a
+// coin id to Coinbase closes for the range (clarification 28); other coins use sample history.
+export function valueHistory(transactions, coins, rangeId, series = new Map()) {
   if (!transactions.length) return [];
   const now = Date.now();
   const firstTx = Math.min(...transactions.map((tx) => new Date(tx.date).getTime()));
@@ -96,14 +100,14 @@ export function valueHistory(transactions, coins, rangeId) {
   const steps = 72;
   const sorted = [...transactions].sort(byDate);
   const coinIds = [...new Set(sorted.map((tx) => tx.coinId))];
-  const series = Object.fromEntries(
+  const prices = Object.fromEntries(
     coinIds.map((id) => {
       const coin = coins.find((item) => item.id === id);
-      return [id, coin ? priceHistory(coin, chartRange[rangeId]) : []];
+      return [id, series.get(id) ?? (coin ? priceHistory(coin, chartRange[rangeId]) : [])];
     }),
   );
   const lookup = (id, time) => {
-    const points = series[id];
+    const points = prices[id];
     if (!points.length) return 0;
     let low = 0;
     let high = points.length - 1;
@@ -128,4 +132,24 @@ export function valueHistory(transactions, coins, rangeId) {
     out.push({ time, price: value });
   }
   return out;
+}
+
+// P&L over a chart range: the change in value less money put in (buys and transfers in at their
+// price, with fees) plus money taken out (sell proceeds, transfers out at their price). The
+// percentage is of the value at the start plus money put in.
+export function rangePerformance(transactions, history) {
+  if (history.length < 2) return null;
+  const start = history[0].time;
+  const end = history[history.length - 1].time;
+  let added = 0;
+  let removed = 0;
+  transactions.forEach((tx) => {
+    const time = new Date(tx.date).getTime();
+    if (time <= start || time > end) return;
+    if (INCREASES.has(tx.type)) added += tx.amount * tx.price + (tx.fee || 0);
+    else removed += tx.amount * tx.price - (tx.type === "sell" ? tx.fee || 0 : 0);
+  });
+  const pnl = history[history.length - 1].price - history[0].price - added + removed;
+  const base = history[0].price + added;
+  return { pnl, pct: base ? (pnl / base) * 100 : 0 };
 }

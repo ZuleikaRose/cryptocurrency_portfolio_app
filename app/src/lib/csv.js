@@ -11,12 +11,12 @@ const MAX_FEE = 1e15; // fee_usd is numeric(18,2)
 
 // Spreadsheet apps run a cell that starts with = + - @ (or a tab/CR) as a formula, so text
 // cells get a leading apostrophe. Numbers are written plainly.
-function textCell(value) {
+export function textCell(value) {
   const text = String(value ?? "");
   const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
-const numberCell = (value) => (Number.isFinite(value) ? String(Number(value.toFixed(12))) : "");
+export const numberCell = (value) => (Number.isFinite(value) ? String(Number(value.toFixed(12))) : "");
 
 export function transactionsToCsv(transactions, coins) {
   const byId = new Map(coins.map((coin) => [coin.id, coin]));
