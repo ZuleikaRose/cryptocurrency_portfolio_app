@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { chartSummary, formatChartTime } from "../lib/chart.js";
 import { formatPercent, formatPrice } from "../lib/format.js";
 import { toCandles } from "../data/research.js";
+import { locale, t } from "../lib/i18n.js";
 
 const WIDTH = 400;
 const HEIGHT = 190;
@@ -86,7 +87,7 @@ export default function PriceChart({ points, rangeId, mode = "line", markers = [
           className="chart-surface"
           role="img"
           tabIndex={0}
-          aria-label={mask ? `${name} chart. Values hidden.` : `${name} chart. ${chartSummary(points, label, currency, rate)} Use left and right arrow keys to read values.`}
+          aria-label={mask ? t("{name} chart. Values hidden.", { name: t(name) }) : t("{name} chart. {summary} Use left and right arrow keys to read values.", { name: t(name), summary: chartSummary(points, label, currency, rate) })}
           onPointerMove={(event) => setActive(indexFromEvent(event))}
           onPointerDown={(event) => setActive(indexFromEvent(event))}
           onPointerLeave={(event) => event.pointerType === "mouse" && setActive(null)}
@@ -143,7 +144,7 @@ export default function PriceChart({ points, rangeId, mode = "line", markers = [
             className={`chart-marker marker-${marker.kind}`}
             style={{ left: `${(x(marker.time) / WIDTH) * 100}%` }}
             onClick={() => onMarker(marker)}
-            aria-label={`${markerMeta[marker.kind].label} event, ${new Date(marker.time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+            aria-label={t("{kind} event, {date}", { kind: t(markerMeta[marker.kind].label), date: new Date(marker.time).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" }) })}
           >
             <span aria-hidden="true">{markerMeta[marker.kind].letter}</span>
           </button>

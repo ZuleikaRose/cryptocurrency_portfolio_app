@@ -10,6 +10,7 @@ import { isEmail, passwordChecks, passwordErrors } from "../lib/auth.js";
 import { blocksDeletion, cancel, changeBillingDay, isPaid, pause, planById, plans, resume, subscribe, validateCard } from "../lib/billing.js";
 import { downloadText } from "../lib/clipboard.js";
 import { currencies, formatDate } from "../lib/format.js";
+import { languages, t, tn } from "../lib/i18n.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useInstallPrompt } from "../lib/pwa.js";
 import { useApp } from "../state/context.js";
@@ -60,14 +61,14 @@ function Toggle({ label, hint, checked, onChange }) {
 function InstallRow({ onResult }) {
   const { canInstall, installed, install } = useInstallPrompt();
   const hint = installed
-    ? "Installed. Open CPA from your home screen or app list."
+    ? t("Installed. Open CPA from your home screen or app list.")
     : canInstall
-      ? "Opens on your watchlist, with shortcuts to Unlocks and Alerts"
-      : "Use your browser's Install or Add to Home Screen option";
+      ? t("Opens on your watchlist, with shortcuts to Unlocks and Alerts")
+      : t("Use your browser's Install or Add to Home Screen option");
   return (
     <div className="setting-row">
       <span className="setting-label">
-        Install CPA
+        {t("Install CPA")}
         <small>{hint}</small>
       </span>
       {canInstall && !installed && (
@@ -75,11 +76,11 @@ function InstallRow({ onResult }) {
           className="button-secondary compact"
           onClick={async () => {
             const outcome = await install();
-            if (outcome === "accepted") onResult("CPA installed");
-            else if (outcome === "unavailable") onResult("Couldn't open the install prompt. Use your browser's Install option instead.");
+            if (outcome === "accepted") onResult(t("CPA installed"));
+            else if (outcome === "unavailable") onResult(t("Couldn't open the install prompt. Use your browser's Install option instead."));
           }}
         >
-          Install
+          {t("Install")}
         </button>
       )}
     </div>
@@ -93,7 +94,7 @@ function SectionHead({ id, title, saved }) {
       <span className="saved-note" aria-live="polite">
         {saved && (
           <>
-            <Icon name="check" /> Saved
+            <Icon name="check" /> {t("Saved")}
           </>
         )}
       </span>
@@ -112,47 +113,47 @@ function ChangePasswordSheet({ open, onClose }) {
   const onSubmit = async (event) => {
     event.preventDefault();
     const found = passwordErrors(passwordChecks(form.next));
-    if (form.next && form.next === form.current) found.push("Choose a password different from your current one.");
-    if (form.confirm !== form.next || !form.confirm) found.push("Passwords don't match.");
-    if (!form.current) found.unshift("Enter your current password.");
+    if (form.next && form.next === form.current) found.push(t("Choose a password different from your current one."));
+    if (form.confirm !== form.next || !form.confirm) found.push(t("Passwords don't match."));
+    if (!form.current) found.unshift(t("Enter your current password."));
     setErrors(found);
     if (found.length) return;
     setBusy(true);
     const result = await changePassword(form.current, form.next);
     setBusy(false);
     if (result.error === "wrong") {
-      setErrors(["Current password is incorrect."]);
+      setErrors([t("Current password is incorrect.")]);
       return;
     }
     if (result.error) {
       const messages = {
-        same: "Choose a password different from your current one.",
-        weak: "Choose a stronger password.",
-        limited: "Too many attempts. Wait a few minutes and try again.",
+        same: t("Choose a password different from your current one."),
+        weak: t("Choose a stronger password."),
+        limited: t("Too many attempts. Wait a few minutes and try again."),
       };
-      setErrors([messages[result.error] ?? "We couldn't change your password. Check your connection and try again."]);
+      setErrors([messages[result.error] ?? t("We couldn't change your password. Check your connection and try again.")]);
       return;
     }
-    showToast("Password changed");
+    showToast(t("Password changed"));
     onClose();
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Change password" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Change password")} side="bottom">
       <form className="tx-form" onSubmit={onSubmit} noValidate>
         {errors.length > 0 && (
           <ul className="form-alert" role="alert">
             {errors.map((message) => <li key={message}>{message}</li>)}
           </ul>
         )}
-        <label className="form-field" htmlFor="cp-current"><span>Current password</span></label>
+        <label className="form-field" htmlFor="cp-current"><span>{t("Current password")}</span></label>
         <PasswordInput id="cp-current" value={form.current} onChange={set("current")} autoComplete="current-password" />
-        <label className="form-field" htmlFor="cp-next"><span>New password</span></label>
+        <label className="form-field" htmlFor="cp-next"><span>{t("New password")}</span></label>
         <PasswordInput id="cp-next" value={form.next} onChange={set("next")} autoComplete="new-password" describedBy="cp-checks" />
         <PasswordChecklist id="cp-checks" checks={checks} />
-        <label className="form-field" htmlFor="cp-confirm"><span>Confirm new password</span></label>
+        <label className="form-field" htmlFor="cp-confirm"><span>{t("Confirm new password")}</span></label>
         <PasswordInput id="cp-confirm" value={form.confirm} onChange={set("confirm")} autoComplete="new-password" />
-        <button type="submit" className="button-primary" disabled={busy}>{busy ? "Saving…" : "Change password"}</button>
+        <button type="submit" className="button-primary" disabled={busy}>{busy ? t("Saving…") : t("Change password")}</button>
       </form>
     </Sheet>
   );
@@ -173,22 +174,22 @@ function AddCardSheet({ open, onClose, onAdd }) {
   };
   const field = (key, label, props) => (
     <label className="form-field">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       <input className="input" value={form[key]} onChange={set(key)} aria-invalid={Boolean(errors[key]) || undefined} {...props} />
       {errors[key] && <small className="field-error">{errors[key]}</small>}
     </label>
   );
   return (
-    <Sheet open={open} onClose={onClose} title="Add card" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Add card")} side="bottom">
       <form className="tx-form" onSubmit={onSubmit} noValidate>
-        <p className="sheet-note">Simulated: only test cards work, for example 4242 4242 4242 4242. CPA keeps the brand, last 4 digits and expiry, never the full number or security code.</p>
+        <p className="sheet-note">{t("Simulated: only test cards work, for example 4242 4242 4242 4242. CPA keeps the brand, last 4 digits and expiry, never the full number or security code.")}</p>
         {field("name", "Name on card", { autoComplete: "cc-name" })}
         {field("number", "Card number", { inputMode: "numeric", autoComplete: "cc-number" })}
         <div className="custom-range">
           {field("expiry", "Expiry (MM/YY)", { inputMode: "numeric", autoComplete: "cc-exp", placeholder: "08/28" })}
           {field("cvc", "Security code", { inputMode: "numeric", autoComplete: "cc-csc" })}
         </div>
-        <button type="submit" className="button-primary">Add card</button>
+        <button type="submit" className="button-primary">{t("Add card")}</button>
       </form>
     </Sheet>
   );
@@ -211,10 +212,10 @@ function DeleteAccountSheet({ open, onClose, email }) {
     setBusy(false);
     if (result.error) {
       const messages = {
-        wrong: "Password is incorrect.",
-        limited: "Too many attempts. Wait a few minutes and try again.",
+        wrong: t("Password is incorrect."),
+        limited: t("Too many attempts. Wait a few minutes and try again."),
       };
-      setError(messages[result.error] ?? "We couldn't delete the account. Check your connection and try again. Nothing was changed.");
+      setError(messages[result.error] ?? t("We couldn't delete the account. Check your connection and try again. Nothing was changed."));
       return;
     }
     // The deleted page ends the session once Settings is gone (its guest redirect would win otherwise).
@@ -222,20 +223,20 @@ function DeleteAccountSheet({ open, onClose, email }) {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Delete your CPA account?" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Delete your CPA account?")} side="bottom">
       <form className="tx-form" onSubmit={onSubmit} noValidate>
-        <p className="sheet-note">This removes your access to CPA. Your data stays until you remove it: log in again afterwards and choose Remove my data.</p>
+        <p className="sheet-note">{t("This removes your access to CPA. Your data stays until you remove it: log in again afterwards and choose Remove my data.")}</p>
         <label className="form-field">
-          <span>Type your email to confirm</span>
+          <span>{t("Type your email to confirm")}</span>
           <input className="input" value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" placeholder={email} />
         </label>
-        <label className="form-field" htmlFor="delete-password"><span>Password</span></label>
+        <label className="form-field" htmlFor="delete-password"><span>{t("Password")}</span></label>
         <PasswordInput id="delete-password" value={password} onChange={setPassword} autoComplete="current-password" invalid={Boolean(error)} describedBy="delete-error" />
         {error && <p id="delete-error" className="field-error" role="alert">{error}</p>}
         <div className="sheet-actions">
-          <button type="button" className="button-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="button-secondary" onClick={onClose}>{t("Cancel")}</button>
           <button type="submit" className="button-primary danger-fill" disabled={!matches || busy} aria-disabled={!matches || busy}>
-            {busy ? "Deleting…" : "Delete account"}
+            {busy ? t("Deleting…") : t("Delete account")}
           </button>
         </div>
       </form>
@@ -262,7 +263,7 @@ export default function Settings() {
   const savedTimer = useRef(null);
 
   useEffect(() => {
-    document.title = "Account settings · CPA";
+    document.title = `${t("Account settings")} · CPA`;
   }, []);
   useEffect(() => () => window.clearTimeout(savedTimer.current), []);
   // Deep links like /settings#danger-zone.
@@ -294,20 +295,20 @@ export default function Settings() {
   const promoPrice = discountedPrice(promo, plan);
   const paid = isPaid(billing);
   const defaultMethod = billing.methods.find((method) => method.default) ?? billing.methods[0];
-  let planStatus = "Free plan";
-  if (paid && billing.status === "active") planStatus = `Active · next billing date ${formatDate(billing.nextBilling)}`;
-  if (paid && billing.status === "paused") planStatus = `Paused until ${formatDate(billing.pausedUntil)}`;
-  if (paid && billing.status === "cancelled") planStatus = `Cancels on ${formatDate(billing.cancelsOn)}`;
+  let planStatus = t("Free plan");
+  if (paid && billing.status === "active") planStatus = t("Active · next billing date {date}", { date: formatDate(billing.nextBilling) });
+  if (paid && billing.status === "paused") planStatus = t("Paused until {date}", { date: formatDate(billing.pausedUntil) });
+  if (paid && billing.status === "cancelled") planStatus = t("Cancels on {date}", { date: formatDate(billing.cancelsOn) });
 
   const saveProfile = async (event) => {
     event.preventDefault();
-    if (!profile.name.trim()) return setProfileError("Enter your name.");
-    if (!demo && !isEmail(profile.email)) return setProfileError("Enter a valid email address.");
+    if (!profile.name.trim()) return setProfileError(t("Enter your name."));
+    if (!demo && !isEmail(profile.email)) return setProfileError(t("Enter a valid email address."));
     const result = await app.updateProfile(demo ? { name: profile.name, email: session.email ?? "" } : profile);
-    if (result.error === "exists") return setProfileError("An account with this email already exists.");
-    if (result.error) return setProfileError("We couldn't save your profile. Check your connection and try again.");
+    if (result.error === "exists") return setProfileError(t("An account with this email already exists."));
+    if (result.error) return setProfileError(t("We couldn't save your profile. Check your connection and try again."));
     setProfileError(null);
-    if (result.emailPending) showToast(`Check ${profile.email.trim()} and open the link to confirm your new email.`);
+    if (result.emailPending) showToast(t("Check {email} and open the link to confirm your new email.", { email: profile.email.trim() }));
     markSaved("profile");
     return undefined;
   };
@@ -319,7 +320,7 @@ export default function Settings() {
       return;
     }
     if (!billing.methods.length) {
-      showToast("Add a payment method first.");
+      showToast(t("Add a payment method first."));
       jump("payment");
       return;
     }
@@ -332,12 +333,12 @@ export default function Settings() {
       ...current,
       methods: [...current.methods.map((item) => ({ ...item, default: current.methods.length ? item.default : false })), { ...method, id: `pm-${Date.now().toString(36)}`, default: current.methods.length === 0 }],
     }));
-    showToast(method.type === "card" ? `${method.brand} •••• ${method.last4} added` : "PayPal added");
+    showToast(method.type === "card" ? t("{card} added", { card: `${method.brand} •••• ${method.last4}` }) : t("PayPal added"));
     markSaved("payment");
   };
   const removeMethod = (method) => {
     if (paid && billing.status !== "cancelled" && billing.methods.length === 1) {
-      showToast("Keep one payment method while your Pro plan is active.");
+      showToast(t("Keep one payment method while your Pro plan is active."));
       return;
     }
     setBilling((current) => {
@@ -354,13 +355,13 @@ export default function Settings() {
       : { name: session.name };
     const json = JSON.stringify({ exportedAt: new Date().toISOString(), profile: profileOut, data: app.exportData() }, null, 2);
     const ok = downloadText(`cpa-export-${new Date().toISOString().slice(0, 10)}.json`, json, "application/json");
-    showToast(ok ? "Export downloaded" : "Couldn't start the download in this browser.");
+    showToast(ok ? t("Export downloaded") : t("Couldn't start the download in this browser."));
   };
 
   return (
     <div className="settings">
-      <h1>Account settings</h1>
-      <nav className="settings-chips" aria-label="Settings sections">
+      <h1>{t("Account settings")}</h1>
+      <nav className="settings-chips" aria-label={t("Settings sections")}>
         {sections.map((section) => (
           <a
             key={section.id}
@@ -371,46 +372,46 @@ export default function Settings() {
               jump(section.id);
             }}
           >
-            {section.label}
+            {t(section.label)}
           </a>
         ))}
       </nav>
 
       <section id="profile" aria-labelledby="profile-title" className="settings-section">
-        <SectionHead id="profile" title="Profile" saved={saved === "profile"} />
+        <SectionHead id="profile" title={t("Profile")} saved={saved === "profile"} />
         <form className="tx-form" onSubmit={saveProfile} noValidate>
           {profileError && <p className="form-alert" role="alert">{profileError}</p>}
           <label className="form-field">
-            <span>Name</span>
+            <span>{t("Name")}</span>
             <input className="input" value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} autoComplete="name" />
           </label>
           <label className="form-field">
-            <span>Email</span>
+            <span>{t("Email")}</span>
             <input className="input" type="email" value={demo ? "demo@cpa.app" : profile.email} disabled={demo} onChange={(event) => setProfile({ ...profile, email: event.target.value })} autoComplete="email" />
           </label>
           <div className="button-row">
-            {demo ? <span className="muted-inline">The demo has no password.</span> : <button type="button" className="button-secondary" onClick={() => setSheet("password")}>Change password</button>}
-            <button type="submit" className="button-primary inline-primary">Save</button>
+            {demo ? <span className="muted-inline">{t("The demo has no password.")}</span> : <button type="button" className="button-secondary" onClick={() => setSheet("password")}>{t("Change password")}</button>}
+            <button type="submit" className="button-primary inline-primary">{t("Save")}</button>
           </div>
         </form>
       </section>
 
       <section id="subscription" aria-labelledby="subscription-title" className="settings-section">
-        <SectionHead id="subscription" title="Subscription & billing" saved={saved === "subscription"} />
+        <SectionHead id="subscription" title={t("Subscription & billing")} saved={saved === "subscription"} />
         <div className="card plan-card">
           <p className="plan-name">
             <strong>CPA {paid ? "Pro" : "Free"}</strong>
-            {paid && promoPrice == null && <span className="num"> · ${plan.price.toFixed(2)}/{plan.period}</span>}
+            {paid && promoPrice == null && <span className="num"> · ${plan.price.toFixed(2)}/{t(plan.period)}</span>}
             {paid && promoPrice != null && (
               <span className="num">
-                {" · "}<s>${plan.price.toFixed(2)}</s> ${promoPrice.toFixed(2)}/{plan.period}
+                {" · "}<s>${plan.price.toFixed(2)}</s> ${promoPrice.toFixed(2)}/{t(plan.period)}
               </span>
             )}
           </p>
           {promo && (
             <p className="promo-applied num">
-              {promo.code} applied
-              {promoPrice == null && (promo.plan ? ` · takes effect on ${planById(promo.plan).label}` : " · takes effect on a Pro plan")}
+              {t("{code} applied", { code: promo.code })}
+              {promoPrice == null && (promo.plan ? ` · ${t("takes effect on {plan}", { plan: t(planById(promo.plan).label) })}` : ` · ${t("takes effect on a Pro plan")}`)}
             </p>
           )}
           <p className="muted-line num">{planStatus}</p>
@@ -418,9 +419,9 @@ export default function Settings() {
             <div className="button-row wrap">
               {billing.status === "active" && (
                 <>
-                  <button className="button-secondary compact" onClick={() => setSheet("day")}>Change billing date</button>
-                  <button className="button-secondary compact" onClick={() => setSheet("pause")}>Pause</button>
-                  <button className="button-secondary compact danger-text" onClick={() => setSheet("cancel")}>Cancel</button>
+                  <button className="button-secondary compact" onClick={() => setSheet("day")}>{t("Change billing date")}</button>
+                  <button className="button-secondary compact" onClick={() => setSheet("pause")}>{t("Pause")}</button>
+                  <button className="button-secondary compact danger-text" onClick={() => setSheet("cancel")}>{t("Cancel")}</button>
                 </>
               )}
               {billing.status !== "active" && (
@@ -428,66 +429,66 @@ export default function Settings() {
                   className="button-secondary compact"
                   onClick={() => {
                     setBilling((current) => resume(current));
-                    showToast("Subscription resumed");
+                    showToast(t("Subscription resumed"));
                     markSaved("subscription");
                   }}
                 >
-                  Resume
+                  {t("Resume")}
                 </button>
               )}
             </div>
           )}
           <Segmented
-            label="Switch plan"
+            label={t("Switch plan")}
             value={billing.status === "cancelled" ? "free" : billing.plan}
-            options={plans.map((item) => [item.id, item.price ? `${item.label} $${item.price.toFixed(2)}` : item.label])}
+            options={plans.map((item) => [item.id, item.price ? `${t(item.label)} $${item.price.toFixed(2)}` : t(item.label)])}
             onChange={choosePlan}
           />
-          <p className="muted-line">Simulated billing: no money is charged.</p>
+          <p className="muted-line">{t("Simulated billing: no money is charged.")}</p>
           <form
             className="input-row"
             onSubmit={(event) => {
               event.preventDefault();
               if (!promoCode.trim()) return;
               const result = app.applyPromo(promoCode);
-              setPromoError(result.ok ? null : result.error === "new-only" ? "This code is for accounts created in the last 30 days." : "This code isn't valid or has ended.");
+              setPromoError(result.ok ? null : result.error === "new-only" ? t("This code is for accounts created in the last 30 days.") : t("This code isn't valid or has ended."));
               if (result.ok) {
                 setPromoCode("");
                 markSaved("subscription");
               }
             }}
           >
-            <label className="visually-hidden" htmlFor="settings-promo">Promo code</label>
-            <input id="settings-promo" className="input mono" value={promoCode} onChange={(event) => setPromoCode(event.target.value)} placeholder="Promo code" aria-invalid={Boolean(promoError) || undefined} aria-describedby={promoError ? "settings-promo-error" : undefined} />
-            <button type="submit" className="button-secondary compact">Apply</button>
+            <label className="visually-hidden" htmlFor="settings-promo">{t("Promo code")}</label>
+            <input id="settings-promo" className="input mono" value={promoCode} onChange={(event) => setPromoCode(event.target.value)} placeholder={t("Promo code")} aria-invalid={Boolean(promoError) || undefined} aria-describedby={promoError ? "settings-promo-error" : undefined} />
+            <button type="submit" className="button-secondary compact">{t("Apply")}</button>
           </form>
           {promoError && <p id="settings-promo-error" className="field-error" role="alert">{promoError}</p>}
-          <Link to="/promotions" className="link-button">See promotions <Icon name="chevron" /></Link>
+          <Link to="/promotions" className="link-button">{t("See promotions")} <Icon name="chevron" /></Link>
         </div>
-        <h3 className="subsection-title">Billing history</h3>
+        <h3 className="subsection-title">{t("Billing history")}</h3>
         {billing.history.length ? (
           <table className="history-table">
             <thead>
-              <tr><th scope="col">Date</th><th scope="col">Item</th><th scope="col">Amount</th><th scope="col">Status</th></tr>
+              <tr><th scope="col">{t("Date")}</th><th scope="col">{t("Item")}</th><th scope="col">{t("Amount")}</th><th scope="col">{t("Status")}</th></tr>
             </thead>
             <tbody>
               {billing.history.map((entry) => (
                 <tr key={entry.date + entry.description}>
                   <td className="num">{formatDate(entry.date)}</td>
-                  <td>{entry.description}</td>
+                  <td>{entry.description.split(" · ").map((part, index) => (index ? part : t(part))).join(" · ")}</td>
                   <td className="num">${entry.amount.toFixed(2)}</td>
-                  <td>{entry.status}</td>
+                  <td>{t(entry.status)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="empty-line">No payments yet.</p>
+          <p className="empty-line">{t("No payments yet.")}</p>
         )}
       </section>
 
       <section id="payment" aria-labelledby="payment-title" className="settings-section">
-        <SectionHead id="payment" title="Payment options" saved={saved === "payment"} />
+        <SectionHead id="payment" title={t("Payment options")} saved={saved === "payment"} />
         {billing.methods.length ? (
           <ul className="alert-list">
             {billing.methods.map((method) => (
@@ -495,7 +496,7 @@ export default function Settings() {
                 <span className="square-logo" aria-hidden="true">{method.type === "card" ? "▭" : "P"}</span>
                 <span className="alert-main">
                   <strong className="num">{method.type === "card" ? `${method.brand} •••• ${method.last4}` : `PayPal · ${method.email}`}</strong>
-                  <span className="num">{method.type === "card" ? `Expires ${method.exp}` : "Simulated"}{method.id === defaultMethod?.id ? " · Default" : ""}</span>
+                  <span className="num">{method.type === "card" ? t("Expires {date}", { date: method.exp }) : t("Simulated")}{method.id === defaultMethod?.id ? ` · ${t("Default")}` : ""}</span>
                 </span>
                 {method.id !== defaultMethod?.id && (
                   <button
@@ -505,53 +506,59 @@ export default function Settings() {
                       markSaved("payment");
                     }}
                   >
-                    Make default
+                    {t("Make default")}
                   </button>
                 )}
-                <button className="icon-button small danger-text" onClick={() => removeMethod(method)} aria-label={`Remove ${method.type === "card" ? `${method.brand} ending ${method.last4}` : "PayPal"}`}>
+                <button className="icon-button small danger-text" onClick={() => removeMethod(method)} aria-label={method.type === "card" ? t("Remove {brand} ending {last4}", { brand: method.brand, last4: method.last4 }) : t("Remove PayPal")}>
                   <Icon name="trash" />
                 </button>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="empty-line">No payment methods yet.</p>
+          <p className="empty-line">{t("No payment methods yet.")}</p>
         )}
         <div className="button-row wrap">
-          <button className="button-secondary compact" onClick={() => setSheet("card")}><Icon name="plus" /> Add card</button>
-          <button className="button-secondary compact" onClick={() => setSheet("paypal")}><Icon name="plus" /> Add PayPal (simulated)</button>
+          <button className="button-secondary compact" onClick={() => setSheet("card")}><Icon name="plus" /> {t("Add card")}</button>
+          <button className="button-secondary compact" onClick={() => setSheet("paypal")}><Icon name="plus" /> {t("Add PayPal (simulated)")}</button>
         </div>
       </section>
 
       <section id="preferences" aria-labelledby="preferences-title" className="settings-section">
-        <SectionHead id="preferences" title="Preferences" saved={saved === "preferences"} />
-        <Segmented label="Theme" value={settings.theme} options={[["dark", "Dark"], ["light", "Light"], ["system", "System"]]} onChange={(theme) => setting("preferences", { theme })} />
+        <SectionHead id="preferences" title={t("Preferences")} saved={saved === "preferences"} />
         <label className="setting-row">
-          <span className="setting-label">Currency</span>
+          <span className="setting-label">{t("Language")}</span>
+          <select className="select" value={settings.language} onChange={(event) => setting("preferences", { language: event.target.value })}>
+            {languages.map((language) => <option key={language.id} value={language.id} lang={language.id}>{language.label}</option>)}
+          </select>
+        </label>
+        <Segmented label={t("Theme")} value={settings.theme} options={[["dark", t("Dark")], ["light", t("Light")], ["system", t("System")]]} onChange={(theme) => setting("preferences", { theme })} />
+        <label className="setting-row">
+          <span className="setting-label">{t("Currency")}</span>
           <select className="select" value={settings.currency} onChange={(event) => setting("preferences", { currency: event.target.value })}>
             {Object.keys(currencies).map((code) => <option key={code} value={code}>{code}</option>)}
           </select>
         </label>
         <Segmented
-          label="Up/down colours"
+          label={t("Up/down colours")}
           value={settings.colors}
-          options={[["standard", "Green up"], ["swapped", "Red up"], ["cb-safe", "Blue/orange (colour-blind)"]]}
+          options={[["standard", t("Green up")], ["swapped", t("Red up")], ["cb-safe", t("Blue/orange (colour-blind)")]]}
           onChange={(colors) => setting("preferences", { colors })}
         />
         <Segmented
-          label="Density"
+          label={t("Density")}
           value={settings.market.density}
-          options={[["simple", "Simple"], ["pro", "Pro"]]}
+          options={[["simple", t("Simple")], ["pro", t("Pro")]]}
           onChange={(density) => {
             updateMarketSettings({ density });
             markSaved("preferences");
           }}
         />
-        <Toggle label="Auto-refresh live prices" hint="Every 30 s while CPA is open" checked={settings.autoRefresh} onChange={(autoRefresh) => setting("preferences", { autoRefresh })} />
-        <Toggle label="Animations" hint="Price flashes and sliding sheets" checked={!settings.stopAnimations} onChange={(on) => setting("preferences", { stopAnimations: !on })} />
-        <Toggle label="Auto-advance onboarding cards" hint="Every 6 s, never with reduced motion" checked={settings.autoAdvance} onChange={(autoAdvance) => setting("preferences", { autoAdvance })} />
+        <Toggle label={t("Auto-refresh live prices")} hint={t("Every 30 s while CPA is open")} checked={settings.autoRefresh} onChange={(autoRefresh) => setting("preferences", { autoRefresh })} />
+        <Toggle label={t("Animations")} hint={t("Price flashes and sliding sheets")} checked={!settings.stopAnimations} onChange={(on) => setting("preferences", { stopAnimations: !on })} />
+        <Toggle label={t("Auto-advance onboarding cards")} hint={t("Every 6 s, never with reduced motion")} checked={settings.autoAdvance} onChange={(autoAdvance) => setting("preferences", { autoAdvance })} />
         <label className="setting-row">
-          <span className="setting-label">Default chart range</span>
+          <span className="setting-label">{t("Default chart range")}</span>
           <select className="select" value={settings.chartRange} onChange={(event) => setting("preferences", { chartRange: event.target.value })}>
             {ranges.map((range) => <option key={range.id} value={range.id}>{range.id}</option>)}
           </select>
@@ -560,11 +567,11 @@ export default function Settings() {
       </section>
 
       <section id="notifications" aria-labelledby="notifications-title" className="settings-section">
-        <SectionHead id="notifications" title="Notifications" saved={saved === "notifications"} />
-        <Toggle label="Weekly digest" hint="Mondays 08:00, shown in Alerts" checked={settings.weeklyDigest} onChange={(weeklyDigest) => setting("notifications", { weeklyDigest })} />
+        <SectionHead id="notifications" title={t("Notifications")} saved={saved === "notifications"} />
+        <Toggle label={t("Weekly digest")} hint={t("Mondays 08:00, shown in Alerts")} checked={settings.weeklyDigest} onChange={(weeklyDigest) => setting("notifications", { weeklyDigest })} />
         <Toggle
-          label="Quiet hours"
-          hint="Only alerts set to bypass quiet hours make a sound or banner"
+          label={t("Quiet hours")}
+          hint={t("Only alerts set to bypass quiet hours make a sound or banner")}
           checked={settings.quietHours.enabled}
           onChange={(enabled) => setting("notifications", { quietHours: { ...settings.quietHours, enabled } })}
         />
@@ -572,7 +579,7 @@ export default function Settings() {
           <div className="custom-range">
             {["start", "end"].map((key) => (
               <label key={key} className="form-field">
-                <span>{key === "start" ? "From" : "To"}</span>
+                <span>{key === "start" ? t("From") : t("To")}</span>
                 <input type="time" className="input" value={settings.quietHours[key]} onChange={(event) => setting("notifications", { quietHours: { ...settings.quietHours, [key]: event.target.value } })} />
               </label>
             ))}
@@ -580,8 +587,8 @@ export default function Settings() {
         )}
         <div className="setting-row">
           <span className="setting-label">
-            Browser notifications
-            <small>{{ granted: "On", denied: "Blocked in your browser settings", default: "Off", unsupported: "Not supported in this browser" }[permission]}</small>
+            {t("Browser notifications")}
+            <small>{t({ granted: "On", denied: "Blocked in your browser settings", default: "Off", unsupported: "Not supported in this browser" }[permission])}</small>
           </span>
           {permission === "default" && (
             <button
@@ -591,55 +598,55 @@ export default function Settings() {
                 app.markAsked();
               }}
             >
-              Turn on
+              {t("Turn on")}
             </button>
           )}
         </div>
-        <Link to="/alerts?tab=my-alerts" className="link-button">Manage alerts <Icon name="chevron" /></Link>
+        <Link to="/alerts?tab=my-alerts" className="link-button">{t("Manage alerts")} <Icon name="chevron" /></Link>
       </section>
 
       <section id="privacy" aria-labelledby="privacy-title" className="settings-section">
-        <SectionHead id="privacy" title="Privacy" saved={saved === "privacy"} />
+        <SectionHead id="privacy" title={t("Privacy")} saved={saved === "privacy"} />
         <div className="setting-row">
-          <span className="setting-label">Recently viewed coins<small className="num">{app.recentCoins.length} saved</small></span>
-          <button className="button-secondary compact" disabled={!app.recentCoins.length} onClick={() => { app.clearRecentCoins(); markSaved("privacy"); }}>Clear history</button>
+          <span className="setting-label">{t("Recently viewed coins")}<small className="num">{t("{count} saved", { count: app.recentCoins.length })}</small></span>
+          <button className="button-secondary compact" disabled={!app.recentCoins.length} onClick={() => { app.clearRecentCoins(); markSaved("privacy"); }}>{t("Clear history")}</button>
         </div>
         <div className="setting-row">
-          <span className="setting-label">Recent searches<small className="num">{app.recentSearches.length} saved</small></span>
-          <button className="button-secondary compact" disabled={!app.recentSearches.length} onClick={() => { app.clearRecentSearches(); markSaved("privacy"); }}>Clear</button>
+          <span className="setting-label">{t("Recent searches")}<small className="num">{t("{count} saved", { count: app.recentSearches.length })}</small></span>
+          <button className="button-secondary compact" disabled={!app.recentSearches.length} onClick={() => { app.clearRecentSearches(); markSaved("privacy"); }}>{t("Clear")}</button>
         </div>
-        <Toggle label="Usage analytics" hint="Local only, never sent anywhere" checked={settings.analytics} onChange={(analytics) => setting("privacy", { analytics })} />
-        <button className="button-secondary compact" onClick={exportData}>Export my data (.json)</button>
+        <Toggle label={t("Usage analytics")} hint={t("Local only, never sent anywhere")} checked={settings.analytics} onChange={(analytics) => setting("privacy", { analytics })} />
+        <button className="button-secondary compact" onClick={exportData}>{t("Export my data (.json)")}</button>
       </section>
 
       <section id="accessibility" aria-labelledby="accessibility-title" className="settings-section">
-        <SectionHead id="accessibility" title="Accessibility" saved={saved === "accessibility"} />
+        <SectionHead id="accessibility" title={t("Accessibility")} saved={saved === "accessibility"} />
         <button className="menu-link" onClick={() => app.setAccessibilityOpen(true)}>
-          Open accessibility menu <Icon name="chevron" />
+          {t("Open accessibility menu")} <Icon name="chevron" />
         </button>
         <details className="shortcuts">
-          <summary className="menu-link">Keyboard shortcuts <Icon name="chevronDown" /></summary>
+          <summary className="menu-link">{t("Keyboard shortcuts")} <Icon name="chevronDown" /></summary>
           <dl>
             {shortcuts.map((item) => (
-              <div key={item.keys}><dt><kbd>{item.keys}</kbd></dt><dd>{item.action}</dd></div>
+              <div key={item.keys}><dt><kbd>{item.keys}</kbd></dt><dd>{t(item.action)}</dd></div>
             ))}
           </dl>
         </details>
-        <Toggle label="Chart text summaries" hint="Show the text summary under every chart" checked={settings.chartSummaries} onChange={(chartSummaries) => setting("accessibility", { chartSummaries })} />
+        <Toggle label={t("Chart text summaries")} hint={t("Show the text summary under every chart")} checked={settings.chartSummaries} onChange={(chartSummaries) => setting("accessibility", { chartSummaries })} />
       </section>
 
       <section id="danger-zone" aria-labelledby="danger-zone-title" className="settings-section danger-zone">
-        <SectionHead id="danger-zone" title="Danger zone" />
-        <h3 className="subsection-title">Delete account</h3>
+        <SectionHead id="danger-zone" title={t("Danger zone")} />
+        <h3 className="subsection-title">{t("Delete account")}</h3>
         {demo ? (
-          <p className="muted-line">Not available in the demo.</p>
+          <p className="muted-line">{t("Not available in the demo.")}</p>
         ) : (
           <>
-            <p className="muted-line">Cancel your subscription first. Deleting removes your access to CPA. To remove your data too, contact support.</p>
+            <p className="muted-line">{t("Cancel your subscription first. Deleting removes your access to CPA. To remove your data too, contact support.")}</p>
             {blocksDeletion(billing) && (
               <p className="warning-text" id="delete-blocked">
-                Cancel your subscription first. Delete won't work until it is cancelled.{" "}
-                <button className="link-button inline" onClick={() => setSheet("cancel")}>Cancel subscription</button>
+                {t("Cancel your subscription first. Delete won't work until it is cancelled.")}{" "}
+                <button className="link-button inline" onClick={() => setSheet("cancel")}>{t("Cancel subscription")}</button>
               </p>
             )}
             <button
@@ -648,7 +655,7 @@ export default function Settings() {
               aria-describedby={blocksDeletion(billing) ? "delete-blocked" : undefined}
               onClick={() => setSheet("delete")}
             >
-              Delete account
+              {t("Delete account")}
             </button>
           </>
         )}
@@ -658,7 +665,7 @@ export default function Settings() {
       <AddCardSheet key={sheet === "card" ? "card-open" : "card"} open={sheet === "card"} onClose={closeSheet} onAdd={addMethod} />
       {!demo && <DeleteAccountSheet key={sheet === "delete" ? "del-open" : "del"} open={sheet === "delete"} onClose={closeSheet} email={session.email} />}
 
-      <Sheet open={sheet === "paypal"} onClose={closeSheet} title="Add PayPal (simulated)" side="bottom">
+      <Sheet open={sheet === "paypal"} onClose={closeSheet} title={t("Add PayPal (simulated)")} side="bottom">
         <form
           className="tx-form"
           onSubmit={(event) => {
@@ -669,43 +676,43 @@ export default function Settings() {
             closeSheet();
           }}
         >
-          <p className="sheet-note">No PayPal account is contacted. CPA stores only the email you enter.</p>
+          <p className="sheet-note">{t("No PayPal account is contacted. CPA stores only the email you enter.")}</p>
           <label className="form-field">
-            <span>PayPal email</span>
+            <span>{t("PayPal email")}</span>
             <input className="input" type="email" value={paypal} onChange={(event) => setPaypal(event.target.value)} />
           </label>
-          <button type="submit" className="button-primary" disabled={!isEmail(paypal)}>Add PayPal</button>
+          <button type="submit" className="button-primary" disabled={!isEmail(paypal)}>{t("Add PayPal")}</button>
         </form>
       </Sheet>
 
-      <Sheet open={sheet === "day"} onClose={closeSheet} title="Change billing date" side="bottom">
+      <Sheet open={sheet === "day"} onClose={closeSheet} title={t("Change billing date")} side="bottom">
         <label className="form-field">
-          <span>Bill me on day</span>
+          <span>{t("Bill me on day")}</span>
           <select className="input" value={billingDay} onChange={(event) => setBillingDay(Number(event.target.value))}>
             {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => <option key={day} value={day}>{day}</option>)}
           </select>
         </label>
-        <p className="sheet-note num">Next billing date: {formatDate(changeBillingDay(billing, billingDay).nextBilling)}</p>
+        <p className="sheet-note num">{t("Next billing date: {date}", { date: formatDate(changeBillingDay(billing, billingDay).nextBilling) })}</p>
         <button
           className="button-primary"
           onClick={() => {
             setBilling((current) => changeBillingDay(current, billingDay));
-            showToast("Billing date changed");
+            showToast(t("Billing date changed"));
             markSaved("subscription");
             closeSheet();
           }}
         >
-          Save billing date
+          {t("Save billing date")}
         </button>
       </Sheet>
 
-      <Sheet open={sheet === "pause"} onClose={closeSheet} title="Pause subscription" side="bottom">
+      <Sheet open={sheet === "pause"} onClose={closeSheet} title={t("Pause subscription")} side="bottom">
         <fieldset className="field-group">
-          <legend>Pause for</legend>
+          <legend>{t("Pause for")}</legend>
           {[1, 2, 3].map((months) => (
             <label key={months} className="check-row">
               <input type="radio" name="pause" checked={pauseMonths === months} onChange={() => setPauseMonths(months)} />
-              {months} {months === 1 ? "month" : "months"} · until {formatDate(pause(billing, months).pausedUntil)}
+              {tn(months, "{count} month · until {date}", "{count} months · until {date}", { date: formatDate(pause(billing, months).pausedUntil) })}
             </label>
           ))}
         </fieldset>
@@ -713,48 +720,52 @@ export default function Settings() {
           className="button-primary"
           onClick={() => {
             setBilling((current) => pause(current, pauseMonths));
-            showToast("Subscription paused");
+            showToast(t("Subscription paused"));
             markSaved("subscription");
             closeSheet();
           }}
         >
-          Pause subscription
+          {t("Pause subscription")}
         </button>
       </Sheet>
 
-      <Sheet open={sheet === "cancel"} onClose={closeSheet} title="Cancel subscription?" side="bottom">
-        <p className="sheet-note num">You keep Pro until {formatDate(billing.nextBilling ?? billing.pausedUntil)}, then move to Free. You can resume before then.</p>
+      <Sheet open={sheet === "cancel"} onClose={closeSheet} title={t("Cancel subscription?")} side="bottom">
+        <p className="sheet-note num">{t("You keep Pro until {date}, then move to Free. You can resume before then.", { date: formatDate(billing.nextBilling ?? billing.pausedUntil) })}</p>
         <div className="sheet-actions">
-          <button className="button-secondary" onClick={closeSheet}>Keep Pro</button>
+          <button className="button-secondary" onClick={closeSheet}>{t("Keep Pro")}</button>
           <button
             className="button-primary danger-fill"
             onClick={() => {
               setBilling((current) => cancel(current));
-              showToast("Subscription cancelled");
+              showToast(t("Subscription cancelled"));
               markSaved("subscription");
               closeSheet();
             }}
           >
-            Cancel subscription
+            {t("Cancel subscription")}
           </button>
         </div>
       </Sheet>
 
-      <Sheet open={sheet === "plan"} onClose={closeSheet} title={`Switch to ${planById(planTarget).label}?`} side="bottom">
+      <Sheet open={sheet === "plan"} onClose={closeSheet} title={t("Switch to {plan}?", { plan: t(planById(planTarget).label) })} side="bottom">
         <p className="sheet-note num">
-          ${(discountedPrice(promo, planById(planTarget)) ?? planById(planTarget).price).toFixed(2)} charged today to {defaultMethod?.type === "card" ? `${defaultMethod.brand} •••• ${defaultMethod.last4}` : "PayPal"} (simulated), then every {planById(planTarget).period}.
+          {t("{amount} charged today to {method} (simulated), then every {period}.", {
+            amount: `$${(discountedPrice(promo, planById(planTarget)) ?? planById(planTarget).price).toFixed(2)}`,
+            method: defaultMethod?.type === "card" ? `${defaultMethod.brand} •••• ${defaultMethod.last4}` : "PayPal",
+            period: t(planById(planTarget).period ?? "month"),
+          })}
         </p>
         <button
           className="button-primary"
           onClick={() => {
             setBilling((current) => subscribe(current, planTarget, new Date(), discountedPrice(promo, planById(planTarget))));
             setBillingDay(Math.min(new Date().getDate(), 28));
-            showToast(`You're on ${planById(planTarget).label}`);
+            showToast(t("You're on {plan}", { plan: t(planById(planTarget).label) }));
             markSaved("subscription");
             closeSheet();
           }}
         >
-          Confirm
+          {t("Confirm")}
         </button>
       </Sheet>
     </div>

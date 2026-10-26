@@ -354,6 +354,7 @@ CREATE TABLE user_settings (
   user_id uuid PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
 
   -- Display
+  language        text NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'es')),  -- lib/i18n.js
   currency        text NOT NULL DEFAULT 'USD' CHECK (currency ~ '^[A-Z]{3}$'),
   theme           text NOT NULL DEFAULT 'dark' CHECK (theme IN ('dark', 'light', 'system')),
   colors          text NOT NULL DEFAULT 'standard' CHECK (colors IN ('standard', 'swapped', 'cb-safe')),

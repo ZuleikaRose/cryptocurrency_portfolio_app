@@ -7,6 +7,7 @@ import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds, funds, roundSectors, roundTypeList, TODAY } from "../data/research.js";
 import { direction, formatCompact, formatDate, formatPercent, relativeTime } from "../lib/format.js";
 import { useFirstLoad, useSimulatedError } from "../lib/hooks.js";
+import { t, tn } from "../lib/i18n.js";
 import { shareCard } from "../lib/share.js";
 import { normalizeFundraisingFilters, useApp } from "../state/context.js";
 
@@ -33,9 +34,9 @@ function applyFilters(rounds, filters, now) {
 
 function filterChips(filters) {
   const chips = [];
-  filters.sectors.forEach((sector) => chips.push({ id: `s-${sector}`, label: sector, patch: { sectors: filters.sectors.filter((item) => item !== sector) } }));
-  filters.types.forEach((type) => chips.push({ id: `t-${type}`, label: type, patch: { types: filters.types.filter((item) => item !== type) } }));
-  if (filters.days !== 90) chips.push({ id: "days", label: filters.days ? `Last ${filters.days} days` : "All time", patch: { days: 90 } });
+  filters.sectors.forEach((sector) => chips.push({ id: `s-${sector}`, label: t(sector), patch: { sectors: filters.sectors.filter((item) => item !== sector) } }));
+  filters.types.forEach((type) => chips.push({ id: `t-${type}`, label: t(type), patch: { types: filters.types.filter((item) => item !== type) } }));
+  if (filters.days !== 90) chips.push({ id: "days", label: filters.days ? t("Last {count} days", { count: filters.days }) : t("All time"), patch: { days: 90 } });
   if (filters.minAmount) chips.push({ id: "min", label: `≥ ${formatCompact(filters.minAmount)}`, patch: { minAmount: 0 } });
   if (filters.maxAmount) chips.push({ id: "max", label: `≤ ${formatCompact(filters.maxAmount)}`, patch: { maxAmount: null } });
   if (filters.investor) chips.push({ id: "inv", label: fundById(filters.investor)?.name ?? filters.investor, patch: { investor: "" } });
@@ -48,32 +49,32 @@ function FilterSheet({ open, onClose, filters, onApply, now }) {
   const matching = applyFilters(fundingRounds, draft, now).length;
 
   return (
-    <Sheet open={open} onClose={onClose} title="Filters" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Filters")} side="bottom">
       <fieldset className="field-group">
-        <legend>Sector</legend>
+        <legend>{t("Sector")}</legend>
         <div className="chip-row">
           {roundSectors.map((sector) => (
             <button key={sector} className={draft.sectors.includes(sector) ? "chip toggle on" : "chip toggle"} aria-pressed={draft.sectors.includes(sector)} onClick={() => toggle("sectors", sector)}>
-              {sector}
+              {t(sector)}
             </button>
           ))}
         </div>
       </fieldset>
       <fieldset className="field-group">
-        <legend>Round</legend>
+        <legend>{t("Round")}</legend>
         <div className="chip-row">
           {roundTypeList.map((type) => (
             <button key={type} className={draft.types.includes(type) ? "chip toggle on" : "chip toggle"} aria-pressed={draft.types.includes(type)} onClick={() => toggle("types", type)}>
-              {type}
+              {t(type)}
             </button>
           ))}
         </div>
       </fieldset>
       <fieldset className="field-group">
-        <legend>Amount</legend>
+        <legend>{t("Amount")}</legend>
         <div className="custom-range">
           <label className="form-field">
-            <span>At least</span>
+            <span>{t("At least")}</span>
             <select className="select" value={draft.minAmount} onChange={(event) => setDraft({ ...draft, minAmount: Number(event.target.value) })}>
               {amountSteps.map((value) => (
                 <option key={value} value={value}>{value ? formatCompact(value) : "Any"}</option>
@@ -81,7 +82,7 @@ function FilterSheet({ open, onClose, filters, onApply, now }) {
             </select>
           </label>
           <label className="form-field">
-            <span>At most</span>
+            <span>{t("At most")}</span>
             <select className="select" value={draft.maxAmount ?? 0} onChange={(event) => setDraft({ ...draft, maxAmount: Number(event.target.value) || null })}>
               {[0, ...amountSteps.slice(1), 100e6].map((value) => (
                 <option key={value} value={value}>{value ? formatCompact(value) : "Any"}</option>
@@ -91,19 +92,19 @@ function FilterSheet({ open, onClose, filters, onApply, now }) {
         </div>
       </fieldset>
       <fieldset className="field-group">
-        <legend>Date</legend>
+        <legend>{t("Date")}</legend>
         <div className="segmented" role="group">
           {dayOptions.map(([days, label]) => (
             <button key={days} className={draft.days === days ? "segment active" : "segment"} aria-pressed={draft.days === days} onClick={() => setDraft({ ...draft, days })}>
-              {days ? `${days}d` : label}
+              {days ? `${days}d` : t(label)}
             </button>
           ))}
         </div>
       </fieldset>
       <label className="field-group">
-        <span className="legend">Investor</span>
+        <span className="legend">{t("Investor")}</span>
         <select className="select" value={draft.investor} onChange={(event) => setDraft({ ...draft, investor: event.target.value })}>
-          <option value="">Any investor</option>
+          <option value="">{t("Any investor")}</option>
           {funds.map((fund) => (
             <option key={fund.id} value={fund.id}>{fund.name}</option>
           ))}
@@ -111,7 +112,7 @@ function FilterSheet({ open, onClose, filters, onApply, now }) {
       </label>
       <div className="sheet-actions">
         <button className="button-secondary" onClick={() => setDraft({ sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "", sort: draft.sort })}>
-          Reset
+          {t("Reset")}
         </button>
         <button
           className="button-primary"
@@ -120,7 +121,7 @@ function FilterSheet({ open, onClose, filters, onApply, now }) {
             onClose();
           }}
         >
-          Show {matching} rounds
+          {tn(matching, "Show {count} round", "Show {count} rounds")}
         </button>
       </div>
     </Sheet>
@@ -143,7 +144,7 @@ export default function Fundraising() {
   const setFilters = (patch) => updateSettings({ fundraising: { ...filters, ...patch } });
 
   useEffect(() => {
-    document.title = "Fundraising · CPA";
+    document.title = `${t("Fundraising")} · CPA`;
   }, []);
 
   const rounds = applyFilters(fundingRounds, filters, now).sort((a, b) => (filters.sort === "amount" ? b.amount - a.amount : b.date - a.date));
@@ -166,19 +167,19 @@ export default function Fundraising() {
   const onShare = async (round) => {
     const result = await shareCard({
       fileName: `cpa-${round.project.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${round.type.toLowerCase().replace(/\s+/g, "-")}`,
-      title: `${round.project} · ${round.type}`,
+      title: `${round.project} · ${t(round.type)}`,
       headline: formatCompact(round.amount),
-      detail: `${round.sector} · ${formatDate(round.date)}${round.valuation ? ` · Val. ${formatCompact(round.valuation)}` : ""}`,
+      detail: `${t(round.sector)} · ${formatDate(round.date)}${round.valuation ? ` · ${t("Val. {value}", { value: formatCompact(round.valuation) })}` : ""}`,
     });
-    if (result === "downloaded") showToast(`Share card for ${round.project} downloaded`);
-    if (result === "failed") showToast("Couldn't create the share card in this browser.");
+    if (result === "downloaded") showToast(t("Share card for {name} downloaded", { name: round.project }));
+    if (result === "failed") showToast(t("Couldn't create the share card in this browser."));
   };
 
   return (
     <div className="fundraising">
-      <h1>Fundraising</h1>
+      <h1>{t("Fundraising")}</h1>
       <p className="page-sub num">
-        {formatCompact(current)} raised in the last {windowDays} days
+        {t("{amount} raised in the last {count} days", { amount: formatCompact(current), count: windowDays })}
         {change != null && (
           <span className={direction(change)}>
             {" "}
@@ -187,13 +188,13 @@ export default function Fundraising() {
         )}
       </p>
 
-      <div className="segmented" role="group" aria-label="View">
+      <div className="segmented" role="group" aria-label={t("View")}>
         {[
           ["rounds", "Rounds"],
           ["funds", "Funds"],
         ].map(([id, label]) => (
           <button key={id} className={view === id ? "segment active" : "segment"} aria-pressed={view === id} onClick={() => setView(id)}>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -206,10 +207,10 @@ export default function Fundraising() {
                 <span className="square-logo" aria-hidden="true">{fund.name[0]}</span>
                 <span className="result-main">
                   <strong>
-                    {fund.name} <span className="tag">Tier {fund.tier}</span>
+                    {fund.name} <span className="tag">{t("Tier {tier}", { tier: fund.tier })}</span>
                   </strong>
                   <span className="num">
-                    {fund.deals} deals · {fund.deals30d} in 30d · {fund.type}
+                    {t("{deals} deals · {recent} in 30d · {type}", { deals: fund.deals, recent: fund.deals30d, type: t(fund.type) })}
                   </span>
                 </span>
                 <Icon name="chevron" />
@@ -219,44 +220,44 @@ export default function Fundraising() {
         </ul>
       ) : (
         <>
-          <div className="saved-row" role="group" aria-label="Saved filters">
+          <div className="saved-row" role="group" aria-label={t("Saved filters")}>
             {savedFilters.map((saved) => (
               <span key={saved.id} className="saved-chip">
                 <button className="chip" onClick={() => updateSettings({ fundraising: normalizeFundraisingFilters({ ...saved.filters, sort: filters.sort }) })}>{saved.name}</button>
-                <button className="icon-button small" onClick={() => { setManage(saved); setName(saved.name); }} aria-label={`Rename or delete ${saved.name}`}>⋯</button>
+                <button className="icon-button small" onClick={() => { setManage(saved); setName(saved.name); }} aria-label={t("Rename or delete {name}", { name: saved.name })}>⋯</button>
               </span>
             ))}
             <button
               className="chip add-chip"
               onClick={() =>
-                requireAuth("Sign in to save filters", () => {
-                  setName(chips.map((chip) => chip.label).join(" + ").slice(0, 30) || "My filters");
+                requireAuth(t("Sign in to save filters"), () => {
+                  setName(chips.map((chip) => chip.label).join(" + ").slice(0, 30) || t("My filters"));
                   setSaveOpen(true);
                 })
               }
             >
-              + Save
+              + {t("Save")}
             </button>
           </div>
 
           <div className="list-controls">
             <button className="button-secondary compact" onClick={() => setFilterOpen(true)}>
-              <Icon name="swap" /> Filters{activeCount > 0 && <span className="count-badge num">{activeCount}</span>}
+              <Icon name="swap" /> {t("Filters")}{activeCount > 0 && <span className="count-badge num">{activeCount}</span>}
             </button>
             <label className="inline-select">
-              Sort
+              {t("Sort")}
               <select className="select" value={filters.sort} onChange={(event) => setFilters({ sort: event.target.value })}>
-                <option value="newest">Newest</option>
-                <option value="amount">Amount</option>
+                <option value="newest">{t("Newest")}</option>
+                <option value="amount">{t("Amount")}</option>
               </select>
             </label>
           </div>
 
           {chips.length > 0 && (
-            <ul className="chip-row" aria-label="Active filters">
+            <ul className="chip-row" aria-label={t("Active filters")}>
               {chips.map((chip) => (
                 <li key={chip.id}>
-                  <button className="chip" onClick={() => setFilters(chip.patch)} aria-label={`Remove filter: ${chip.label}`}>
+                  <button className="chip" onClick={() => setFilters(chip.patch)} aria-label={t("Remove filter: {label}", { label: chip.label })}>
                     {chip.label} <Icon name="close" />
                   </button>
                 </li>
@@ -265,17 +266,17 @@ export default function Fundraising() {
           )}
 
           {failed ? (
-            <ErrorBanner what="funding rounds" onRetry={retry} />
+            <ErrorBanner what={t("funding rounds")} onRetry={retry} />
           ) : loading ? (
-            <SkeletonCards count={4} label="funding rounds" />
+            <SkeletonCards count={4} label={t("funding rounds")} />
           ) : (
             <>
-              <p className="result-count" role="status">{rounds.length} rounds</p>
+              <p className="result-count" role="status">{tn(rounds.length, "{count} round", "{count} rounds")}</p>
               {rounds.length === 0 ? (
                 <div className="empty-state">
-                  <p>No rounds match these filters.</p>
+                  <p>{t("No rounds match these filters.")}</p>
                   <button className="button-secondary" onClick={() => setFilters({ sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "" })}>
-                    Reset filters
+                    {t("Reset filters")}
                   </button>
                 </div>
               ) : (
@@ -291,24 +292,24 @@ export default function Fundraising() {
                           ) : (
                             <button className="round-title link-button" onClick={() => setRoundSheet(round)}>{round.project}</button>
                           )}
-                          <span className="tag tag-fundraising">{round.type}</span>
-                          <span className="tag">{round.sector}</span>
+                          <span className="tag tag-fundraising">{t(round.type)}</span>
+                          <span className="tag">{t(round.sector)}</span>
                         </div>
                         <p className="num">
-                          <strong>{formatCompact(round.amount)}</strong> raised · Val. {round.valuation ? formatCompact(round.valuation) : "undisclosed"}
+                          <strong>{formatCompact(round.amount)}</strong> {t("raised")} · {t("Val. {value}", { value: round.valuation ? formatCompact(round.valuation) : t("undisclosed") })}
                         </p>
                         <p className="muted-line num">
                           {formatDate(round.date)} · {relativeTime(round.date.getTime(), now)}
                         </p>
                         <div className="round-foot">
                           <InvestorStack round={round} />
-                          <span className="muted-inline">Lead: {fundById(round.leads[0])?.name}</span>
+                          <span className="muted-inline">{t("Lead: {name}", { name: fundById(round.leads[0])?.name })}</span>
                           <span className="round-actions">
-                            <button className="icon-button small" onClick={() => onShare(round)} aria-label={`Share ${round.project} ${round.type} round`}>
+                            <button className="icon-button small" onClick={() => onShare(round)} aria-label={t("Share {project} {type} round", { project: round.project, type: t(round.type) })}>
                               <Icon name="share" />
                             </button>
                             <button className={following ? "chip toggle on" : "chip toggle"} aria-pressed={following} onClick={() => toggleFollowProject(round.project)}>
-                              {following ? "Following" : "Follow"}
+                              {following ? t("Following") : t("Follow")}
                             </button>
                           </span>
                         </div>
@@ -322,11 +323,11 @@ export default function Fundraising() {
         </>
       )}
 
-      <p className="disclaimer">Not financial advice. Data provided for informational purposes. Funding rounds are CPA sample data.</p>
+      <p className="disclaimer">{t("Not financial advice. Data provided for informational purposes.")} {t("Funding rounds are CPA sample data.")}</p>
 
       <FilterSheet key={filterOpen ? "open" : "closed"} open={filterOpen} onClose={() => setFilterOpen(false)} filters={filters} onApply={(next) => setFilters(next)} now={now} />
 
-      <Sheet open={saveOpen} onClose={() => setSaveOpen(false)} title="Save filter" side="bottom">
+      <Sheet open={saveOpen} onClose={() => setSaveOpen(false)} title={t("Save filter")} side="bottom">
         <form
           className="tx-form"
           onSubmit={(event) => {
@@ -337,14 +338,14 @@ export default function Fundraising() {
           }}
         >
           <label className="form-field">
-            <span>Name (up to 30 characters)</span>
+            <span>{t("Name (up to 30 characters)")}</span>
             <input className="input" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} autoFocus />
           </label>
-          <button type="submit" className="button-primary" disabled={!name.trim()}>Save filter</button>
+          <button type="submit" className="button-primary" disabled={!name.trim()}>{t("Save filter")}</button>
         </form>
       </Sheet>
 
-      <Sheet open={Boolean(manage)} onClose={() => setManage(null)} title="Saved filter" side="bottom">
+      <Sheet open={Boolean(manage)} onClose={() => setManage(null)} title={t("Saved filter")} side="bottom">
         {manage && (
           <form
             className="tx-form"
@@ -356,10 +357,10 @@ export default function Fundraising() {
             }}
           >
             <label className="form-field">
-              <span>Name</span>
+              <span>{t("Name")}</span>
               <input className="input" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} />
             </label>
-            <button type="submit" className="button-primary" disabled={!name.trim()}>Rename</button>
+            <button type="submit" className="button-primary" disabled={!name.trim()}>{t("Rename")}</button>
             <button
               type="button"
               className="button-secondary button-block danger-text"
@@ -368,22 +369,22 @@ export default function Fundraising() {
                 setManage(null);
               }}
             >
-              Delete filter
+              {t("Delete filter")}
             </button>
           </form>
         )}
       </Sheet>
 
-      <Sheet open={Boolean(roundSheet)} onClose={() => setRoundSheet(null)} title={roundSheet ? `${roundSheet.project} · ${roundSheet.type}` : "Round"} side="bottom">
+      <Sheet open={Boolean(roundSheet)} onClose={() => setRoundSheet(null)} title={roundSheet ? `${roundSheet.project} · ${t(roundSheet.type)}` : t("Round")} side="bottom">
         {roundSheet && (
           <>
             <dl className="stats">
-              <div><dt>Raised</dt><dd className="num">{formatCompact(roundSheet.amount)}</dd></div>
-              <div><dt>Valuation</dt><dd className="num">{roundSheet.valuation ? formatCompact(roundSheet.valuation) : "Undisclosed"}</dd></div>
-              <div><dt>Date</dt><dd>{formatDate(roundSheet.date)}</dd></div>
-              <div><dt>Sector</dt><dd>{roundSheet.sector}</dd></div>
+              <div><dt>{t("Raised")}</dt><dd className="num">{formatCompact(roundSheet.amount)}</dd></div>
+              <div><dt>{t("Valuation")}</dt><dd className="num">{roundSheet.valuation ? formatCompact(roundSheet.valuation) : t("Undisclosed")}</dd></div>
+              <div><dt>{t("Date")}</dt><dd>{formatDate(roundSheet.date)}</dd></div>
+              <div><dt>{t("Sector")}</dt><dd>{t(roundSheet.sector)}</dd></div>
             </dl>
-            <h3 className="sheet-heading">Investors</h3>
+            <h3 className="sheet-heading">{t("Investors")}</h3>
             <ul className="result-list">
               {roundSheet.investors.map((id) => (
                 <li key={id}>
@@ -391,14 +392,14 @@ export default function Fundraising() {
                     <span className="square-logo" aria-hidden="true">{fundById(id)?.name[0]}</span>
                     <span className="result-main">
                       <strong>{fundById(id)?.name}</strong>
-                      <span>{roundSheet.leads.includes(id) ? "Lead investor" : "Participant"}</span>
+                      <span>{roundSheet.leads.includes(id) ? t("Lead investor") : t("Participant")}</span>
                     </span>
                     <Icon name="chevron" />
                   </Link>
                 </li>
               ))}
             </ul>
-            <p className="sheet-note">{roundSheet.project} has no token listed in CPA yet.</p>
+            <p className="sheet-note">{t("{project} has no token listed in CPA yet.", { project: roundSheet.project })}</p>
           </>
         )}
       </Sheet>

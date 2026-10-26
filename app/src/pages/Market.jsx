@@ -18,6 +18,7 @@ import {
 import { useNow, useOnline } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { marketCapChange24h } from "../lib/market.js";
+import { locale, t } from "../lib/i18n.js";
 
 const views = [
   { id: "coins", label: "Coins", title: "Top cryptocurrencies" },
@@ -46,12 +47,12 @@ let hasLoadedOnce = false;
 
 
 function subtitleFor(view, market) {
-  if (view === "gainers") return `Biggest ${market.gainersWindow} gains · volume over $100K`;
-  if (view === "new") return `Listed in the last ${NEW_WITHIN_DAYS} days`;
-  if (view === "watchlist" && market.sort === "rank") return "Your starred coins, by rank";
+  if (view === "gainers") return t("Biggest {window} gains · volume over $100K", { window: market.gainersWindow });
+  if (view === "new") return t("Listed in the last {days} days", { days: NEW_WITHIN_DAYS });
+  if (view === "watchlist" && market.sort === "rank") return t("Your starred coins, by rank");
   const option = sortOptions.find((item) => item.id === market.sort) ?? sortOptions[0];
-  if (option.id === "rank") return "By market capitalization";
-  return `By ${option.phrase}, ${market.dir === "desc" ? "high to low" : "low to high"}`;
+  if (option.id === "rank") return t("By market capitalization");
+  return t(market.dir === "desc" ? "By {phrase}, high to low" : "By {phrase}, low to high", { phrase: t(option.phrase) });
 }
 
 function selectRows(coins, view, market, watchlist) {
@@ -90,12 +91,12 @@ function CurrencyMenu({ currency, onChange }) {
   return (
     <div className="currency-menu" ref={ref}>
       <button className="currency" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <span className="visually-hidden">Display currency: </span>
+        <span className="visually-hidden">{t("Display currency:")} </span>
         {currency}
         <Icon name="chevronDown" />
       </button>
       {open && (
-        <ul className="popover" aria-label="Display currency">
+        <ul className="popover" aria-label={t("Display currency")}>
           {Object.keys(currencies).map((code) => (
             <li key={code}>
               <button
@@ -126,9 +127,9 @@ function SortSheet({ open, onClose, market, onApply }) {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Sort and filter" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Sort and filter")} side="bottom">
       <fieldset className="field-group">
-        <legend>Sort by</legend>
+        <legend>{t("Sort by")}</legend>
         <div className="choice-grid">
           {sortOptions.map((option) => (
             <label key={option.id} className="choice">
@@ -138,30 +139,30 @@ function SortSheet({ open, onClose, market, onApply }) {
                 checked={draft.sort === option.id}
                 onChange={() => setDraft({ ...draft, sort: option.id, dir: option.id === "rank" ? "asc" : "desc" })}
               />
-              <span>{option.label}</span>
+              <span>{t(option.label)}</span>
             </label>
           ))}
         </div>
       </fieldset>
 
       <fieldset className="field-group">
-        <legend>Order</legend>
+        <legend>{t("Order")}</legend>
         <div className="segmented" role="group">
           {[
             ["desc", draft.sort === "rank" ? "Last first" : "High to low"],
             ["asc", draft.sort === "rank" ? "#1 first" : "Low to high"],
           ].map(([dir, label]) => (
             <button key={dir} className={draft.dir === dir ? "segment active" : "segment"} aria-pressed={draft.dir === dir} onClick={() => setDraft({ ...draft, dir })}>
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
       </fieldset>
 
       <label className="field-group">
-        <span className="legend">Category</span>
+        <span className="legend">{t("Category")}</span>
         <select className="select" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })}>
-          <option value="All">All categories</option>
+          <option value="All">{t("All categories")}</option>
           {categories.map((category) => (
             <option key={category}>{category}</option>
           ))}
@@ -169,21 +170,21 @@ function SortSheet({ open, onClose, market, onApply }) {
       </label>
 
       <fieldset className="field-group">
-        <legend>View</legend>
+        <legend>{t("View")}</legend>
         <div className="segmented" role="group">
           {[
             ["simple", "Simple"],
             ["pro", "Pro"],
           ].map(([density, label]) => (
             <button key={density} className={draft.density === density ? "segment active" : "segment"} aria-pressed={draft.density === density} onClick={() => setDraft({ ...draft, density })}>
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
-        <p className="hint">Simple shows name, price and 24h change. Pro adds 7d change, market cap, volume and FDV.</p>
+        <p className="hint">{t("Simple shows name, price and 24h change. Pro adds 7d change, market cap, volume and FDV.")}</p>
       </fieldset>
 
-      <button className="button-primary" onClick={apply}>Apply</button>
+      <button className="button-primary" onClick={apply}>{t("Apply")}</button>
     </Sheet>
   );
 }
@@ -218,7 +219,7 @@ function CoinList({ rows, view, emptyAction, ...rowProps }) {
     return (
       <div className="empty-state">
         <Icon name="star" className="empty-icon" />
-        <p>{view === "watchlist" ? "Star coins to see them here." : "No coins match these filters."}</p>
+        <p>{t(view === "watchlist" ? "Star coins to see them here." : "No coins match these filters.")}</p>
         {emptyAction}
       </div>
     );
@@ -232,8 +233,8 @@ function CoinList({ rows, view, emptyAction, ...rowProps }) {
       ) : (
         <>
           <div className="table-head" aria-hidden="true">
-            <span># &nbsp; Name</span>
-            <span>Price / {rest.changeKey === "change1h" ? "1h" : rest.changeKey === "change7d" ? "7d" : "24h"}</span>
+            <span># &nbsp; {t("Name")}</span>
+            <span>{t("Price")} / {rest.changeKey === "change1h" ? "1h" : rest.changeKey === "change7d" ? "7d" : "24h"}</span>
           </div>
           <div className="coin-list">
             {shown.map((coin) => (
@@ -258,12 +259,12 @@ function CoinList({ rows, view, emptyAction, ...rowProps }) {
       {hasMore && <div ref={sentinel} className="sentinel" aria-hidden="true" />}
       {!expanded && rows.length > PREVIEW_ROWS && (
         <button className="load-more" onClick={() => setExpanded(true)}>
-          View all assets <Icon name="chevron" />
+          {t("View all assets")} <Icon name="chevron" />
         </button>
       )}
       {expanded && preview && (
         <p className="list-count num" role="status">
-          Showing {shown.length} of {rows.length}
+          {t("Showing {shown} of {total}", { shown: shown.length, total: rows.length })}
         </p>
       )}
     </>
@@ -289,7 +290,7 @@ export default function Market() {
   const online = useOnline();
 
   useEffect(() => {
-    document.title = "Market · CPA";
+    document.title = `${t("Market")} · CPA`;
     if (hasLoadedOnce) return undefined;
     const id = window.setTimeout(() => {
       hasLoadedOnce = true;
@@ -330,20 +331,20 @@ export default function Market() {
   const chips = [];
   if (market.category !== "All") chips.push({ id: "category", label: market.category, clear: () => updateMarketSettings({ category: "All" }) });
   if ((view === "coins" || view === "watchlist") && market.sort !== "rank") {
-    chips.push({ id: "sort", label: `${sortOption.label} ${market.dir === "desc" ? "▼" : "▲"}`, clear: () => updateMarketSettings({ sort: "rank", dir: "asc" }) });
+    chips.push({ id: "sort", label: `${t(sortOption.label)} ${market.dir === "desc" ? "▼" : "▲"}`, clear: () => updateMarketSettings({ sort: "rank", dir: "asc" }) });
   }
-  if (market.density === "pro") chips.push({ id: "density", label: "Pro view", clear: () => updateMarketSettings({ density: "simple" }) });
+  if (market.density === "pro") chips.push({ id: "density", label: t("Pro view"), clear: () => updateMarketSettings({ density: "simple" }) });
 
   const changeKey = view === "gainers" ? windows[market.gainersWindow] : "change24h";
   const listKey = [view, market.category, market.sort, market.dir, market.gainersWindow, market.density].join("|");
 
   return (
     <div className="market">
-      <h1 className="visually-hidden">Market</h1>
+      <h1 className="visually-hidden">{t("Market")}</h1>
 
       <div className="market-heading">
         <div>
-          <p className="eyebrow">Global crypto market cap</p>
+          <p className="eyebrow">{t("Global crypto market cap")}</p>
           <p className="market-value num">
             {formatCompact(totalCap, currency, rate)}
             <span className={direction(totalChange)}>{formatPercent(totalChange)}</span>
@@ -354,11 +355,11 @@ export default function Market() {
 
       <button className="search-field" onClick={() => openSearch()}>
         <Icon name="search" />
-        <span>Search coins, exchanges, IDO…</span>
+        <span>{t("Search coins, exchanges, IDO…")}</span>
         <kbd aria-hidden="true">⌘ K</kbd>
       </button>
 
-      <div className="filters" role="tablist" aria-label="Market filters">
+      <div className="filters" role="tablist" aria-label={t("Market filters")}>
         {views.map((item) => (
           <button
             key={item.id}
@@ -377,14 +378,14 @@ export default function Market() {
               document.getElementById(`tab-${next.id}`)?.focus();
             }}
           >
-            {item.label}
+            {t(item.label)}
           </button>
         ))}
       </div>
 
       {(simulatedError || loadError) && (
         <div className="banner banner-error" role="alert">
-          <span>We couldn't load prices. Showing data from {relativeTime(lastUpdated, now)}.</span>
+          <span>{t("We couldn't load prices. Showing data from {time}.", { time: relativeTime(lastUpdated, now) })}</span>
           <button
             className="button-tertiary"
             onClick={() => {
@@ -394,29 +395,29 @@ export default function Market() {
               refresh();
             }}
           >
-            Retry
+            {t("Retry")}
           </button>
-          <Link to="/report-issue?type=data&from=%2Fmarket" className="button-tertiary">Report an issue</Link>
+          <Link to="/report-issue?type=data&from=%2Fmarket" className="button-tertiary">{t("Report an issue")}</Link>
         </div>
       )}
 
       <div className="section-title">
         <div>
-          <h2>Market pulse</h2>
+          <h2>{t("Market pulse")}</h2>
           <span className={stale ? "stale" : undefined}>
             {stale && <Icon name="clock" className="icon-inline" />}
-            {settings.autoRefresh ? "Updated" : "Last updated"} {relativeTime(lastUpdated, now)}
+            {t(settings.autoRefresh ? "Updated {time}" : "Last updated {time}", { time: relativeTime(lastUpdated, now) })}
           </span>
         </div>
         {settings.autoRefresh ? (
           <Link to="/explore#market-pulse" className="link-button">
-            View all <Icon name="chevron" />
+            {t("View all")} <Icon name="chevron" />
           </Link>
         ) : (
           // Auto-refresh off (US-P27.3): prices only change when asked.
           // Offline (US-9.5): the feed can't refresh, so the button is disabled until the connection returns.
           <button className="button-secondary compact" onClick={refresh} disabled={!online}>
-            Refresh
+            {t("Refresh")}
           </button>
         )}
       </div>
@@ -428,10 +429,10 @@ export default function Market() {
         </div>
       ) : (
         <div className="pulse-grid">
-          <article className="pulse-card" aria-label={`Fear and Greed index ${marketPulse.fearGreed}, Greed. Yesterday ${marketPulse.fearGreedYesterday}.`}>
+          <article className="pulse-card" aria-label={t("Fear and Greed index {value}, Greed. Yesterday {yesterday}.", { value: marketPulse.fearGreed, yesterday: marketPulse.fearGreedYesterday })}>
             <div className="pulse-label">
-              <span>Fear & Greed</span>
-              <button className="dots" onClick={() => setAboutFearGreed(true)} aria-label="What is Fear and Greed?">
+              <span>{t("Fear & Greed")}</span>
+              <button className="dots" onClick={() => setAboutFearGreed(true)} aria-label={t("What is Fear and Greed?")}>
                 •••
               </button>
             </div>
@@ -440,22 +441,22 @@ export default function Market() {
                 <span className="num">{marketPulse.fearGreed}</span>
               </div>
               <div>
-                <strong>Greed</strong>
-                <small>Yesterday: {marketPulse.fearGreedYesterday}</small>
+                <strong>{t("Greed")}</strong>
+                <small>{t("Yesterday: {value}", { value: marketPulse.fearGreedYesterday })}</small>
               </div>
             </div>
           </article>
-          <article className="pulse-card" aria-label={`Bitcoin dominance ${marketPulse.btcDominance} percent, ${spokenPercent(marketPulse.btcDominanceChange)}.`}>
+          <article className="pulse-card" aria-label={t("Bitcoin dominance {value} percent, {change}.", { value: marketPulse.btcDominance.toLocaleString(locale()), change: spokenPercent(marketPulse.btcDominanceChange) })}>
             <div className="pulse-label">
-              <span>BTC Dominance</span>
-              <span className="live-dot" title="Live" />
+              <span>{t("BTC Dominance")}</span>
+              <span className="live-dot" title={t("Live")} />
             </div>
             <p className="dominance num" aria-hidden="true">
-              {marketPulse.btcDominance}%<span className={direction(marketPulse.btcDominanceChange)}>{formatPercent(marketPulse.btcDominanceChange)}</span>
+              {marketPulse.btcDominance.toLocaleString(locale())}%<span className={direction(marketPulse.btcDominanceChange)}>{formatPercent(marketPulse.btcDominanceChange)}</span>
             </p>
             <Sparkline points={marketPulse.btcDominanceSpark} />
             <ChartSummary
-              text={`BTC dominance is ${marketPulse.btcDominance}%, ${formatPercent(marketPulse.btcDominanceChange)} in 24h. The trend line ${marketPulse.btcDominanceSpark.at(-1) > marketPulse.btcDominanceSpark[0] ? "rises" : "falls"} overall.`}
+              text={t(marketPulse.btcDominanceSpark.at(-1) > marketPulse.btcDominanceSpark[0] ? "BTC dominance is {value}%, {change} in 24h. The trend line rises overall." : "BTC dominance is {value}%, {change} in 24h. The trend line falls overall.", { value: marketPulse.btcDominance.toLocaleString(locale()), change: formatPercent(marketPulse.btcDominanceChange) })}
             />
           </article>
         </div>
@@ -463,16 +464,16 @@ export default function Market() {
 
       <div className="section-title market-list-title">
         <div>
-          <h2>{viewMeta.title}</h2>
+          <h2>{t(viewMeta.title)}</h2>
           <span>{subtitleFor(view, market)}</span>
         </div>
-        <button className="sort-button" onClick={() => setSortOpen(true)} aria-label={`Sort and filter. Sorted by ${sortOption.label}.`}>
-          <Icon name="swap" /> {view === "gainers" ? market.gainersWindow : view === "new" ? "Newest" : sortOption.label}
+        <button className="sort-button" onClick={() => setSortOpen(true)} aria-label={t("Sort and filter. Sorted by {sort}.", { sort: t(sortOption.label) })}>
+          <Icon name="swap" /> {view === "gainers" ? market.gainersWindow : view === "new" ? t("Newest") : t(sortOption.label)}
         </button>
       </div>
 
       {view === "gainers" && (
-        <div className="segmented segmented-inline" role="group" aria-label="Gainers time window">
+        <div className="segmented segmented-inline" role="group" aria-label={t("Gainers time window")}>
           {Object.keys(windows).map((key) => (
             <button key={key} className={market.gainersWindow === key ? "segment active" : "segment"} aria-pressed={market.gainersWindow === key} onClick={() => updateMarketSettings({ gainersWindow: key })}>
               {key}
@@ -482,10 +483,10 @@ export default function Market() {
       )}
 
       {chips.length > 0 && (
-        <ul className="chip-row" aria-label="Active filters">
+        <ul className="chip-row" aria-label={t("Active filters")}>
           {chips.map((chip) => (
             <li key={chip.id}>
-              <button className="chip" onClick={chip.clear} aria-label={`Remove filter: ${chip.label}`}>
+              <button className="chip" onClick={chip.clear} aria-label={t("Remove filter: {label}", { label: chip.label })}>
                 {chip.label}
                 <Icon name="close" />
               </button>
@@ -515,9 +516,9 @@ export default function Market() {
             stale={stale}
             emptyAction={
               view === "watchlist" ? (
-                <button className="button-secondary" onClick={() => setView("coins")}>Browse coins</button>
+                <button className="button-secondary" onClick={() => setView("coins")}>{t("Browse coins")}</button>
               ) : (
-                <button className="button-secondary" onClick={() => updateMarketSettings({ category: "All" })}>Clear filters</button>
+                <button className="button-secondary" onClick={() => updateMarketSettings({ category: "All" })}>{t("Clear filters")}</button>
               )
             }
           />
@@ -526,10 +527,9 @@ export default function Market() {
 
       <SortSheet key={sortOpen ? "open" : "closed"} open={sortOpen} onClose={() => setSortOpen(false)} market={market} onApply={updateMarketSettings} />
 
-      <Sheet open={aboutFearGreed} onClose={() => setAboutFearGreed(false)} title="Fear & Greed" side="bottom">
+      <Sheet open={aboutFearGreed} onClose={() => setAboutFearGreed(false)} title={t("Fear & Greed")} side="bottom">
         <p className="sheet-note">
-          A 0–100 score of market sentiment built from volatility, volume, momentum and social activity. Below 25 is extreme fear; above 75 is
-          extreme greed. It describes mood, not where prices will go.
+          {t("A 0–100 score of market sentiment built from volatility, volume, momentum and social activity. Below 25 is extreme fear; above 75 is extreme greed. It describes mood, not where prices will go.")}
         </p>
       </Sheet>
     </div>

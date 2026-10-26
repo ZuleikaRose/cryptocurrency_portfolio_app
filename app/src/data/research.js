@@ -1,3 +1,5 @@
+import { t } from "../lib/i18n.js";
+
 // Sample research data for Coin detail, Fundraising, Funds and Unlocks.
 // Funding rounds exist only for invented projects, so no real deal is misrepresented.
 // Vesting schedules are illustrative; every screen labels them as sample data.
@@ -252,17 +254,26 @@ export function researchFor(coin) {
   const generatedContract = `0x${Array.from({ length: 40 }, () => "0123456789abcdef"[Math.floor(random() * 16)]).join("")}`;
   const contract = NATIVE.has(coin.id) ? null : (knownContracts[coin.id] ?? generatedContract);
 
-  const about = {
+  const curatedAbout = {
     "orbit-l2": "Orbit L2 is an Ethereum layer 2 rollup that batches transactions off-chain and posts proofs to Ethereum. It targets AI agents and high-frequency apps that need low, predictable fees.",
     "lumen-protocol": "Lumen Protocol is a lending market that prices loans from on-chain AI risk models instead of fixed collateral ratios.",
     driftnet: "Driftnet is a DeFi routing layer that splits large swaps across exchanges to reduce slippage.",
-  }[coin.id] ?? `${coin.name} (${coin.symbol}) is listed in the ${coin.category} category. CPA shows illustrative sample data for it in this demo.`;
+  }[coin.id];
 
   const sentimentBase = 0.45 + random() * 0.3;
   const research = {
     contract,
     verified: coin.rank <= 60 || Boolean(vestingOverrides[coin.id]) || fundingRounds.some((round) => round.coinId === coin.id),
-    about,
+    // A getter, because the research object is cached and the language can change later.
+    get about() {
+      return curatedAbout
+        ? t(curatedAbout)
+        : t("{name} ({symbol}) is listed in the {category} category. CPA shows illustrative sample data for it in this demo.", {
+            name: coin.name,
+            symbol: coin.symbol,
+            category: t(coin.category),
+          });
+    },
     supply: { total, circulating, unlocked: Math.max(unlockedSoFar - circulating, 0), locked: vesting ? Math.max(total - unlockedSoFar, 0) : 0 },
     vesting,
     vestingEvents: events,

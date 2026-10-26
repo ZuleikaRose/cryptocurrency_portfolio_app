@@ -3,6 +3,7 @@ import CoinLogo from "./CoinLogo.jsx";
 import Sheet from "./Sheet.jsx";
 import { alertTypes, isPercentAlert, suggestedValue } from "../lib/alerts.js";
 import { formatPercent, formatPrice, rateFor } from "../lib/format.js";
+import { t } from "../lib/i18n.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useApp, useMarket } from "../state/context.js";
 
@@ -62,19 +63,19 @@ export default function AlertSheet({ draft, onClose }) {
   };
 
   let hint = null;
-  if (valid && percent) hint = `Now ${formatPercent(type === "pct1h" ? coin.change1h : coin.change24h)} in ${type === "pct1h" ? "1h" : "24h"}`;
+  if (valid && percent) hint = t("Now {change} in {window}", { change: formatPercent(type === "pct1h" ? coin.change1h : coin.change24h), window: type === "pct1h" ? "1h" : "24h" });
   if (valid && distance != null) {
-    hint = `${formatPercent(distance)} from now`;
-    if (type === "above" && distance <= 0) hint += " · already above, so it triggers on the next price update";
-    if (type === "below" && distance >= 0) hint += " · already below, so it triggers on the next price update";
+    hint = t("{change} from now", { change: formatPercent(distance) });
+    if (type === "above" && distance <= 0) hint += ` · ${t("already above, so it triggers on the next price update")}`;
+    if (type === "below" && distance >= 0) hint += ` · ${t("already below, so it triggers on the next price update")}`;
   }
 
   return (
-    <Sheet open={Boolean(draft)} onClose={onClose} title={editing ? "Edit price alert" : "New price alert"} side="bottom">
+    <Sheet open={Boolean(draft)} onClose={onClose} title={editing ? t("Edit price alert") : t("New price alert")} side="bottom">
       {step === "form" && (
         <form className="tx-form" onSubmit={onSubmit} noValidate>
           <label className="form-field">
-            <span>Coin</span>
+            <span>{t("Coin")}</span>
             <span className="input-row">
               <CoinLogo coin={coin} />
               <select className="input" value={coinId} onChange={(event) => changeCoin(event.target.value)}>
@@ -88,18 +89,18 @@ export default function AlertSheet({ draft, onClose }) {
           </label>
 
           <fieldset className="field-group">
-            <legend>When</legend>
+            <legend>{t("When")}</legend>
             <div className="alert-types">
               {alertTypes.map((item) => (
                 <button key={item.id} type="button" className={type === item.id ? "chip toggle on" : "chip toggle"} aria-pressed={type === item.id} onClick={() => changeType(item.id)}>
-                  {item.label}
+                  {t(item.label)}
                 </button>
               ))}
             </div>
           </fieldset>
 
           <label className="form-field">
-            <span>{percent ? "Move of at least (%)" : `Price (${settings.currency})`}</span>
+            <span>{percent ? t("Move of at least (%)") : t("Price ({currency})", { currency: settings.currency })}</span>
             <input
               className="input num"
               inputMode="decimal"
@@ -110,19 +111,19 @@ export default function AlertSheet({ draft, onClose }) {
               aria-describedby="alert-value-hint"
             />
             <small id="alert-value-hint" className={touched && !valid ? "field-error" : "num"}>
-              {touched && !valid ? (percent ? "Enter a percentage between 0 and 100." : "Enter a price above 0.") : hint ?? " "}
+              {touched && !valid ? (percent ? t("Enter a percentage between 0 and 100.") : t("Enter a price above 0.")) : hint ?? " "}
             </small>
           </label>
 
           <fieldset className="field-group">
-            <legend>Repeat</legend>
-            <div className="segmented" role="group" aria-label="Repeat">
+            <legend>{t("Repeat")}</legend>
+            <div className="segmented" role="group" aria-label={t("Repeat")}>
               {[
                 ["once", "One-time"],
                 ["recurring", "Recurring · 1h cool-down"],
               ].map(([id, label]) => (
                 <button key={id} type="button" className={repeat === id ? "segment active" : "segment"} aria-pressed={repeat === id} onClick={() => setRepeat(id)}>
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
@@ -130,17 +131,17 @@ export default function AlertSheet({ draft, onClose }) {
 
           <label className="check-row">
             <input type="checkbox" checked={bypassQuiet} onChange={(event) => setBypassQuiet(event.target.checked)} />
-            Bypass quiet hours
+            {t("Bypass quiet hours")}
           </label>
 
-          <button type="submit" className="button-primary">{editing ? "Save changes" : "Set alert"}</button>
+          <button type="submit" className="button-primary">{editing ? t("Save changes") : t("Set alert")}</button>
         </form>
       )}
       {step === "explain" && (
         <>
-          <h3 className="sheet-heading">Turn on notifications?</h3>
+          <h3 className="sheet-heading">{t("Turn on notifications?")}</h3>
           <p className="sheet-note">
-            Allow notifications so CPA can tell you when {coin.symbol} hits your price, even when this tab is in the background. Alerts only run while CPA is open, and your alert is saved either way.
+            {t("Allow notifications so CPA can tell you when {symbol} hits your price, even when this tab is in the background. Alerts only run while CPA is open, and your alert is saved either way.", { symbol: coin.symbol })}
           </p>
           <button
             className="button-primary"
@@ -149,7 +150,7 @@ export default function AlertSheet({ draft, onClose }) {
               save();
             }}
           >
-            Allow notifications
+            {t("Allow notifications")}
           </button>
           <button
             className="button-secondary button-block"
@@ -158,7 +159,7 @@ export default function AlertSheet({ draft, onClose }) {
               save();
             }}
           >
-            Not now
+            {t("Not now")}
           </button>
         </>
       )}

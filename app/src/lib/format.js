@@ -1,5 +1,7 @@
 // Number formatting per style guide §2: abbreviations, signed % to 2 decimals
 // with a true minus sign (U+2212), and spoken forms for screen readers.
+// Spanish uses a decimal comma, the symbol after the amount and "mil" / "mil M" / "B" (billón).
+import { getLanguage, locale, t } from "./i18n.js";
 
 const MINUS = "−";
 
@@ -23,9 +25,14 @@ export function rateFor(currency, coins) {
   return 1;
 }
 
+const spanish = () => getLanguage() === "es";
+const decimal = (value, digits) =>
+  value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false });
+
 function withUnit(text, currency) {
   const { symbol, fiat } = currencies[currency] ?? currencies.USD;
-  return fiat ? `${symbol}${text}` : `${text} ${currency}`;
+  if (!fiat) return `${text} ${currency}`;
+  return spanish() ? `${text} ${symbol}` : `${symbol}${text}`;
 }
 
 // Full price: 2 decimals at ≥ 1, otherwise 4 significant digits (e.g. $0.00002371).
@@ -35,8 +42,8 @@ export function formatPrice(usd, currency = "USD", rate = 1) {
   const abs = Math.abs(value);
   const text =
     abs >= 1 || abs === 0
-      ? value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : value.toLocaleString("en-US", { maximumSignificantDigits: 4 });
+      ? value.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : value.toLocaleString(locale(), { maximumSignificantDigits: 4 });
   return withUnit(text, currency);
 }
 
@@ -45,22 +52,19 @@ export function formatCompact(usd, currency = "USD", rate = 1) {
   if (usd == null || Number.isNaN(usd)) return "—";
   const value = usd * rate;
   const abs = Math.abs(value);
-  const units = [
-    [1e12, "T", 2],
-    [1e9, "B", 2],
-    [1e6, "M", 1],
-    [1e3, "K", 1],
-  ];
+  const units = spanish()
+    ? [[1e12, " B", 2], [1e9, " mil M", 2], [1e6, " M", 1], [1e3, " mil", 1]]
+    : [[1e12, "T", 2], [1e9, "B", 2], [1e6, "M", 1], [1e3, "K", 1]];
   const [divisor, suffix, digits] = units.find(([size]) => abs >= size) ?? [1, "", 2];
-  const text = `${(value / divisor).toFixed(digits)}${suffix}`;
+  const text = `${decimal(value / divisor, digits)}${suffix}`;
   return withUnit(text, currency);
 }
 
 export function formatPercent(value, digits = 2) {
   if (value == null || Number.isNaN(value)) return "—";
   const rounded = Number(value.toFixed(digits));
-  if (rounded === 0) return `${(0).toFixed(digits)}%`;
-  return `${rounded > 0 ? "+" : MINUS}${Math.abs(rounded).toFixed(digits)}%`;
+  if (rounded === 0) return `${decimal(0, digits)}%`;
+  return `${rounded > 0 ? "+" : MINUS}${decimal(Math.abs(rounded), digits)}%`;
 }
 
 export function direction(value) {
@@ -73,49 +77,51 @@ export function direction(value) {
 // "up 2.41 percent" — read in full words (US-9.3).
 export function spokenPercent(value) {
   const dir = direction(value);
-  if (dir === "flat") return "unchanged";
-  return `${dir} ${Math.abs(value).toFixed(2)} percent`;
+  if (dir === "flat") return t("unchanged");
+  return t(dir === "up" ? "up {value} percent" : "down {value} percent", { value: decimal(Math.abs(value), 2) });
 }
 
 export function spokenPrice(usd, currency = "USD", rate = 1) {
   const value = usd * rate;
   const names = { USD: "dollars", EUR: "euros", GBP: "pounds", BTC: "bitcoin", ETH: "ether" };
   const amount = Math.abs(value) >= 1 ? value.toFixed(2) : value.toPrecision(4);
-  return `${Number(amount).toLocaleString("en-US", { maximumFractionDigits: 8 })} ${names[currency] ?? currency}`;
+  return `${Number(amount).toLocaleString(locale(), { maximumFractionDigits: 8 })} ${names[currency] ? t(names[currency]) : currency}`;
 }
 
 export function relativeTime(timestamp, now = Date.now()) {
   const seconds = Math.max(0, Math.round((now - timestamp) / 1000));
-  if (seconds < 10) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 10) return t("just now");
+  if (seconds < 60) return t("{n}s ago", { n: seconds });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t("{n}m ago", { n: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return t("{n}h ago", { n: hours });
+  return t("{n}d ago", { n: Math.round(hours / 24) });
 }
 
 // Token amounts: 92.65M, 2.50B, 18.0K.
 export function formatTokens(value) {
   const abs = Math.abs(value);
-  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
-  return value.toFixed(0);
+  const es = spanish();
+  if (abs >= 1e9) return `${decimal(value / 1e9, 2)}${es ? " mil M" : "B"}`;
+  if (abs >= 1e6) return `${decimal(value / 1e6, 2)}${es ? " M" : "M"}`;
+  if (abs >= 1e3) return `${decimal(value / 1e3, 1)}${es ? " mil" : "K"}`;
+  return decimal(value, 0);
 }
 
 // Live countdown: "in 12d 06h", "in 3h 20m", "in 45m 10s"; `withMinutes` adds "05m" to day-long countdowns.
 export function formatCountdown(target, now = Date.now(), withMinutes = false) {
   const ms = target - now;
-  if (ms <= 0) return "now";
+  if (ms <= 0) return t("now");
   const days = Math.floor(ms / 86_400_000);
   const hours = Math.floor((ms % 86_400_000) / 3_600_000);
   const minutes = Math.floor((ms % 3_600_000) / 60_000);
   const pad = (n) => String(n).padStart(2, "0");
-  if (days > 0) return withMinutes ? `in ${days}d ${pad(hours)}h ${pad(minutes)}m` : `in ${days}d ${pad(hours)}h`;
-  if (hours > 0) return `in ${hours}h ${pad(minutes)}m`;
-  return `in ${minutes}m ${pad(Math.floor((ms % 60_000) / 1000))}s`;
+  const inTime = (text) => t("in {time}", { time: text });
+  if (days > 0) return inTime(withMinutes ? `${days}d ${pad(hours)}h ${pad(minutes)}m` : `${days}d ${pad(hours)}h`);
+  if (hours > 0) return inTime(`${hours}h ${pad(minutes)}m`);
+  return inTime(`${minutes}m ${pad(Math.floor((ms % 60_000) / 1000))}s`);
 }
 
 export const formatDate = (value) =>
-  new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  new Date(value).toLocaleDateString(locale(), { month: "short", day: "numeric", year: "numeric" });

@@ -1,7 +1,8 @@
 // Exchange CSV exports (clarification 29): Coinbase transaction history, Kraken trades and
 // Binance spot trade history, read in the browser into CPA transaction records. Files only:
 // CPA never asks for an exchange API key. Prices must be in US dollars; USD stablecoin prices
-// (USDT, USDC…) count 1:1 and the preview says so.
+// (USDT, USDC…) count 1:1 and the preview says so. Notes stored on rows ("Coinbase import") stay English.
+import { t } from "./i18n.js";
 
 const USD_LIKE = new Set(["USDT", "USDC", "BUSD", "FDUSD", "TUSD", "USDP", "DAI", "PYUSD"]);
 // Quote currencies, longest first, for pairs written without a separator (BTCUSDT, XXBTZUSD).
@@ -95,11 +96,11 @@ function coinbase(rows, header) {
     const base = { line, date, dateText: cell(cells, "Timestamp"), symbol: asset, amount, price, fee };
 
     if (kind === "deposit" || kind === "withdrawal" || asset === "USD" || asset === currency) {
-      records.push({ line, skip: `${typeText} of ${asset || "cash"} isn't a coin transaction.` });
+      records.push({ line, skip: t("{type} of {asset} isn't a coin transaction.", { type: typeText, asset: asset || t("cash") }) });
       return;
     }
     if (currency !== "USD") {
-      records.push({ line, skip: `Prices are in ${currency}; CPA needs US dollars. Export with USD as your currency.` });
+      records.push({ line, skip: t("Prices are in {currency}; CPA needs US dollars. Export with USD as your currency.", { currency }) });
       return;
     }
     if (kind === "convert") {
@@ -107,7 +108,7 @@ function coinbase(rows, header) {
       const match = notesText.replace(/,/g, "").match(/converted\s+([0-9.]+)\s+(\S+)\s+to\s+([0-9.]+)\s+(\S+)/i);
       const subtotal = amountOf(cell(cells, "Subtotal"));
       if (!match || !(subtotal > 0)) {
-        records.push({ line, skip: "Couldn't read the conversion in Notes." });
+        records.push({ line, skip: t("Couldn't read the conversion in Notes.") });
         return;
       }
       const received = Number(match[3]);
@@ -117,17 +118,17 @@ function coinbase(rows, header) {
     }
     const type = COINBASE_TYPES[kind];
     if (!type) {
-      records.push({ line, skip: `"${typeText}" rows aren't imported (moves inside Coinbase, or a type CPA doesn't track).` });
+      records.push({ line, skip: t("\"{type}\" rows aren't imported (moves inside Coinbase, or a type CPA doesn't track).", { type: typeText }) });
       return;
     }
     if (type === "income") {
-      notes.add("Rewards and staking income are recorded as transfers in at that day's price.");
+      notes.add(t("Rewards and staking income are recorded as transfers in at that day's price."));
       records.push({ ...base, type: "transfer-in", fee: 0, note: `${typeText} (Coinbase)` });
       return;
     }
     records.push({ ...base, type, note: "Coinbase import" });
   });
-  return { format: "Coinbase transaction history", records, notes: [...notes] };
+  return { format: t("Coinbase transaction history"), records, notes: [...notes] };
 }
 
 // --- Kraken: History > Export > Trades -------------------------------------------------------
@@ -140,14 +141,14 @@ function kraken(rows, header) {
     const line = header.index + offset + 2;
     const { base, quote } = splitPair(cell(cells, "pair"), krakenAsset);
     if (!base) {
-      records.push({ line, skip: `Couldn't read the pair "${cell(cells, "pair")}".` });
+      records.push({ line, skip: t("Couldn't read the pair \"{pair}\".", { pair: cell(cells, "pair") }) });
       return;
     }
     if (!usdQuote(quote)) {
-      records.push({ line, skip: `${base}/${quote} is priced in ${quote}; CPA needs US dollars.` });
+      records.push({ line, skip: t("{base}/{quote} is priced in {quote}; CPA needs US dollars.", { base, quote }) });
       return;
     }
-    if (quote !== "USD") notes.add(`${quote} prices are counted as US dollars.`);
+    if (quote !== "USD") notes.add(t("{quote} prices are counted as US dollars.", { quote }));
     const typeText = cell(cells, "type").toLowerCase();
     records.push({
       line,
@@ -162,7 +163,7 @@ function kraken(rows, header) {
       note: "Kraken import",
     });
   });
-  return { format: "Kraken trades", records, notes: [...notes] };
+  return { format: t("Kraken trades"), records, notes: [...notes] };
 }
 
 // --- Binance: Orders > Spot order > Trade history (both layouts) ------------------------------
@@ -175,14 +176,14 @@ function binance(rows, header, layout) {
     const line = header.index + offset + 2;
     const { base, quote } = splitPair(cell(cells, layout === "units" ? "Pair" : "Market"));
     if (!base) {
-      records.push({ line, skip: `Couldn't read the pair "${cell(cells, layout === "units" ? "Pair" : "Market")}".` });
+      records.push({ line, skip: t("Couldn't read the pair \"{pair}\".", { pair: cell(cells, layout === "units" ? "Pair" : "Market") }) });
       return;
     }
     if (!usdQuote(quote)) {
-      records.push({ line, skip: `${base}/${quote} is priced in ${quote}; CPA needs US dollars.` });
+      records.push({ line, skip: t("{base}/{quote} is priced in {quote}; CPA needs US dollars.", { base, quote }) });
       return;
     }
-    if (quote !== "USD") notes.add(`${quote} prices are counted as US dollars.`);
+    if (quote !== "USD") notes.add(t("{quote} prices are counted as US dollars.", { quote }));
     const typeText = cell(cells, layout === "units" ? "Side" : "Type").toLowerCase();
     const type = typeText === "buy" || typeText === "sell" ? typeText : null;
     const amount = layout === "units" ? withUnit(cell(cells, "Executed")).value : amountOf(cell(cells, "Amount"));
@@ -191,7 +192,7 @@ function binance(rows, header, layout) {
     let feeUsd = 0;
     if (fee.value > 0 && fee.unit === base && type === "buy") net = amount - fee.value; // the fee came out of the coins received
     else if (fee.value > 0 && (fee.unit === quote || usdQuote(fee.unit))) feeUsd = fee.value;
-    else if (fee.value > 0) notes.add(`Fees paid in ${fee.unit} aren't counted; add them to a transaction's fee if you need them.`);
+    else if (fee.value > 0) notes.add(t("Fees paid in {unit} aren't counted; add them to a transaction's fee if you need them.", { unit: fee.unit }));
     records.push({
       line,
       date: utcTime(cell(cells, "Date(UTC)")),
@@ -205,7 +206,7 @@ function binance(rows, header, layout) {
       note: "Binance import",
     });
   });
-  return { format: "Binance trade history", records, notes: [...notes] };
+  return { format: t("Binance trade history"), records, notes: [...notes] };
 }
 
 // Recognises an exchange export from its header and returns { format, records, notes }, or null

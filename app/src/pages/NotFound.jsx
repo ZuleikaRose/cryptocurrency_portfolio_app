@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { funds } from "../data/research.js";
+import { t } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const squash = (text) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -51,7 +52,7 @@ export default function NotFound() {
   const lastSegment = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() ?? "").replace(/[-_]+/g, " ");
 
   useEffect(() => {
-    document.title = "Page not found · CPA";
+    document.title = `${t("Page not found")} · CPA`;
     heading.current?.focus();
   }, [location.pathname]);
 
@@ -62,33 +63,33 @@ export default function NotFound() {
         <path d="M10 34l10-8 8 5 9-12" />
         <path d="M41 15l4-3M49 9l5-4" strokeDasharray="2 4" />
       </svg>
-      <h1 id="not-found-title" ref={heading} tabIndex={-1}>We couldn't find that page</h1>
-      <p className="page-sub">The link may be old or mistyped.</p>
+      <h1 id="not-found-title" ref={heading} tabIndex={-1}>{t("We couldn't find that page")}</h1>
+      <p className="page-sub">{t("The link may be old or mistyped.")}</p>
       <p className="not-found-path mono">{location.pathname}</p>
 
       <button className="search-field" onClick={() => openSearch("all", lastSegment)}>
         <Icon name="search" />
-        <span>Search coins, exchanges, IDO…</span>
+        <span>{t("Search coins, exchanges, IDO…")}</span>
         <kbd aria-hidden="true">⌘ K</kbd>
       </button>
 
       {suggestion && (
         <p className="did-you-mean">
-          Did you mean:{" "}
+          {t("Did you mean:")}{" "}
           <Link to={suggestion.to} className="link-button inline">
             {suggestion.label} <Icon name="chevron" />
           </Link>
         </p>
       )}
 
-      <Link to="/" className="button-primary">Go to Home</Link>
-      <nav aria-label="Popular pages" className="not-found-links">
-        <Link to="/market">Market</Link>
-        <Link to="/unlocks">Unlocks</Link>
-        <Link to="/support">Support</Link>
+      <Link to="/" className="button-primary">{t("Go to Home")}</Link>
+      <nav aria-label={t("Popular pages")} className="not-found-links">
+        <Link to="/market">{t("Market")}</Link>
+        <Link to="/unlocks">{t("Unlocks")}</Link>
+        <Link to="/support">{t("Support")}</Link>
       </nav>
       <Link to={`/report-issue?type=bug&from=${encodeURIComponent(location.pathname)}`} className="link-button">
-        Report a broken link <Icon name="chevron" />
+        {t("Report a broken link")} <Icon name="chevron" />
       </Link>
     </section>
   );

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { PasswordChecklist, PasswordInput } from "../components/PasswordFields.jsx";
 import { completeReset, isEmail, passwordChecks, passwordErrors, requestReset } from "../lib/auth.js";
+import { t } from "../lib/i18n.js";
 import { recoveryLink } from "../lib/supabase.js";
 import { useApp } from "../state/context.js";
 
@@ -19,9 +20,9 @@ function ResetRequest({ initialEmail = "", buttonLabel = "Send reset link" }) {
     const outcome = await requestReset(address);
     setBusy(false);
     const messages = {
-      limited: "Too many requests. Wait a few minutes and try again.",
-      network: "We couldn't send the link. Check your connection and try again.",
-      unavailable: "Password reset isn't available right now. Try again later.",
+      limited: t("Too many requests. Wait a few minutes and try again."),
+      network: t("We couldn't send the link. Check your connection and try again."),
+      unavailable: t("Password reset isn't available right now. Try again later."),
     };
     if (outcome.status !== "sent") {
       setError(messages[outcome.status]);
@@ -34,7 +35,7 @@ function ResetRequest({ initialEmail = "", buttonLabel = "Send reset link" }) {
   const onSubmit = (event) => {
     event.preventDefault();
     if (!isEmail(email)) {
-      setError("Enter a valid email address.");
+      setError(t("Enter a valid email address."));
       return;
     }
     send(email);
@@ -45,14 +46,14 @@ function ResetRequest({ initialEmail = "", buttonLabel = "Send reset link" }) {
       <div className="auth-form" aria-live="polite">
         <div className="confirm-head">
           <Icon name="check" className="icon confirm-icon" />
-          <h2>Check your email</h2>
+          <h2>{t("Check your email")}</h2>
         </div>
         <p>
-          If an account exists for <strong>{sentTo}</strong>, we sent a link to reset your password. It works once; open it in this browser.
+          {t("If an account exists for {email}, we sent a link to reset your password. It works once; open it in this browser.", { email: sentTo })}
         </p>
         {error && <p className="form-alert" role="alert">{error}</p>}
         <button className="link-button" disabled={busy} onClick={() => send(sentTo)}>
-          {busy ? "Sending…" : "Resend link"}
+          {busy ? t("Sending…") : t("Resend link")}
         </button>
       </div>
     );
@@ -62,25 +63,25 @@ function ResetRequest({ initialEmail = "", buttonLabel = "Send reset link" }) {
     <form className="auth-form" onSubmit={onSubmit} noValidate>
       {error && <p className="form-alert" role="alert">{error}</p>}
       <label className="form-field">
-        <span>Email</span>
+        <span>{t("Email")}</span>
         <input className="input" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error) || undefined} />
       </label>
-      <button type="submit" className="button-primary" disabled={busy}>{busy ? "Sending…" : buttonLabel}</button>
+      <button type="submit" className="button-primary" disabled={busy}>{busy ? t("Sending…") : t(buttonLabel)}</button>
     </form>
   );
 }
 
 export default function ForgotPassword() {
   useEffect(() => {
-    document.title = "Reset your password · CPA";
+    document.title = `${t("Reset your password")} · CPA`;
   }, []);
   return (
     <div className="auth-page">
       <Link to="/login" className="link-button back">
-        <Icon name="chevron" className="icon flip" /> Log in
+        <Icon name="chevron" className="icon flip" /> {t("Log in")}
       </Link>
-      <h1>Reset your password</h1>
-      <p className="page-sub">Enter your account email and we'll send you a reset link.</p>
+      <h1>{t("Reset your password")}</h1>
+      <p className="page-sub">{t("Enter your account email and we'll send you a reset link.")}</p>
       <ResetRequest />
     </div>
   );
@@ -100,17 +101,17 @@ function NewPasswordForm() {
     event.preventDefault();
     if (busy) return;
     const found = passwordErrors(checks);
-    if (confirm !== password || !confirm) found.push("Passwords don't match.");
+    if (confirm !== password || !confirm) found.push(t("Passwords don't match."));
     setErrors(found);
     if (found.length) return;
     setBusy(true);
     const outcome = await completeReset(password);
     setBusy(false);
     const failures = {
-      same: "Choose a password different from your current one.",
-      weak: "Choose a stronger password.",
-      invalid: "This link has expired. Request a new one.",
-      failed: "We couldn't save the new password. Check your connection and try again. Nothing was changed.",
+      same: t("Choose a password different from your current one."),
+      weak: t("Choose a stronger password."),
+      invalid: t("This link has expired. Request a new one."),
+      failed: t("We couldn't save the new password. Check your connection and try again. Nothing was changed."),
     };
     if (outcome !== "ok") {
       setErrors([failures[outcome] ?? failures.failed]);
@@ -118,17 +119,17 @@ function NewPasswordForm() {
     }
     const signedOut = await logOut();
     if (!signedOut.ok) {
-      showToast("Password updated. Retry saving or discard unsaved changes before logging out.");
+      showToast(t("Password updated. Retry saving or discard unsaved changes before logging out."));
       navigate("/logout", { replace: true });
       return;
     }
-    showToast("Password updated. Log in with your new password.");
+    showToast(t("Password updated. Log in with your new password."));
     navigate("/login", { replace: true });
   };
 
   return (
     <form className="auth-form" onSubmit={onSubmit} noValidate>
-      <p className="page-sub">for {session.email}</p>
+      <p className="page-sub">{t("for {email}", { email: session.email })}</p>
       {errors.length > 0 && (
         <ul className="form-alert" role="alert">
           {errors.map((message) => (
@@ -137,15 +138,15 @@ function NewPasswordForm() {
         </ul>
       )}
       <label className="form-field" htmlFor="reset-password">
-        <span>New password</span>
+        <span>{t("New password")}</span>
       </label>
       <PasswordInput id="reset-password" value={password} onChange={setPassword} autoComplete="new-password" describedBy="reset-checks" />
       <PasswordChecklist id="reset-checks" checks={checks} />
       <label className="form-field" htmlFor="reset-confirm">
-        <span>Confirm</span>
+        <span>{t("Confirm")}</span>
       </label>
       <PasswordInput id="reset-confirm" value={confirm} onChange={setConfirm} autoComplete="new-password" />
-      <button type="submit" className="button-primary" disabled={busy}>{busy ? "Saving…" : "Save new password"}</button>
+      <button type="submit" className="button-primary" disabled={busy}>{busy ? t("Saving…") : t("Save new password")}</button>
     </form>
   );
 }
@@ -156,23 +157,23 @@ export function ResetPassword() {
   const valid = recoveryLink.status === "valid" && session.kind === "user";
 
   useEffect(() => {
-    document.title = "Choose a new password · CPA";
+    document.title = `${t("Choose a new password")} · CPA`;
   }, []);
 
   return (
     <div className="auth-page">
       {valid ? (
         <>
-          <h1>Choose a new password</h1>
+          <h1>{t("Choose a new password")}</h1>
           <NewPasswordForm />
         </>
       ) : (
         <>
           <div className="confirm-head warning-text">
             <Icon name="info" className="icon confirm-icon" />
-            <h1>This link has expired</h1>
+            <h1>{t("This link has expired")}</h1>
           </div>
-          <p className="page-sub">Reset links work once and expire after a short time. Request a new one.</p>
+          <p className="page-sub">{t("Reset links work once and expire after a short time. Request a new one.")}</p>
           <ResetRequest buttonLabel="Send new link" />
         </>
       )}

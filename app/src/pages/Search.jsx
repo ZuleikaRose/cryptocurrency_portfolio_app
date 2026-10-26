@@ -6,6 +6,7 @@ import { ResultLabel } from "../components/SearchOverlay.jsx";
 import { resultPath, searchAll } from "../data/directory.js";
 import { formatCompact, rateFor } from "../lib/format.js";
 import { TRENDING, useDebounced } from "../lib/hooks.js";
+import { t, tn } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const types = [
@@ -53,7 +54,7 @@ export default function Search() {
   const rate = rateFor(settings.currency, coins);
 
   useEffect(() => {
-    document.title = query ? `“${query}” · Search · CPA` : "Search · CPA";
+    document.title = query ? `“${query}” · ${t("Search")} · CPA` : `${t("Search")} · CPA`;
   }, [query]);
 
   // Keep ?q= in step with the debounced input.
@@ -87,19 +88,19 @@ export default function Search() {
 
   return (
     <div className="search-page">
-      <h1 className="visually-hidden">Search</h1>
+      <h1 className="visually-hidden">{t("Search")}</h1>
       <div className="search-box page">
         <Icon name="search" />
         <input
           type="search"
-          aria-label="Search coins, funds, exchanges and token sales"
-          placeholder="Search coins, funds, exchanges…"
+          aria-label={t("Search coins, funds, exchanges and token sales")}
+          placeholder={t("Search coins, funds, exchanges…")}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           autoFocus
         />
         {input && (
-          <button className="icon-button small" onClick={() => setInput("")} aria-label="Clear search">
+          <button className="icon-button small" onClick={() => setInput("")} aria-label={t("Clear search")}>
             <Icon name="close" />
           </button>
         )}
@@ -110,8 +111,8 @@ export default function Search() {
           {recentSearches.length > 0 && (
             <section>
               <div className="search-group-head">
-                <h2 className="subsection-title">Recent searches</h2>
-                <button className="link-button" onClick={clearRecentSearches}>Clear</button>
+                <h2 className="subsection-title">{t("Recent searches")}</h2>
+                <button className="link-button" onClick={clearRecentSearches}>{t("Clear")}</button>
               </div>
               <div className="chip-row">
                 {recentSearches.map((item) => (
@@ -123,7 +124,7 @@ export default function Search() {
             </section>
           )}
           <section>
-            <h2 className="subsection-title">Trending</h2>
+            <h2 className="subsection-title">{t("Trending")}</h2>
             <div className="chip-row">
               {TRENDING.map((ticker) => (
                 <button key={ticker} className="chip" onClick={() => setInput(ticker)}>{ticker}</button>
@@ -134,9 +135,9 @@ export default function Search() {
       ) : (
         <>
           <p className="result-count" role="status">
-            {total} {total === 1 ? "result" : "results"} for “{query.trim()}”
+            {tn(total, "{count} result for “{query}”", "{count} results for “{query}”", { query: query.trim() })}
           </p>
-          <div className="filters" role="group" aria-label="Result type">
+          <div className="filters" role="group" aria-label={t("Result type")}>
             {types.map((item) => {
               const count = item.id === "all" ? total : results[item.id].length;
               return (
@@ -147,26 +148,26 @@ export default function Search() {
                   onClick={() => setParam("type", item.id, "all")}
                   disabled={item.id !== "all" && count === 0}
                 >
-                  {item.label} {item.id !== "all" && <span className="num">{count}</span>}
+                  {t(item.label)} {item.id !== "all" && <span className="num">{count}</span>}
                 </button>
               );
             })}
           </div>
           <label className="inline-select">
-            Sort
+            {t("Sort")}
             <select className="select" value={sort} onChange={(event) => setParam("sort", event.target.value, "marketCap")}>
               {sorts.map((item) => (
-                <option key={item.id} value={item.id}>{item.label}</option>
+                <option key={item.id} value={item.id}>{t(item.label)}</option>
               ))}
             </select>
           </label>
 
           {searching ? (
             <>
-              <p className="visually-hidden" role="status">Searching…</p>
+              <p className="visually-hidden" role="status">{t("Searching…")}</p>
               {["Coins", "Exchanges"].map((title) => (
                 <section key={title} className="result-group" aria-hidden="true">
-                  <h2 className="subsection-title">{title}</h2>
+                  <h2 className="subsection-title">{t(title)}</h2>
                   <div className="coin-list"><SkeletonRows count={3} /></div>
                 </section>
               ))}
@@ -175,7 +176,7 @@ export default function Search() {
             <>
               {total === 0 && (
                 <div className="empty-state">
-                  <p>No matches for “{query.trim()}”. Check the spelling or try a ticker.</p>
+                  <p>{t("No matches for “{query}”. Check the spelling or try a ticker.", { query: query.trim() })}</p>
                   <div className="chip-row">
                     {TRENDING.map((ticker) => (
                       <button key={ticker} className="chip" onClick={() => setInput(ticker)}>{ticker}</button>
@@ -186,7 +187,7 @@ export default function Search() {
 
               {groups.map((group) => (
                 <section key={group.key} aria-labelledby={`results-${group.key}`} className="result-group" onClickCapture={remember}>
-                  <h2 id={`results-${group.key}`} className="subsection-title">{groupTitles[group.key]}</h2>
+                  <h2 id={`results-${group.key}`} className="subsection-title">{t(groupTitles[group.key])}</h2>
                   {group.key === "coins" ? (
                     <div className="coin-list">
                       {group.hits.map((hit) => (
@@ -199,7 +200,7 @@ export default function Search() {
                           rate={rate}
                           footer={
                             <span className="num">
-                              {hit.verified ? <span className="verified-text">✓ Verified</span> : <span className="unverified">⚠ Unverified</span>} · MCap{" "}
+                              {hit.verified ? <span className="verified-text">✓ {t("Verified")}</span> : <span className="unverified">⚠ {t("Unverified")}</span>} · {t("MCap")}{" "}
                               {formatCompact(hit.coin.marketCap, settings.currency, rate)}
                               {hit.contract && <> · <span className="mono">{shortAddress(hit.contract)}</span></>}
                             </span>

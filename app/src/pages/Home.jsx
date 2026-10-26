@@ -16,6 +16,7 @@ import { direction, formatCompact, formatDate, formatPercent, relativeTime, rate
 import { TRENDING, useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { marketCapChange24h } from "../lib/market.js";
+import { locale, t } from "../lib/i18n.js";
 
 const MOVERS_MIN_VOLUME = 100_000;
 const initialCapTotal = initialCoins.reduce((sum, coin) => sum + coin.marketCap, 0);
@@ -29,10 +30,14 @@ let hasLoadedOnce = false;
 
 function greeting(session, date) {
   const hour = date.getHours();
-  const part = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  if (session.kind === "guest") return "Welcome to CPA";
-  if (session.kind === "user" && session.name) return `${part}, ${session.name.split(" ")[0]}`;
-  return part;
+  const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  if (session.kind === "guest") return t("Welcome to CPA");
+  if (session.kind === "user" && session.name) {
+    const name = session.name.split(" ")[0];
+    if (part === "morning") return t("Good morning, {name}", { name });
+    return part === "afternoon" ? t("Good afternoon, {name}", { name }) : t("Good evening, {name}", { name });
+  }
+  return part === "morning" ? t("Good morning") : part === "afternoon" ? t("Good afternoon") : t("Good evening");
 }
 
 function SectionHead({ id, title, to, onClick }) {
@@ -40,8 +45,8 @@ function SectionHead({ id, title, to, onClick }) {
     <div className="section-title">
       <h2 id={id}>{title}</h2>
       {(to || onClick) && (
-        <Link to={to ?? "#"} className="link-button" onClick={onClick} aria-label={`See all: ${title}`}>
-          See all <Icon name="chevron" />
+        <Link to={to ?? "#"} className="link-button" onClick={onClick} aria-label={t("See all: {title}", { title })}>
+          {t("See all")} <Icon name="chevron" />
         </Link>
       )}
     </div>
@@ -67,7 +72,7 @@ export default function Home() {
   const feedbackDue = session.kind === "user" && app.visits >= 5 && now - app.feedbackPromptDismissed > 30 * 86_400_000;
 
   useEffect(() => {
-    document.title = "CPA · Cryptocurrency Portfolio App";
+    document.title = `CPA · ${t("Cryptocurrency Portfolio App")}`;
     if (hasLoadedOnce) return undefined;
     const id = window.setTimeout(() => {
       hasLoadedOnce = true;
@@ -101,7 +106,7 @@ export default function Home() {
   const recent = session.kind === "guest" ? [] : recentCoins.map((id) => coins.find((coin) => coin.id === id)).filter(Boolean);
 
   const remind = (event) =>
-    requireAuth(`Sign in to set a reminder for the ${event.symbol} unlock`, () =>
+    requireAuth(t("Sign in to set a reminder for the {symbol} unlock", { symbol: event.symbol }), () =>
       setReminderItem({ id: event.id, kind: "unlock", symbol: event.symbol, name: event.coin.name, date: event.date, amount: event.amount }),
     );
   const seeLosers = (event) => {
@@ -113,10 +118,10 @@ export default function Home() {
   return (
     <div className="home">
       {feedbackDue && (
-        <aside className="card feedback-prompt" aria-label="Feedback">
-          <span>How's CPA working for you?</span>
-          <Link to="/feedback" className="button-secondary compact">Share feedback</Link>
-          <button className="icon-button small" onClick={app.dismissFeedbackPrompt} aria-label="Dismiss for 30 days">
+        <aside className="card feedback-prompt" aria-label={t("Feedback")}>
+          <span>{t("How's CPA working for you?")}</span>
+          <Link to="/feedback" className="button-secondary compact">{t("Share feedback")}</Link>
+          <button className="icon-button small" onClick={app.dismissFeedbackPrompt} aria-label={t("Dismiss for 30 days")}>
             <Icon name="close" />
           </button>
         </aside>
@@ -125,13 +130,13 @@ export default function Home() {
       <header className="home-head">
         <h1>{greeting(session, new Date(now))}</h1>
         <p className="page-sub num">
-          {formatDate(now)} · Updated {relativeTime(lastUpdated, now)}
+          {formatDate(now)} · {t("Updated {time}", { time: relativeTime(lastUpdated, now) })}
         </p>
       </header>
 
       <button className="search-field" onClick={() => openSearch()}>
         <Icon name="search" />
-        <span>Search coins, exchanges, IDO…</span>
+        <span>{t("Search coins, exchanges, IDO…")}</span>
         <kbd aria-hidden="true">⌘ K</kbd>
       </button>
 
@@ -142,23 +147,23 @@ export default function Home() {
         </div>
       ) : (
         <div className="pulse-grid">
-          <Link to="/market" className="pulse-card home-pulse" aria-label={`Total market cap ${formatCompact(totalCap, currency, rate)}, ${spokenPercent(totalChange)} in 24 hours. 24 hour volume ${formatCompact(marketPulse.totalVolume24h, currency, rate)}. Open market.`}>
-            <span className="pulse-label">Market cap</span>
+          <Link to="/market" className="pulse-card home-pulse" aria-label={t("Total market cap {cap}, {change} in 24 hours. 24 hour volume {volume}. Open market.", { cap: formatCompact(totalCap, currency, rate), change: spokenPercent(totalChange), volume: formatCompact(marketPulse.totalVolume24h, currency, rate) })}>
+            <span className="pulse-label">{t("Market cap")}</span>
             <strong className="home-figure num">{formatCompact(totalCap, currency, rate)}</strong>
             <span className={`num ${capDir}`}>
               {capDir === "up" ? "▲" : capDir === "down" ? "▼" : ""} {formatPercent(totalChange)}
             </span>
-            <small className="num">24h vol {formatCompact(marketPulse.totalVolume24h, currency, rate)}</small>
+            <small className="num">{t("24h vol {volume}", { volume: formatCompact(marketPulse.totalVolume24h, currency, rate) })}</small>
           </Link>
-          <Link to="/explore#market-pulse" className="pulse-card home-pulse" aria-label={`Fear and Greed index ${marketPulse.fearGreed}, Greed. Yesterday ${marketPulse.fearGreedYesterday}. Open market pulse.`}>
-            <span className="pulse-label">Fear & Greed</span>
+          <Link to="/explore#market-pulse" className="pulse-card home-pulse" aria-label={t("Fear and Greed index {value}, Greed. Yesterday {yesterday}. Open market pulse.", { value: marketPulse.fearGreed, yesterday: marketPulse.fearGreedYesterday })}>
+            <span className="pulse-label">{t("Fear & Greed")}</span>
             <div className="gauge-row">
               <div className="gauge" style={{ "--value": `${marketPulse.fearGreed}%` }} aria-hidden="true">
                 <span className="num">{marketPulse.fearGreed}</span>
               </div>
               <div>
-                <strong>Greed</strong>
-                <small className="num">Yesterday: {marketPulse.fearGreedYesterday}</small>
+                <strong>{t("Greed")}</strong>
+                <small className="num">{t("Yesterday: {value}", { value: marketPulse.fearGreedYesterday })}</small>
               </div>
             </div>
           </Link>
@@ -166,15 +171,15 @@ export default function Home() {
       )}
 
       <section aria-labelledby="home-watchlist">
-        <SectionHead id="home-watchlist" title={showTrending ? "Trending" : "Your watchlist"} to={showTrending ? "/market" : "/watchlist"} />
-        {showTrending && <p className="muted-line">Star coins to build your watchlist.</p>}
+        <SectionHead id="home-watchlist" title={t(showTrending ? "Trending" : "Your watchlist")} to={showTrending ? "/market" : "/watchlist"} />
+        {showTrending && <p className="muted-line">{t("Star coins to build your watchlist.")}</p>}
         {loading ? (
           <SkeletonRows count={4} />
         ) : listCoins.length === 0 ? (
           <div className="empty-state">
             <Icon name="star" className="empty-icon" />
-            <p>Add coins to your watchlist to see them here.</p>
-            <Link to="/market" className="button-secondary">Browse market</Link>
+            <p>{t("Add coins to your watchlist to see them here.")}</p>
+            <Link to="/market" className="button-secondary">{t("Browse market")}</Link>
           </div>
         ) : (
           <div className="coin-list">
@@ -186,21 +191,21 @@ export default function Home() {
       </section>
 
       <section aria-labelledby="home-movers">
-        <SectionHead id="home-movers" title="Top movers 24h" to={movers === "gainers" ? "/market?view=gainers" : "/market?view=coins"} onClick={movers === "losers" ? seeLosers : undefined} />
-        <div className="segmented segmented-inline" role="group" aria-label="Movers">
+        <SectionHead id="home-movers" title={t("Top movers 24h")} to={movers === "gainers" ? "/market?view=gainers" : "/market?view=coins"} onClick={movers === "losers" ? seeLosers : undefined} />
+        <div className="segmented segmented-inline" role="group" aria-label={t("Movers")}>
           {[
             ["gainers", "Gainers"],
             ["losers", "Losers"],
           ].map(([id, label]) => (
             <button key={id} className={movers === id ? "segment active" : "segment"} aria-pressed={movers === id} onClick={() => setMovers(id)}>
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
-        <ul className="mover-carousel" tabIndex={0} aria-label={`Top ${movers} (scrolls sideways)`}>
+        <ul className="mover-carousel" tabIndex={0} aria-label={t(movers === "gainers" ? "Top gainers (scrolls sideways)" : "Top losers (scrolls sideways)")}>
           {moverList.map((coin) => (
             <li key={coin.id}>
-              <Link to={`/coins/${coin.id}`} className="mover-card" aria-label={`${coin.name}, ${spokenPercent(coin.change24h)} in 24 hours`}>
+              <Link to={`/coins/${coin.id}`} className="mover-card" aria-label={t("{name}, {change} in 24 hours", { name: coin.name, change: spokenPercent(coin.change24h) })}>
                 <CoinLogo coin={coin} />
                 <strong>{coin.symbol}</strong>
                 <span className={`num ${direction(coin.change24h)}`}>
@@ -213,10 +218,10 @@ export default function Home() {
       </section>
 
       <section aria-labelledby="home-unlocks">
-        <SectionHead id="home-unlocks" title="Next unlocks" to="/unlocks" />
+        <SectionHead id="home-unlocks" title={t("Next unlocks")} to="/unlocks" />
         {unlocksFailed ? (
           <div className="card banner-error" role="alert">
-            <span>We couldn't load unlocks.</span>
+            <span>{t("We couldn't load unlocks.")}</span>
             <button
               className="link-button"
               onClick={() => {
@@ -225,7 +230,7 @@ export default function Home() {
                 setParams(next, { replace: true });
               }}
             >
-              Retry
+              {t("Retry")}
             </button>
           </div>
         ) : (
@@ -238,8 +243,8 @@ export default function Home() {
       </section>
 
       <section aria-labelledby="home-rounds">
-        <SectionHead id="home-rounds" title="Recent funding rounds" to="/fundraising" />
-        {sectorRounds.length > 0 && <p className="muted-line">Showing your sectors: {interests.sectors.join(", ")}</p>}
+        <SectionHead id="home-rounds" title={t("Recent funding rounds")} to="/fundraising" />
+        {sectorRounds.length > 0 && <p className="muted-line">{t("Showing your sectors: {sectors}", { sectors: interests.sectors.join(", ") })}</p>}
         <ul className="home-rounds">
           {rounds.map((round) => (
             <li key={round.id}>
@@ -256,7 +261,7 @@ export default function Home() {
               </span>
               <span className="home-round-side num">
                 <strong>{formatCompact(round.amount, currency, rate)}</strong>
-                <span>{round.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                <span>{round.date.toLocaleDateString(locale(), { month: "short", day: "numeric" })}</span>
               </span>
             </li>
           ))}
@@ -264,7 +269,7 @@ export default function Home() {
       </section>
 
       <section aria-labelledby="home-sales">
-        <SectionHead id="home-sales" title="Upcoming token sales" to="/token-sales" />
+        <SectionHead id="home-sales" title={t("Upcoming token sales")} to="/token-sales" />
         <ul className="result-list">
           {sales.map((sale) => (
             <li key={sale.id}>
@@ -273,7 +278,7 @@ export default function Home() {
                 <span className="result-main">
                   <strong>{sale.name}</strong>
                   <span className="num">
-                    {sale.type} · {sale.launchpad} · {sale.start.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {sale.type} · {sale.launchpad} · {sale.start.toLocaleDateString(locale(), { month: "short", day: "numeric" })}
                   </span>
                 </span>
                 <Icon name="chevron" />
@@ -285,7 +290,7 @@ export default function Home() {
 
       {recent.length > 0 && (
         <section aria-labelledby="home-recent">
-          <h2 id="home-recent" className="subsection-title home-subtitle">Recently viewed</h2>
+          <h2 id="home-recent" className="subsection-title home-subtitle">{t("Recently viewed")}</h2>
           <ul className="recent-chips">
             {recent.map((coin) => (
               <li key={coin.id}>
@@ -299,20 +304,20 @@ export default function Home() {
       )}
 
       {(recent[0] ?? (session.kind !== "guest" ? listCoins[0] : null)) && (
-        <SimilarCoins coin={recent[0] ?? listCoins[0]} title={`Similar to ${(recent[0] ?? listCoins[0]).symbol}`} />
+        <SimilarCoins coin={recent[0] ?? listCoins[0]} title={t("Similar to {symbol}", { symbol: (recent[0] ?? listCoins[0]).symbol })} />
       )}
 
       <section className="card learn-card" aria-labelledby="home-learn">
         <div className="section-row">
           <h2 id="home-learn" className="subsection-title">
-            <Icon name="info" /> {tips[tip].title}
+            <Icon name="info" /> {t(tips[tip].title)}
           </h2>
-          <button className="link-button" onClick={() => setTip((tip + 1) % tips.length)}>Next tip</button>
+          <button className="link-button" onClick={() => setTip((tip + 1) % tips.length)}>{t("Next tip")}</button>
         </div>
-        <p aria-live="polite">{tips[tip].body}</p>
+        <p aria-live="polite">{t(tips[tip].body)}</p>
       </section>
 
-      <p className="disclaimer">Not financial advice. Data provided for informational purposes. Prices, unlocks and rounds are CPA sample data.</p>
+      <p className="disclaimer">{t("Not financial advice. Data provided for informational purposes. Prices, unlocks and rounds are CPA sample data.")}</p>
 
       <Onboarding />
       <ReminderSheet key={reminderItem?.id ?? "none"} item={reminderItem} onClose={() => setReminderItem(null)} />

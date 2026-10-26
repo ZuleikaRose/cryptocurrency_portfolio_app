@@ -7,6 +7,7 @@ import Sheet from "../components/Sheet.jsx";
 import { researchFor } from "../data/research.js";
 import { direction, formatCountdown, formatPercent, rateFor, relativeTime } from "../lib/format.js";
 import { useFirstLoad, useNow, useSimulatedError } from "../lib/hooks.js";
+import { locale, t, tn } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const sorts = [
@@ -24,13 +25,13 @@ function unlockWarning(coin, now) {
   if (!next) return null;
   const share = (next.amount / research.supply.circulating) * 100;
   if (share <= 2 || next.date.getTime() - now > WEEK_MS) return null;
-  return `⚠ Unlock ${formatCountdown(next.date.getTime(), now)} · ${share.toFixed(2)}% of supply`;
+  return `⚠ ${t("Unlock {time} · {share}% of supply", { time: formatCountdown(next.date.getTime(), now), share: share.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}`;
 }
 
 function EditList({ coins, listName, onMove, onRemove }) {
   const [dragId, setDragId] = useState(null);
   return (
-    <ol className="edit-list" aria-label={`Reorder ${listName}`}>
+    <ol className="edit-list" aria-label={t("Reorder {list}", { list: listName })}>
       {coins.map((coin, index) => (
         <li
           key={coin.id}
@@ -54,14 +55,14 @@ function EditList({ coins, listName, onMove, onRemove }) {
             <strong>{coin.name}</strong>
             <span>{coin.symbol}</span>
           </span>
-          <button className="icon-button small" onClick={() => onMove(coin.id, index - 1)} disabled={index === 0} aria-label={`Move ${coin.name} up`}>
+          <button className="icon-button small" onClick={() => onMove(coin.id, index - 1)} disabled={index === 0} aria-label={t("Move {name} up", { name: coin.name })}>
             ↑
           </button>
-          <button className="icon-button small" onClick={() => onMove(coin.id, index + 1)} disabled={index === coins.length - 1} aria-label={`Move ${coin.name} down`}>
+          <button className="icon-button small" onClick={() => onMove(coin.id, index + 1)} disabled={index === coins.length - 1} aria-label={t("Move {name} down", { name: coin.name })}>
             ↓
           </button>
           <button className="button-tertiary danger" onClick={() => onRemove(coin)}>
-            Remove
+            {t("Remove")}
           </button>
         </li>
       ))}
@@ -75,17 +76,17 @@ function AddCoinsSheet({ open, onClose, list, coins, onToggle }) {
   const q = query.trim().toLowerCase();
   const shown = q ? coins.filter((coin) => [coin.name, coin.symbol, ...(coin.formerSymbols ?? [])].some((text) => text.toLowerCase().includes(q))) : coins;
   return (
-    <Sheet open={open} onClose={onClose} title={list ? `Add coins to ${list.name}` : "Add coins"} side="bottom">
+    <Sheet open={open} onClose={onClose} title={list ? t("Add coins to {list}", { list: list.name }) : t("Add coins")} side="bottom">
       {list && (
         <>
           <label className="form-field">
-            <span>Search coins</span>
-            <input className="input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or ticker" />
+            <span>{t("Search coins")}</span>
+            <input className="input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Name or ticker")} />
           </label>
           {shown.length === 0 ? (
-            <p className="hint">No coins match “{query.trim()}”.</p>
+            <p className="hint">{t("No coins match “{query}”.", { query: query.trim() })}</p>
           ) : (
-            <ul className="pick-list" aria-label="Coins">
+            <ul className="pick-list" aria-label={t("Coins")}>
               {shown.map((coin) => (
                 <li key={coin.id}>
                   <label className="pick-row">
@@ -100,7 +101,7 @@ function AddCoinsSheet({ open, onClose, list, coins, onToggle }) {
               ))}
             </ul>
           )}
-          <button className="button-primary" onClick={onClose}>Done</button>
+          <button className="button-primary" onClick={onClose}>{t("Done")}</button>
         </>
       )}
     </Sheet>
@@ -124,7 +125,7 @@ export default function Watchlist() {
   const [failed, clearFailure] = useSimulatedError();
 
   useEffect(() => {
-    document.title = "Watchlist · CPA";
+    document.title = `${t("Watchlist")} · CPA`;
   }, []);
 
   const currency = settings.currency;
@@ -134,7 +135,7 @@ export default function Watchlist() {
   // The open list is remembered per tab (journey rule 2); a deleted list falls back to Main.
   const active = lists.find((list) => list.id === settings.watchlistList) ?? null;
   const listId = active ? active.id : "main";
-  const listName = active ? active.name : "Main";
+  const listName = active ? active.name : t("Main");
   const ids = active ? active.coinIds : watchlist;
   const byId = useMemo(() => new Map(coins.map((coin) => [coin.id, coin])), [coins]);
   const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
@@ -151,8 +152,8 @@ export default function Watchlist() {
   const alertButton = (coin) => (
     <button
       className="icon-button small row-action"
-      onClick={() => requireAuth(`Sign in to set a price alert for ${coin.name}`, () => navigate(`/alerts?new=${coin.id}`))}
-      aria-label={`Set a price alert for ${coin.name}`}
+      onClick={() => requireAuth(t("Sign in to set a price alert for {name}", { name: coin.name }), () => navigate(`/alerts?new=${coin.id}`))}
+      aria-label={t("Set a price alert for {name}", { name: coin.name })}
     >
       <Icon name="bell" />
     </button>
@@ -161,30 +162,30 @@ export default function Watchlist() {
   return (
     <div className="watchlist">
       <div className="page-head">
-        <h1>Watchlist</h1>
+        <h1>{t("Watchlist")}</h1>
         {ordered.length > 0 && (
           <button className="button-secondary compact" onClick={() => setEditing((value) => !value)} aria-pressed={editing}>
-            {editing ? "Done" : "Edit"}
+            {editing ? t("Done") : t("Edit")}
           </button>
         )}
       </div>
 
       {ordered.length > 0 && (
         <p className="page-sub num">
-          {ordered.length} {ordered.length === 1 ? "coin" : "coins"} ·{" "}
+          {tn(ordered.length, "{count} coin", "{count} coins")} ·{" "}
           <span className={direction(average)}>
             {direction(average) === "up" ? "▲" : direction(average) === "down" ? "▼" : ""} {formatPercent(average)}
           </span>{" "}
-          avg 24h · Updated {relativeTime(lastUpdated, now)}
+          {t("avg 24h · Updated {time}", { time: relativeTime(lastUpdated, now) })}
         </p>
       )}
 
       {(session.kind !== "guest" || lists.length > 0) && (
-        <div className="saved-row list-chips" role="group" aria-label="Watchlists">
+        <div className="saved-row list-chips" role="group" aria-label={t("Watchlists")}>
           {[{ id: "main", name: "Main" }, ...lists].map((list) => (
             <span key={list.id} className="saved-chip">
               <button className={list.id === listId ? "chip on" : "chip"} aria-pressed={list.id === listId} onClick={() => openList(list.id)}>
-                {list.name}
+                {list.id === "main" ? t("Main") : list.name}
               </button>
               {list.id !== "main" && list.id === listId && (
                 <button
@@ -193,7 +194,7 @@ export default function Watchlist() {
                     setName(list.name);
                     setManageOpen(true);
                   }}
-                  aria-label={`Rename or delete ${list.name}`}
+                  aria-label={t("Rename or delete {list}", { list: list.name })}
                 >
                   ⋯
                 </button>
@@ -203,27 +204,27 @@ export default function Watchlist() {
           <button
             className="chip add-chip"
             onClick={() =>
-              requireAuth("Sign in to create a watchlist", () => {
+              requireAuth(t("Sign in to create a watchlist"), () => {
                 setName("");
                 setNewOpen(true);
               })
             }
           >
-            + New list
+            {t("+ New list")}
           </button>
         </div>
       )}
 
       {session.kind === "guest" && (
         <div className="banner banner-info" role="note">
-          <span>Sign in to build a watchlist that's saved to your account.</span>
-          <button className="button-tertiary" onClick={() => navigate("/login?next=/watchlist")}>Log in</button>
+          <span>{t("Sign in to build a watchlist that's saved to your account.")}</span>
+          <button className="button-tertiary" onClick={() => navigate("/login?next=/watchlist")}>{t("Log in")}</button>
         </div>
       )}
 
       {(failed || loadError) && (
         <div className="banner banner-error" role="alert">
-          <span>We couldn't load prices. Showing data from {relativeTime(lastUpdated, now)}.</span>
+          <span>{t("We couldn't load prices. Showing data from {time}.", { time: relativeTime(lastUpdated, now) })}</span>
           <button
             className="button-tertiary"
             onClick={() => {
@@ -231,14 +232,14 @@ export default function Watchlist() {
               refresh();
             }}
           >
-            Retry
+            {t("Retry")}
           </button>
         </div>
       )}
 
       {loading && ordered.length > 0 ? (
         <>
-          <p className="visually-hidden" role="status">Loading your watchlist…</p>
+          <p className="visually-hidden" role="status">{t("Loading your watchlist…")}</p>
           <div className="coin-list" aria-hidden="true"><SkeletonRows count={Math.min(ordered.length, 6)} /></div>
         </>
       ) : ordered.length === 0 ? (
@@ -246,37 +247,37 @@ export default function Watchlist() {
           <Icon name="star" className="empty-icon" />
           {active ? (
             <>
-              <p>Add coins to {active.name} to see them here.</p>
-              <button className="button-secondary" onClick={addCoins}>Add coins</button>
+              <p>{t("Add coins to {list} to see them here.", { list: active.name })}</p>
+              <button className="button-secondary" onClick={addCoins}>{t("Add coins")}</button>
             </>
           ) : (
             <>
-              <p>Add coins to your watchlist to see them here.</p>
-              <button className="button-secondary" onClick={() => navigate("/market")}>Browse market</button>
+              <p>{t("Add coins to your watchlist to see them here.")}</p>
+              <button className="button-secondary" onClick={() => navigate("/market")}>{t("Browse market")}</button>
             </>
           )}
         </div>
       ) : editing ? (
         <>
-          <p className="hint">Drag rows, or use the arrow buttons, to change the order.</p>
+          <p className="hint">{t("Drag rows, or use the arrow buttons, to change the order.")}</p>
           <EditList coins={ordered} listName={listName} onMove={(coinId, index) => moveWatch(coinId, index, listId)} onRemove={(coin) => removeWatch(coin, listId)} />
-          <button className="button-primary" onClick={() => setEditing(false)}>Done</button>
+          <button className="button-primary" onClick={() => setEditing(false)}>{t("Done")}</button>
         </>
       ) : (
         <>
           <div className="list-controls">
             <label className="inline-select">
-              Sort
+              {t("Sort")}
               <select className="select" value={sort} onChange={(event) => updateSettings({ watchlistSort: event.target.value })}>
                 {sorts.map((item) => (
-                  <option key={item.id} value={item.id}>{item.label}</option>
+                  <option key={item.id} value={item.id}>{t(item.label)}</option>
                 ))}
               </select>
             </label>
-            <div className="segmented" role="group" aria-label="View">
+            <div className="segmented" role="group" aria-label={t("View")}>
               {[
-                ["simple", "Simple"],
-                ["pro", "Pro"],
+                ["simple", t("Simple")],
+                ["pro", t("Pro")],
               ].map(([id, label]) => (
                 <button key={id} className={density === id ? "segment active" : "segment"} aria-pressed={density === id} onClick={() => updateMarketSettings({ density: id })}>
                   {label}
@@ -325,7 +326,7 @@ export default function Watchlist() {
 
       {!editing && !(active && ordered.length === 0) && (
         <button className="load-more" onClick={addCoins}>
-          + Add coins
+          {t("+ Add coins")}
         </button>
       )}
 
@@ -338,7 +339,7 @@ export default function Watchlist() {
         onToggle={(coin, member) => setListMembership(coin, listId, member)}
       />
 
-      <Sheet open={newOpen} onClose={() => setNewOpen(false)} title="New watchlist" side="bottom">
+      <Sheet open={newOpen} onClose={() => setNewOpen(false)} title={t("New watchlist")} side="bottom">
         <form
           className="tx-form"
           onSubmit={(event) => {
@@ -352,14 +353,14 @@ export default function Watchlist() {
           }}
         >
           <label className="form-field">
-            <span>Name (up to 30 characters)</span>
-            <input className="input" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} placeholder="L2 bets" autoFocus />
+            <span>{t("Name (up to 30 characters)")}</span>
+            <input className="input" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} placeholder={t("L2 bets")} autoFocus />
           </label>
-          <button type="submit" className="button-primary" disabled={!name.trim()}>Create list</button>
+          <button type="submit" className="button-primary" disabled={!name.trim()}>{t("Create list")}</button>
         </form>
       </Sheet>
 
-      <Sheet open={manageOpen && Boolean(active)} onClose={() => setManageOpen(false)} title="Watchlist" side="bottom">
+      <Sheet open={manageOpen && Boolean(active)} onClose={() => setManageOpen(false)} title={t("Watchlist")} side="bottom">
         {active && (
           <form
             className="tx-form"
@@ -371,10 +372,10 @@ export default function Watchlist() {
             }}
           >
             <label className="form-field">
-              <span>Name</span>
+              <span>{t("Name")}</span>
               <input className="input" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} />
             </label>
-            <button type="submit" className="button-primary" disabled={!name.trim()}>Rename</button>
+            <button type="submit" className="button-primary" disabled={!name.trim()}>{t("Rename")}</button>
             <button
               type="button"
               className="button-secondary button-block danger-text"
@@ -383,7 +384,7 @@ export default function Watchlist() {
                 deleteList(active.id);
               }}
             >
-              Delete list
+              {t("Delete list")}
             </button>
           </form>
         )}

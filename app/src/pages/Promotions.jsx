@@ -5,11 +5,12 @@ import Icon from "../components/Icon.jsx";
 import { POINTS_PROMO, promoStatus, promotions } from "../data/promotions.js";
 import { copyText } from "../lib/clipboard.js";
 import { formatDate } from "../lib/format.js";
+import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
 const promoErrors = {
-  invalid: "This code isn't valid or has ended.",
-  "new-only": "This code is for accounts created in the last 30 days.",
+  invalid: () => t("This code isn't valid or has ended."),
+  "new-only": () => t("This code is for accounts created in the last 30 days."),
 };
 
 // Promotions (21-promotions.md). Plain copy: no countdowns, no "don't miss out".
@@ -22,46 +23,46 @@ export default function Promotions() {
   const past = promotions.filter((promo) => promoStatus(promo) === "ended");
 
   useEffect(() => {
-    document.title = "Promotions · CPA";
+    document.title = `${t("Promotions")} · CPA`;
   }, []);
 
   // Guests sign in first; the code is applied once they're in (US-P21.2).
   const apply = (value) =>
-    requireAuth(`Sign in to apply ${value.trim().toUpperCase()}`, () => {
+    requireAuth(t("Sign in to apply {code}", { code: value.trim().toUpperCase() }), () => {
       const result = applyPromo(value);
-      setMessage(result.ok ? { ok: true, text: `${result.promo.code} applied. Your plan in Settings shows the new price.` } : { ok: false, text: promoErrors[result.error] });
+      setMessage(result.ok ? { ok: true, text: t("{code} applied. Your plan in Settings shows the new price.", { code: result.promo.code }) } : { ok: false, text: promoErrors[result.error]() });
     });
 
   const copy = async (value) => {
     const ok = await copyText(value);
     setCopied(ok ? value : null);
-    setMessage(ok ? null : { ok: false, text: `Couldn't copy. The code is ${value}.` });
+    setMessage(ok ? null : { ok: false, text: t("Couldn't copy. The code is {code}.", { code: value }) });
   };
 
   return (
     <div className="info-page">
-      <h1>Promotions</h1>
-      <p className="visually-hidden" role="status" aria-live="polite">{copied ? "Copied" : ""}</p>
+      <h1>{t("Promotions")}</h1>
+      <p className="visually-hidden" role="status" aria-live="polite">{copied ? t("Copied") : ""}</p>
       {message && <p className={message.ok ? "form-success" : "form-alert"} role={message.ok ? "status" : "alert"}>{message.text}</p>}
-      {billing.promo && <p className="muted-line">Applied to your account: <strong>{billing.promo.code}</strong></p>}
+      {billing.promo && <p className="muted-line">{t("Applied to your account:")} <strong>{billing.promo.code}</strong></p>}
 
       {active.length === 0 ? (
-        <p className="empty-line">No promotions right now. Check back soon.</p>
+        <p className="empty-line">{t("No promotions right now. Check back soon.")}</p>
       ) : (
         active.map((promo) => (
           <article key={promo.code} className="card promo-card">
-            <span className="tag tag-active">Active</span>
-            <h2>{promo.title}</h2>
-            <p className="num">{promo.detail}</p>
-            <p className="muted-line num">Ends {formatDate(promo.ends)}</p>
+            <span className="tag tag-active">{t("Active")}</span>
+            <h2>{t(promo.title)}</h2>
+            <p className="num">{t(promo.detail)}</p>
+            <p className="muted-line num">{t("Ends {date}", { date: formatDate(promo.ends) })}</p>
             <div className="promo-code-row">
-              <span>Code</span>
+              <span>{t("Code")}</span>
               <code className="mono">{promo.code}</code>
-              <button className="button-secondary compact" onClick={() => copy(promo.code)}>{copied === promo.code ? "Copied" : "Copy"}</button>
+              <button className="button-secondary compact" onClick={() => copy(promo.code)}>{copied === promo.code ? t("Copied") : t("Copy")}</button>
             </div>
-            <button className="button-primary" onClick={() => apply(promo.code)}>Apply to my plan</button>
-            <Disclosure title="Terms">
-              <p>{promo.terms}</p>
+            <button className="button-primary" onClick={() => apply(promo.code)}>{t("Apply to my plan")}</button>
+            <Disclosure title={t("Terms")}>
+              <p>{t(promo.terms)}</p>
             </Disclosure>
           </article>
         ))
@@ -69,20 +70,20 @@ export default function Promotions() {
 
       {session.kind !== "guest" && (
         <article className="card promo-card">
-          <h2>{POINTS_PROMO.title}</h2>
-          <p className="num">You have {points} points (sample loyalty points). Points have no cash value.</p>
+          <h2>{t(POINTS_PROMO.title)}</h2>
+          <p className="num">{t("You have {points} points (sample loyalty points). Points have no cash value.", { points })}</p>
           <button className="button-secondary" disabled={points < POINTS_PROMO.cost} onClick={() => {
             const result = redeemPoints();
-            if (result.error) setMessage({ ok: false, text: `You need ${POINTS_PROMO.cost} points.` });
+            if (result.error) setMessage({ ok: false, text: t("You need {cost} points.", { cost: POINTS_PROMO.cost }) });
           }}>
-            Redeem {POINTS_PROMO.cost} points
+            {t("Redeem {cost} points", { cost: POINTS_PROMO.cost })}
           </button>
-          <Link to="/faqs#earn" className="link-button">How points work <Icon name="chevron" /></Link>
+          <Link to="/faqs#earn" className="link-button">{t("How points work")} <Icon name="chevron" /></Link>
         </article>
       )}
 
       <section aria-labelledby="code-title" className="info-section">
-        <h2 id="code-title">Have a code?</h2>
+        <h2 id="code-title">{t("Have a code?")}</h2>
         <form
           className="input-row"
           onSubmit={(event) => {
@@ -90,17 +91,17 @@ export default function Promotions() {
             if (code.trim()) apply(code);
           }}
         >
-          <label className="visually-hidden" htmlFor="promo-code">Promo code</label>
-          <input id="promo-code" className="input mono" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Enter promo code" autoCapitalize="characters" />
-          <button type="submit" className="button-secondary">Apply</button>
+          <label className="visually-hidden" htmlFor="promo-code">{t("Promo code")}</label>
+          <input id="promo-code" className="input mono" value={code} onChange={(event) => setCode(event.target.value)} placeholder={t("Enter promo code")} autoCapitalize="characters" />
+          <button type="submit" className="button-secondary">{t("Apply")}</button>
         </form>
       </section>
 
       <section aria-labelledby="past-title" className="info-section">
-        <h2 id="past-title">Past promotions</h2>
+        <h2 id="past-title">{t("Past promotions")}</h2>
         <ul className="plain-list">
           {past.map((promo) => (
-            <li key={promo.code} className="num">{promo.title} · Ended {formatDate(promo.ends)}</li>
+            <li key={promo.code} className="num">{t(promo.title)} · {t("Ended {date}", { date: formatDate(promo.ends) })}</li>
           ))}
         </ul>
       </section>

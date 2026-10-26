@@ -3,11 +3,12 @@ import Sheet from "./Sheet.jsx";
 import { direction, formatDate, formatPrice } from "../lib/format.js";
 import { downloadText } from "../lib/clipboard.js";
 import { rowsInYear, TAX_METHODS, taxLotReport, taxLotsToCsv, taxTotals, taxYears } from "../lib/taxlots.js";
+import { locale, t, tn } from "../lib/i18n.js";
 
 const MASK = "••••";
 const PREVIEW_ROWS = 10;
 const fileName = (method, year) => `cpa-tax-lots-${method}-${year}-${new Date().toISOString().slice(0, 10)}.csv`;
-const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString("en-US", { maximumFractionDigits: 8 });
+const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString(locale(), { maximumFractionDigits: 8 });
 
 // Tax-lot report (clarification 28): realized gains by FIFO or average cost, as CSV. Amounts are
 // in USD, like the transactions they come from.
@@ -27,27 +28,26 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
 
   const download = () => {
     const ok = downloadText(fileName(method, shownYear), taxLotsToCsv(rows, method), "text/csv");
-    onToast(ok ? `Downloaded ${rows.length} ${rows.length === 1 ? "row" : "rows"}` : "Couldn't start the download in this browser.");
+    onToast(ok ? tn(rows.length, "Downloaded {count} row", "Downloaded {count} rows") : t("Couldn't start the download in this browser."));
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Tax-lot report" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Tax-lot report")} side="bottom">
       <div className="tx-form">
         <p className="sheet-note">
-          Each sell's gain or loss, matched to the buys and transfers in it came from. Buy fees add to cost and sell fees reduce proceeds. Not tax advice: rules
-          differ by country, so check them with a tax professional.
+          {t("Each sell's gain or loss, matched to the buys and transfers in it came from. Buy fees add to cost and sell fees reduce proceeds. Not tax advice: rules differ by country, so check them with a tax professional.")}
         </p>
-        <div className="segmented" role="group" aria-label="Cost basis method">
+        <div className="segmented" role="group" aria-label={t("Cost basis method")}>
           {TAX_METHODS.map((item) => (
             <button key={item.id} type="button" className={method === item.id ? "segment active" : "segment"} aria-pressed={method === item.id} onClick={() => setMethod(item.id)}>
-              {item.label}
+              {t(item.label)}
             </button>
           ))}
         </div>
         <label className="form-field" htmlFor={yearId}>
-          <span>Year sold</span>
+          <span>{t("Year sold")}</span>
           <select id={yearId} className="select" value={shownYear} onChange={(event) => setYear(event.target.value)}>
-            <option value="all">All years</option>
+            <option value="all">{t("All years")}</option>
             {years.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
@@ -55,21 +55,21 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
         </label>
 
         {rows.length === 0 ? (
-          <p className="empty-line">No sells yet. Gains appear here once you log a sell.</p>
+          <p className="empty-line">{t("No sells yet. Gains appear here once you log a sell.")}</p>
         ) : (
           <>
             <dl className="stats tax-totals">
-              <div><dt>Sells</dt><dd className="num">{totals.sales}</dd></div>
-              <div><dt>Proceeds</dt><dd className="num">{usd(totals.proceeds)}</dd></div>
-              <div><dt>Cost basis</dt><dd className="num">{usd(totals.cost)}</dd></div>
+              <div><dt>{t("Sells")}</dt><dd className="num">{totals.sales}</dd></div>
+              <div><dt>{t("Proceeds")}</dt><dd className="num">{usd(totals.proceeds)}</dd></div>
+              <div><dt>{t("Cost basis")}</dt><dd className="num">{usd(totals.cost)}</dd></div>
               <div>
-                <dt>Gain or loss</dt>
+                <dt>{t("Gain or loss")}</dt>
                 <dd className={`num ${direction(totals.gain)}`}>{arrow(totals.gain)}{signed(totals.gain)}</dd>
               </div>
               {fifo && (
                 <>
-                  <div><dt>Short-term (a year or less)</dt><dd className="num">{signed(totals.shortTerm)}</dd></div>
-                  <div><dt>Long-term (over a year)</dt><dd className="num">{signed(totals.longTerm)}</dd></div>
+                  <div><dt>{t("Short-term (a year or less)")}</dt><dd className="num">{signed(totals.shortTerm)}</dd></div>
+                  <div><dt>{t("Long-term (over a year)")}</dt><dd className="num">{signed(totals.longTerm)}</dd></div>
                 </>
               )}
             </dl>
@@ -78,27 +78,27 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
                 <li key={row.id} className="num">
                   <strong>{formatDate(row.sold)} · {hide ? MASK : formatAmount(row.amount)} {row.symbol}</strong>
                   <small>
-                    {row.acquired == null ? "Acquired on several dates" : `Acquired ${formatDate(row.acquired)}`}
-                    {row.term ? ` · ${row.term}-term` : ""} · cost {usd(row.cost)} ·{" "}
+                    {row.acquired == null ? t("Acquired on several dates") : t("Acquired {date}", { date: formatDate(row.acquired) })}
+                    {row.term ? ` · ${row.term === "long" ? t("long-term") : t("short-term")}` : ""} · {t("cost {amount}", { amount: usd(row.cost) })} ·{" "}
                     <span className={direction(row.gain)}>{arrow(row.gain)}{signed(row.gain)}</span>
                   </small>
                 </li>
               ))}
-              {rows.length > PREVIEW_ROWS && <li>…and {rows.length - PREVIEW_ROWS} more in the CSV.</li>}
+              {rows.length > PREVIEW_ROWS && <li>{t("…and {count} more in the CSV.", { count: rows.length - PREVIEW_ROWS })}</li>}
             </ul>
           </>
         )}
         {(report.transfersOut > 0 || report.uncovered > 0) && (
           <p className="sheet-note">
-            {report.transfersOut > 0 && `${report.transfersOut} ${report.transfersOut === 1 ? "transfer" : "transfers"} out removed lots without a gain. `}
-            {report.uncovered > 0 && `${report.uncovered} ${report.uncovered === 1 ? "sell is" : "sells are"} larger than the amount held then; only the held part is reported.`}
+            {report.transfersOut > 0 && `${tn(report.transfersOut, "{count} transfer out removed lots without a gain.", "{count} transfers out removed lots without a gain.")} `}
+            {report.uncovered > 0 && tn(report.uncovered, "{count} sell is larger than the amount held then; only the held part is reported.", "{count} sells are larger than the amount held then; only the held part is reported.")}
           </p>
         )}
         <p className="sheet-note">
-          {fifo ? "FIFO matches each sell to the oldest coins first." : "Average cost uses the average price of all the coins held at the time of each sell."} Amounts in USD.
+          {fifo ? t("FIFO matches each sell to the oldest coins first.") : t("Average cost uses the average price of all the coins held at the time of each sell.")} {t("Amounts in USD.")}
         </p>
         <button type="button" className="button-primary" disabled={!rows.length} onClick={download}>
-          Download CSV
+          {t("Download CSV")}
         </button>
       </div>
     </Sheet>

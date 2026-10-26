@@ -3,6 +3,7 @@ import CoinLogo from "./CoinLogo.jsx";
 import Icon from "./Icon.jsx";
 import Sparkline from "./Sparkline.jsx";
 import { direction, formatCompact, formatPercent, formatPrice, spokenPercent, spokenPrice } from "../lib/format.js";
+import { t } from "../lib/i18n.js";
 
 // Coin rows shared by Market, Watchlist and Search (wireframe row, style guide §7.1).
 export function SkeletonRows({ count }) {
@@ -20,14 +21,14 @@ export default function CoinRow({ coin, starred, onStar, currency, rate, changeK
   const change = coin[changeKey];
   const dir = direction(change);
   const down = coin.change7d < 0;
-  const changeLabel = changeKey === "change24h" ? "24 hours" : changeKey === "change1h" ? "1 hour" : "7 days";
+  const changeLabel = t(changeKey === "change24h" ? "24 hours" : changeKey === "change1h" ? "1 hour" : "7 days");
 
   return (
     <article className={flash ? `coin-row flash-${flash}-${tick % 2}` : "coin-row"}>
       <button
         className={starred ? "star-button starred" : "star-button"}
         aria-pressed={starred}
-        aria-label={`${starred ? "Remove" : "Add"} ${coin.name} ${starred ? "from" : "to"} watchlist`}
+        aria-label={t(starred ? "Remove {name} from watchlist" : "Add {name} to watchlist", { name: coin.name })}
         onClick={() => onStar(coin)}
       >
         <Icon name="star" filled={starred} />
@@ -37,7 +38,7 @@ export default function CoinRow({ coin, starred, onStar, currency, rate, changeK
       <Link
         to={`/coins/${coin.id}`}
         className="coin-name row-link"
-        aria-label={`${coin.name}, ${coin.symbol}, rank ${coin.rank}, price ${spokenPrice(coin.price, currency, rate)}, ${spokenPercent(change)} in ${changeLabel}`}
+        aria-label={t("{name}, {symbol}, rank {rank}, price {price}, {change} in {period}", { name: coin.name, symbol: coin.symbol, rank: coin.rank, price: spokenPrice(coin.price, currency, rate), change: spokenPercent(change), period: changeLabel })}
       >
         <strong>{coin.name}</strong>
         <span>{coin.symbol}</span>
@@ -67,11 +68,11 @@ export function ProTable({ rows, watchlist, onStar, currency, rate, market, onSo
   ];
 
   const header = (label, sortId) => {
-    if (!sortId) return label;
+    if (!sortId) return t(label);
     const active = market.sort === sortId;
     return (
       <button className={active ? "th-sort active" : "th-sort"} onClick={() => onSort(sortId)}>
-        {label}
+        {t(label)}
         {active && <span aria-hidden="true">{market.dir === "desc" ? "▼" : "▲"}</span>}
       </button>
     );
@@ -80,7 +81,7 @@ export function ProTable({ rows, watchlist, onStar, currency, rate, market, onSo
   const ariaSort = (sortId) => (market.sort === sortId ? (market.dir === "desc" ? "descending" : "ascending") : undefined);
 
   return (
-    <div className="table-scroll" tabIndex={0} role="region" aria-label="Coins, Pro view (scrolls sideways)">
+    <div className="table-scroll" tabIndex={0} role="region" aria-label={t("Coins, Pro view (scrolls sideways)")}>
       <table className="pro-table">
         <thead>
           <tr>
@@ -101,7 +102,7 @@ export function ProTable({ rows, watchlist, onStar, currency, rate, market, onSo
                     <button
                       className={starred ? "star-button starred" : "star-button"}
                       aria-pressed={starred}
-                      aria-label={`${starred ? "Remove" : "Add"} ${coin.name} ${starred ? "from" : "to"} watchlist`}
+                      aria-label={t(starred ? "Remove {name} from watchlist" : "Add {name} to watchlist", { name: coin.name })}
                       onClick={() => onStar(coin)}
                     >
                       <Icon name="star" filled={starred} />
@@ -113,11 +114,11 @@ export function ProTable({ rows, watchlist, onStar, currency, rate, market, onSo
                     </Link>
                   </div>
                 </th>
-                <td data-label="Price" className={stale ? "num stale" : "num"}>{formatPrice(coin.price, currency, rate)}</td>
+                <td data-label={t("Price")} className={stale ? "num stale" : "num"}>{formatPrice(coin.price, currency, rate)}</td>
                 <td data-label="24h" className={`num ${direction(coin.change24h)}`}>{formatPercent(coin.change24h)}</td>
                 <td data-label="7d" className={`num ${direction(coin.change7d)}`}>{formatPercent(coin.change7d)}</td>
-                <td data-label="MCap" className="num">{formatCompact(coin.marketCap, currency, rate)}</td>
-                <td data-label="Volume" className="num">{formatCompact(coin.volume24h, currency, rate)}</td>
+                <td data-label={t("MCap")} className="num">{formatCompact(coin.marketCap, currency, rate)}</td>
+                <td data-label={t("Volume")} className="num">{formatCompact(coin.volume24h, currency, rate)}</td>
                 <td data-label="FDV" className="num">{formatCompact(coin.fdv, currency, rate)}</td>
               </tr>
             );

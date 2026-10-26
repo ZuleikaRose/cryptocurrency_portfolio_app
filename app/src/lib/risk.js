@@ -2,6 +2,9 @@
 // liquidity, with explanations, never advice"; clarification 27). Each one states the fixed
 // threshold it uses and the coin's own figures, and none of them says what to do.
 import { formatTokens } from "./format.js";
+import { locale, t } from "./i18n.js";
+
+const fixed = (value, digits) => value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 const DAY_MS = 86_400_000;
 export const RISK_RULES = {
@@ -26,8 +29,11 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
   if (unlockPct >= RISK_RULES.unlockPressurePct) {
     items.push({
       id: "unlock",
-      label: "High unlock pressure",
-      detail: `${formatTokens(unlocking)} ${coin.symbol} (${unlockPct.toFixed(2)}% of circulating supply, ${money(unlocking * coin.price)}) unlock in the next ${RISK_RULES.unlockWindowDays} days. CPA flags ${RISK_RULES.unlockPressurePct}% or more. New supply can add selling pressure.`,
+      label: t("High unlock pressure"),
+      detail: t(
+        "{amount} {symbol} ({pct}% of circulating supply, {value}) unlock in the next {days} days. CPA flags {threshold}% or more. New supply can add selling pressure.",
+        { amount: formatTokens(unlocking), symbol: coin.symbol, pct: fixed(unlockPct, 2), value: money(unlocking * coin.price), days: RISK_RULES.unlockWindowDays, threshold: RISK_RULES.unlockPressurePct },
+      ),
     });
   }
 
@@ -35,8 +41,11 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
   if (coin.volume24h < RISK_RULES.lowVolumeUsd || turnover < RISK_RULES.lowTurnoverPct) {
     items.push({
       id: "liquidity",
-      label: "Low liquidity",
-      detail: `${money(coin.volume24h)} traded in 24h, ${turnover.toFixed(2)}% of market cap. CPA flags under ${RISK_RULES.lowTurnoverPct}% or under ${money(RISK_RULES.lowVolumeUsd)}. Thin trading can mean wider spreads and bigger price moves on large orders.`,
+      label: t("Low liquidity"),
+      detail: t(
+        "{volume} traded in 24h, {pct}% of market cap. CPA flags under {threshold}% or under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.",
+        { volume: money(coin.volume24h), pct: fixed(turnover, 2), threshold: fixed(RISK_RULES.lowTurnoverPct, 1), minimum: money(RISK_RULES.lowVolumeUsd) },
+      ),
     });
   }
 
@@ -44,8 +53,11 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
   if (floatPct < RISK_RULES.lowFloatPct) {
     items.push({
       id: "float",
-      label: "Low float",
-      detail: `${floatPct.toFixed(1)}% of the maximum supply circulates today. CPA flags under ${RISK_RULES.lowFloatPct}%. The rest can reach the market as it unlocks.`,
+      label: t("Low float"),
+      detail: t("{pct}% of the maximum supply circulates today. CPA flags under {threshold}%. The rest can reach the market as it unlocks.", {
+        pct: fixed(floatPct, 1),
+        threshold: RISK_RULES.lowFloatPct,
+      }),
     });
   }
   return items;

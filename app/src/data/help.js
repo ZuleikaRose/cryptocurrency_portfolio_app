@@ -1,5 +1,6 @@
 // FAQ content (18-faqs.md), also searched from Customer support. Plain language, sentence
-// case, and never a promise of returns.
+// case, and never a promise of returns. Text stays English here; pages translate it with t().
+import { t } from "../lib/i18n.js";
 export const faqSections = [
   {
     id: "general",
@@ -61,11 +62,14 @@ export const learnArticles = [
 
 export const slug = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+// Matches the English text and its translation, so search works in either language.
+export const matchesHelp = (item, term) => `${item.q} ${item.a} ${t(item.q)} ${t(item.a)}`.toLowerCase().includes(term);
+
 export function searchHelp(query) {
   const term = query.trim().toLowerCase();
   if (term.length < 2) return [];
   const faq = faqSections.flatMap((section) =>
     section.items.map((item) => ({ ...item, section: section.title, to: `/faqs?q=${encodeURIComponent(query.trim())}#${section.id}` })),
   );
-  return [...faq, ...learnArticles.map((item) => ({ ...item, section: "Learn" }))].filter((item) => `${item.q} ${item.a}`.toLowerCase().includes(term));
+  return [...faq, ...learnArticles.map((item) => ({ ...item, section: "Learn" }))].filter((item) => matchesHelp(item, term));
 }

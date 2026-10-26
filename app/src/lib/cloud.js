@@ -1,6 +1,7 @@
 // Signed-up accounts on Supabase (supabase/migrations). The app keeps one `data` object per
 // session (state/AppStore.jsx); this maps it to and from the cpa tables and saves only the
 // rows that changed. Guest and demo data never come through here.
+import { isLanguage } from "./i18n.js";
 import { supabase } from "./supabase.js";
 
 const ms = (value) => (value ? new Date(value).getTime() : 0);
@@ -27,7 +28,7 @@ const savedTimes = (snapshot, table, field) =>
 function settingsRow(data) {
   const { settings: s } = data;
   return {
-    currency: s.currency, theme: s.theme, colors: s.colors, auto_refresh: s.autoRefresh,
+    language: s.language, currency: s.currency, theme: s.theme, colors: s.colors, auto_refresh: s.autoRefresh,
     stop_animations: s.stopAnimations, hide_balances: s.hideBalances, watchlist_sort: s.watchlistSort,
     watchlist_list: s.watchlistList,
     chart_range: s.chartRange, chart_summaries: s.chartSummaries, auto_advance: s.autoAdvance, analytics: s.analytics,
@@ -51,7 +52,7 @@ function settingsRow(data) {
 
 function settingsFromRow(r) {
   return {
-    currency: r.currency, theme: r.theme, colors: r.colors, autoRefresh: r.auto_refresh, stopAnimations: r.stop_animations,
+    language: isLanguage(r.language) ? r.language : "en", currency: r.currency, theme: r.theme, colors: r.colors, autoRefresh: r.auto_refresh, stopAnimations: r.stop_animations,
     hideBalances: r.hide_balances, watchlistSort: r.watchlist_sort, watchlistList: r.watchlist_list, chartRange: r.chart_range,
     chartSummaries: r.chart_summaries, autoAdvance: r.auto_advance, analytics: r.analytics,
     quietHours: { enabled: r.quiet_hours_enabled, start: hhmm(r.quiet_hours_start), end: hhmm(r.quiet_hours_end) },

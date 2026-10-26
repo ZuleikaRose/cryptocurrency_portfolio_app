@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import Sheet from "./Sheet.jsx";
 import { categories } from "../data/coins.js";
+import { t } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 // First-visit onboarding (01-home.md, US-1.3): three cards, then an optional interest picker.
+// Card text is English here and translated when shown.
 // Cards advance every 6 s only when "Auto-advance onboarding cards" is on and motion isn't reduced.
 const cards = [
   {
@@ -57,27 +59,27 @@ export default function Onboarding() {
   const card = cards[step];
 
   return (
-    <Sheet open={!onboarded} onClose={skip} title={picking ? "Pick what you care about" : "Welcome to CPA"} side="bottom">
+    <Sheet open={!onboarded} onClose={skip} title={picking ? t("Pick what you care about") : t("Welcome to CPA")} side="bottom">
       {!picking ? (
         <div className="onboarding">
           <svg className="onboarding-art" viewBox="0 0 48 48" aria-hidden="true">{card.art}</svg>
-          <h3 className="sheet-heading">{card.title}</h3>
-          <p className="sheet-note">{card.body}</p>
+          <h3 className="sheet-heading">{t(card.title)}</h3>
+          <p className="sheet-note">{t(card.body)}</p>
           <div className="onboarding-foot">
-            <span className="step-dots" role="img" aria-label={`Step ${step + 1} of ${cards.length}`}>
+            <span className="step-dots" role="img" aria-label={t("Step {step} of {total}", { step: step + 1, total: cards.length })}>
               {cards.map((item, index) => (
                 <span key={item.title} className={index === step ? "active" : undefined} />
               ))}
             </span>
-            <button className="button-tertiary muted" onClick={skip}>Skip</button>
-            <button className="button-primary compact-primary" onClick={() => setStep(step + 1)}>Next</button>
+            <button className="button-tertiary muted" onClick={skip}>{t("Skip")}</button>
+            <button className="button-primary compact-primary" onClick={() => setStep(step + 1)}>{t("Next")}</button>
           </div>
         </div>
       ) : (
         <div className="onboarding">
-          <p className="sheet-note">Coins you pick join your watchlist. Sectors shape the funding rounds on Home.</p>
+          <p className="sheet-note">{t("Coins you pick join your watchlist. Sectors shape the funding rounds on Home.")}</p>
           <fieldset className="field-group">
-            <legend>Coins</legend>
+            <legend>{t("Coins")}</legend>
             <div className="pick-chips">
               {topCoins.map((coin) => (
                 <button key={coin.id} className={picks.coins.includes(coin.id) ? "chip toggle on" : "chip toggle"} aria-pressed={picks.coins.includes(coin.id)} onClick={() => toggle("coins", coin.id)}>
@@ -87,19 +89,19 @@ export default function Onboarding() {
             </div>
           </fieldset>
           <fieldset className="field-group">
-            <legend>Sectors</legend>
+            <legend>{t("Sectors")}</legend>
             <div className="pick-chips">
               {categories.map((sector) => (
                 <button key={sector} className={picks.sectors.includes(sector) ? "chip toggle on" : "chip toggle"} aria-pressed={picks.sectors.includes(sector)} onClick={() => toggle("sectors", sector)}>
-                  {sector}
+                  {t(sector)}
                 </button>
               ))}
             </div>
           </fieldset>
           <div className="sheet-actions">
-            <button className="button-secondary" onClick={skip}>Skip</button>
+            <button className="button-secondary" onClick={skip}>{t("Skip")}</button>
             <button className="button-primary" onClick={() => completeOnboarding(picks)} disabled={!picks.coins.length && !picks.sectors.length}>
-              Continue
+              {t("Continue")}
             </button>
           </div>
         </div>

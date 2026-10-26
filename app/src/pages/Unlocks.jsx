@@ -7,6 +7,7 @@ import { unlockEvents } from "../data/research.js";
 import { formatCompact, formatDate, rateFor } from "../lib/format.js";
 import { useFirstLoad, useNow } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
+import { locale, t, tn } from "../lib/i18n.js";
 
 const DAY_MS = 86_400_000;
 const ranges = [
@@ -81,22 +82,22 @@ function CalendarView({ events, selected, onSelect }) {
     }
   };
 
-  const monthLabel = month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = month.toLocaleDateString(locale(), { month: "long", year: "numeric" });
   return (
     <div className="calendar">
       <div className="calendar-head">
-        <button className="icon-button small" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label="Previous month">
+        <button className="icon-button small" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label={t("Previous month")}>
           <Icon name="chevron" className="icon flip" />
         </button>
         <h2 className="subsection-title" aria-live="polite">{monthLabel}</h2>
-        <button className="icon-button small" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label="Next month">
+        <button className="icon-button small" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label={t("Next month")}>
           <Icon name="chevron" />
         </button>
       </div>
-      <div className="calendar-grid" role="grid" aria-label={`Unlocks in ${monthLabel}`} ref={gridRef} onKeyDown={onKeyDown}>
+      <div className="calendar-grid" role="grid" aria-label={t("Unlocks in {month}", { month: monthLabel })} ref={gridRef} onKeyDown={onKeyDown}>
         <div role="row" className="calendar-row">
           {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((name) => (
-            <span key={name} role="columnheader" className="calendar-dow">{name}</span>
+            <span key={name} role="columnheader" className="calendar-dow">{t(name)}</span>
           ))}
         </div>
         {Array.from({ length: Math.ceil(cells.length / 7) }, (_, row) => (
@@ -116,7 +117,7 @@ function CalendarView({ events, selected, onSelect }) {
                       setFocusDay(value);
                       onSelect(isSelected ? null : date);
                     }}
-                    aria-label={`${formatDate(date)}, ${count ? `${count} unlock${count > 1 ? "s" : ""}` : "no unlocks"}`}
+                    aria-label={`${formatDate(date)}, ${count ? tn(count, "{count} unlock", "{count} unlocks") : t("no unlocks")}`}
                   >
                     {value}
                     {count > 0 && <span className="calendar-dot" aria-hidden="true" />}
@@ -141,7 +142,7 @@ export default function Unlocks() {
   const update = (patch) => updateSettings({ unlocks: { ...prefs, ...patch } });
 
   useEffect(() => {
-    document.title = "Token unlocks · CPA";
+    document.title = `${t("Token unlocks")} · CPA`;
   }, []);
 
   const allEvents = useMemo(() => unlockEvents(coins), [coins]);
@@ -162,33 +163,33 @@ export default function Unlocks() {
     .filter((event) => !prefs.minOne || event.share > 1)
     .sort((a, b) => (prefs.sort === "date" ? a.date - b.date : b[prefs.sort] - a[prefs.sort]));
   const totalUsd = events.reduce((sum, event) => sum + event.usd, 0);
-  const rangeLabel = selectedDay ? `on ${formatDate(selectedDay)}` : { today: "today", week: "this week", month: "this month", custom: "in this range" }[prefs.range];
+  const rangeLabel = selectedDay ? t("on {date}", { date: formatDate(selectedDay) }) : t({ today: "today", week: "this week", month: "this month", custom: "in this range" }[prefs.range]);
 
   const remind = (event) =>
-    requireAuth(`Sign in to set a reminder for the ${event.symbol} unlock`, () =>
+    requireAuth(t("Sign in to set a reminder for the {symbol} unlock", { symbol: event.symbol }), () =>
       setReminderItem({ id: event.id, kind: "unlock", symbol: event.symbol, name: event.coin.name, date: event.date, amount: event.amount }),
     );
 
   return (
     <div className="unlocks">
       <div className="page-head">
-        <h1>Token unlocks</h1>
-        <div className="segmented" role="group" aria-label="View">
+        <h1>{t("Token unlocks")}</h1>
+        <div className="segmented" role="group" aria-label={t("View")}>
           {[
             ["list", "List"],
             ["calendar", "Calendar"],
           ].map(([id, label]) => (
             <button key={id} className={prefs.view === id ? "segment active" : "segment"} aria-pressed={prefs.view === id} onClick={() => update({ view: id })}>
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
       </div>
       <p className="page-sub num">
-        {formatCompact(totalUsd, settings.currency, rate)} unlocking {rangeLabel} · {events.length} {events.length === 1 ? "event" : "events"}
+        {t("{amount} unlocking {range}", { amount: formatCompact(totalUsd, settings.currency, rate), range: rangeLabel })} · {tn(events.length, "{count} event", "{count} events")}
       </p>
 
-      <div className="filters" role="group" aria-label="Date range">
+      <div className="filters" role="group" aria-label={t("Date range")}>
         {ranges.map((item) => (
           <button
             key={item.id}
@@ -199,7 +200,7 @@ export default function Unlocks() {
               update({ range: item.id });
             }}
           >
-            {item.label}
+            {t(item.label)}
           </button>
         ))}
       </div>
@@ -207,11 +208,11 @@ export default function Unlocks() {
       {prefs.range === "custom" && !selectedDay && (
         <div className="custom-range">
           <label className="form-field">
-            <span>From</span>
+            <span>{t("From")}</span>
             <input type="date" className="input" min={toDateInput(new Date(now))} value={custom.from} onChange={(event) => setCustom({ ...custom, from: event.target.value })} />
           </label>
           <label className="form-field">
-            <span>To</span>
+            <span>{t("To")}</span>
             <input type="date" className="input" min={custom.from || toDateInput(new Date(now))} value={custom.to} onChange={(event) => setCustom({ ...custom, to: event.target.value })} />
           </label>
         </div>
@@ -221,19 +222,19 @@ export default function Unlocks() {
         <label className="switch">
           <input type="checkbox" checked={prefs.watchlistOnly} onChange={(event) => update({ watchlistOnly: event.target.checked })} />
           <span className="switch-track" aria-hidden="true" />
-          Watchlist only
+          {t("Watchlist only")}
         </label>
         <label className="switch">
           <input type="checkbox" checked={prefs.minOne} onChange={(event) => update({ minOne: event.target.checked })} />
           <span className="switch-track" aria-hidden="true" />
-          &gt; 1% only
+          {t("> 1% only")}
         </label>
       </div>
       <label className="inline-select">
-        Sort
+        {t("Sort")}
         <select className="select" value={prefs.sort} onChange={(event) => update({ sort: event.target.value })}>
           {sorts.map((item) => (
-            <option key={item.id} value={item.id}>{item.label}</option>
+            <option key={item.id} value={item.id}>{t(item.label)}</option>
           ))}
         </select>
       </label>
@@ -242,17 +243,17 @@ export default function Unlocks() {
         <CalendarView key="calendar" events={allEvents.filter((event) => (!prefs.watchlistOnly || watchlist.includes(event.coin.id)) && (!prefs.minOne || event.share > 1))} selected={selectedDay} onSelect={setSelectedDay} />
       )}
       {selectedDay && (
-        <button className="chip selected-day" onClick={() => setSelectedDay(null)} aria-label={`Clear day filter: ${formatDate(selectedDay)}`}>
+        <button className="chip selected-day" onClick={() => setSelectedDay(null)} aria-label={t("Clear day filter: {date}", { date: formatDate(selectedDay) })}>
           {formatDate(selectedDay)} <Icon name="close" />
         </button>
       )}
 
       {loading ? (
-        <SkeletonCards count={3} label="unlocks" />
+        <SkeletonCards count={3} label={t("unlocks")} />
       ) : events.length === 0 ? (
         <div className="empty-state">
           <Icon name="calendarLock" className="empty-icon" />
-          <p>No unlocks in this range.</p>
+          <p>{t("No unlocks in this range.")}</p>
           <button
             className="button-secondary"
             onClick={() => {
@@ -260,7 +261,7 @@ export default function Unlocks() {
               update({ range: "month", watchlistOnly: false, minOne: false });
             }}
           >
-            Show this month
+            {t("Show this month")}
           </button>
         </div>
       ) : (
@@ -271,7 +272,7 @@ export default function Unlocks() {
         </ul>
       )}
 
-      <p className="disclaimer">Not financial advice. Unlock schedules are CPA sample data; $ values use today's price.</p>
+      <p className="disclaimer">{t("Not financial advice. Unlock schedules are CPA sample data; $ values use today's price.")}</p>
       <ReminderSheet key={reminderItem?.id ?? "none"} item={reminderItem} onClose={() => setReminderItem(null)} />
     </div>
   );

@@ -7,6 +7,7 @@ import { researchFor } from "../data/research.js";
 import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets, rescheduleReminders } from "../lib/alerts.js";
 import { tokenSales } from "../data/directory.js";
 import { formatDate } from "../lib/format.js";
+import { detectLanguage, isLanguage, setLanguage, t, tc, tn } from "../lib/i18n.js";
 import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
 import { authErrorKind, clearFailures, lockState, normalizeEmail, recordFailure } from "../lib/auth.js";
 import { emptyBilling, normalizeBilling, settleBilling } from "../lib/billing.js";
@@ -51,6 +52,7 @@ const guestData = () => ({
   watchlist: ["bitcoin"],
   settings: {
     ...defaultSettings,
+    language: detectLanguage(),
     stopAnimations: prefersReducedMotion(),
     a11y: { ...defaultSettings.a11y, contrast: prefersMoreContrast() ? "high" : "default" },
   },
@@ -86,7 +88,7 @@ function demoAlertData() {
   const shift = new URLSearchParams(window.location.search).get("simulate") === "reschedule" ? 2 * 86_400_000 : 0;
   const early = unlock && new Date(unlock.date.getTime() - shift);
   const reminders = unlock
-    ? { [shift ? `arbitrum-${early.toISOString().slice(0, 10)}` : unlock.id]: { timings: ["1h"], kind: "unlock", symbol: "ARB", name: "Arbitrum", date: early.toISOString(), label: "ARB unlock", fired: [] } }
+    ? { [shift ? `arbitrum-${early.toISOString().slice(0, 10)}` : unlock.id]: { timings: ["1h"], kind: "unlock", symbol: "ARB", name: "Arbitrum", date: early.toISOString(), label: t("{symbol} unlock", { symbol: "ARB" }), fired: [] } }
     : {};
   return {
     alerts: [
@@ -96,9 +98,9 @@ function demoAlertData() {
     reminders,
     follows: { "northstar-capital": "daily" },
     notifications: [
-      { id: "demo-note-btc", kind: "price", coinId: "bitcoin", title: "BTC above $67,500.00", detail: "Now $67,682.43 · ▲ +2.18% 24h", path: "/coins/bitcoin", at: now - 25 * 60_000, read: false },
-      { id: "demo-note-arb", kind: "unlock", coinId: "arbitrum", title: "ARB unlock coming up", detail: unlock ? `92.65M ARB (3.21% of supply) · ${formatDate(unlock.date)}` : "92.65M ARB (3.21% of supply)", path: "/coins/arbitrum?tab=tokenomics", at: now - 70 * 60_000, read: false },
-      { id: "demo-note-fund", kind: "fund", title: "Northstar Capital led Driftnet $28.5M", detail: "Series A · DeFi", path: "/funds/northstar-capital", at: now - 26 * 60 * 60_000, read: true },
+      { id: "demo-note-btc", kind: "price", coinId: "bitcoin", title: t("{symbol} above {price}", { symbol: "BTC", price: "$67,500.00" }), detail: t("Now {price} · {change} 24h", { price: "$67,682.43", change: "▲ +2.18%" }), path: "/coins/bitcoin", at: now - 25 * 60_000, read: false },
+      { id: "demo-note-arb", kind: "unlock", coinId: "arbitrum", title: t("{symbol} unlock coming up", { symbol: "ARB" }), detail: unlock ? `${t("{amount} ARB ({share} of supply)", { amount: "92.65M", share: "3.21%" })} · ${formatDate(unlock.date)}` : t("{amount} ARB ({share} of supply)", { amount: "92.65M", share: "3.21%" }), path: "/coins/arbitrum?tab=tokenomics", at: now - 70 * 60_000, read: false },
+      { id: "demo-note-fund", kind: "fund", title: t("{fund} led {project} {amount}", { fund: "Northstar Capital", project: "Driftnet", amount: "$28.5M" }), detail: t("Series A · DeFi"), path: "/funds/northstar-capital", at: now - 26 * 60 * 60_000, read: true },
     ],
   };
 }
@@ -111,6 +113,8 @@ const demoData = () => ({
   billing: demoBilling(),
   ...demoAlertData(),
 });
+// Switching session (demo, log out) keeps the language on screen.
+const keepLanguage = (next, current) => ({ ...next, settings: { ...next.settings, language: current.settings.language } });
 let idCounter = 0;
 // UUIDs, because transactions, alerts, notifications and saved filters are uuid rows in the
 // database. Without Web Crypto (insecure origins) the fallback id works for this tab only.
@@ -222,6 +226,7 @@ function normalizeStored(rawStored) {
     settings: {
       ...defaultSettings,
       ...stored.settings,
+      language: isLanguage(stored.settings?.language) ? stored.settings.language : defaultSettings.language,
       market: { ...defaultSettings.market, ...stored.settings?.market },
       unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
       fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
@@ -366,11 +371,13 @@ function reminderCandidates(id, reminder, coins) {
 // "Weekly digest summary" (25-ai-integration.md): a factual recap, no advice words.
 function digestRecap(watchlist, coins) {
   const held = watchlist.map((id) => coins.find((coin) => coin.id === id)).filter(Boolean);
-  if (!held.length) return "Your watchlist is empty this week.";
+  if (!held.length) return t("Your watchlist is empty this week.");
   const sorted = [...held].sort((a, b) => b.change24h - a.change24h);
   const up = held.filter((coin) => coin.change24h > 0).length;
   const fmt = (value) => `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
-  return `${up} of ${held.length} watchlist coins are up in 24h. Biggest move: ${sorted[0].symbol} ${fmt(sorted[0].change24h)}; weakest: ${sorted.at(-1).symbol} ${fmt(sorted.at(-1).change24h)}.`;
+  return t("{up} of {total} watchlist coins are up in 24h. Biggest move: {top}; weakest: {bottom}.", {
+    up, total: held.length, top: `${sorted[0].symbol} ${fmt(sorted[0].change24h)}`, bottom: `${sorted.at(-1).symbol} ${fmt(sorted.at(-1).change24h)}`,
+  });
 }
 
 export function AppProvider({ children }) {
@@ -422,12 +429,12 @@ export function AppProvider({ children }) {
         if (sync.current !== state) return { ok: false, stale: true };
         state.snapshot = result.snapshot;
         if (!result.ok) {
-          if (!state.warned) notifyRef.current?.("We couldn't save your changes. Check your connection; we'll keep trying.");
+          if (!state.warned) notifyRef.current?.(t("We couldn't save your changes. Check your connection; we'll keep trying."));
           state.warned = true;
           if (sync.current === state) state.retry = window.setTimeout(flushNow, RETRY_MS);
           return { ok: false, error: result.error };
         }
-        if (state.warned) notifyRef.current?.("Your changes are saved.");
+        if (state.warned) notifyRef.current?.(t("Your changes are saved."));
         state.warned = false;
       } while (state.again);
       return { ok: true };
@@ -449,6 +456,12 @@ export function AppProvider({ children }) {
     document.addEventListener("visibilitychange", onHide);
     return () => document.removeEventListener("visibilitychange", onHide);
   }, [flush]);
+
+  // t() reads this module-level language while the tree renders below; <html lang> follows it.
+  setLanguage(data.settings.language);
+  useEffect(() => {
+    document.documentElement.lang = data.settings.language;
+  }, [data.settings.language]);
 
   // Reflect display and accessibility settings on <html> so CSS can respond (27-accessibility-menu.md).
   const { a11y } = data.settings;
@@ -507,14 +520,14 @@ export function AppProvider({ children }) {
   );
 
   const startDemo = useCallback(() => {
-    setSession({ kind: "demo", name: "Demo user" });
-    setData(demoData());
+    setSession({ kind: "demo", name: t("Demo user") });
+    setData((current) => keepLanguage(demoData(), current));
     setAuthPrompt(null);
   }, []);
 
   const endDemo = useCallback(() => {
     setSession({ kind: "guest" });
-    setData({ ...guestData(), onboarded: true });
+    setData((current) => keepLanguage({ ...guestData(), onboarded: true }, current));
   }, []);
 
   // The intent (add or remove) is fixed when the user taps, so an action finished
@@ -522,14 +535,14 @@ export function AppProvider({ children }) {
   const toggleWatch = useCallback(
     (coin) => {
       const add = !dataRef.current.watchlist.includes(coin.id);
-      requireAuth(`Sign in to ${add ? "add" : "remove"} ${coin.name} ${add ? "to" : "from"} your watchlist`, () => {
+      requireAuth(t(add ? "Sign in to add {coin} to your watchlist" : "Sign in to remove {coin} from your watchlist", { coin: coin.name }), () => {
         setData((current) => ({
           ...current,
           watchlist: add
             ? [...new Set([...current.watchlist, coin.id])]
             : current.watchlist.filter((id) => id !== coin.id),
         }));
-        showToast(add ? `${coin.name} added to watchlist` : `${coin.name} removed from watchlist`);
+        showToast(t(add ? "{coin} added to watchlist" : "{coin} removed from watchlist", { coin: coin.name }));
       });
     },
     [requireAuth, showToast],
@@ -547,9 +560,9 @@ export function AppProvider({ children }) {
   // One sentiment vote per coin per day (US-P03.2); guests see results only.
   const castVote = useCallback(
     (coin, vote) =>
-      requireAuth(`Sign in to vote on ${coin.name}`, () => {
+      requireAuth(t("Sign in to vote on {coin}", { coin: coin.name }), () => {
         setData((current) => ({ ...current, votes: { ...current.votes, [coin.id]: { vote, day: today() } } }));
-        showToast(`Vote recorded: ${vote === "bullish" ? "Bullish" : "Bearish"} on ${coin.symbol}`);
+        showToast(t(vote === "bullish" ? "Vote recorded: Bullish on {symbol}" : "Vote recorded: Bearish on {symbol}", { symbol: coin.symbol }));
       }),
     [requireAuth, showToast],
   );
@@ -563,8 +576,8 @@ export function AppProvider({ children }) {
   // `item` = { id, kind: "unlock" | "sale", symbol, name, date }.
   const setReminder = useCallback(
     (item, timings) =>
-      requireAuth(`Sign in to set a reminder for ${item.symbol}`, () => {
-        const label = item.kind === "sale" ? `${item.symbol} token sale` : `${item.symbol} unlock`;
+      requireAuth(t("Sign in to set a reminder for {symbol}", { symbol: item.symbol }), () => {
+        const label = t(item.kind === "sale" ? "{symbol} token sale" : "{symbol} unlock", { symbol: item.symbol });
         setData((current) => {
           const reminders = { ...current.reminders };
           if (timings.length) {
@@ -574,7 +587,7 @@ export function AppProvider({ children }) {
           }
           return { ...current, reminders, reminderTimings: timings.length ? timings : current.reminderTimings, notificationsAsked: true };
         });
-        showToast(timings.length ? `Reminder set for the ${label}` : `Reminder removed for the ${label}`);
+        showToast(t(timings.length ? "Reminder set for the {label}" : "Reminder removed for the {label}", { label }));
       }),
     [requireAuth, showToast],
   );
@@ -603,7 +616,7 @@ export function AppProvider({ children }) {
           ? { ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }
           : { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: list.coinIds.filter((id) => id !== coin.id) } : list)) },
       );
-      showToast(`${coin.name} removed`, { label: "Undo", run: () => moveWatch(coin.id, index, listId) });
+      showToast(t("{coin} removed", { coin: coin.name }), { label: t("Undo"), run: () => moveWatch(coin.id, index, listId) });
     },
     [moveWatch, showToast],
   );
@@ -612,12 +625,12 @@ export function AppProvider({ children }) {
   const createList = useCallback(
     (name, coinIds = []) => {
       if (dataRef.current.lists.length >= MAX_LISTS - 1) {
-        showToast(`You can have up to ${MAX_LISTS} watchlists. Delete one to add another.`);
+        showToast(t("You can have up to {max} watchlists. Delete one to add another.", { max: MAX_LISTS }));
         return null;
       }
       const list = { id: newId("list"), name: name.trim().slice(0, 30), coinIds };
       setData((current) => ({ ...current, lists: [...current.lists, list] }));
-      showToast(`Created “${list.name}”`);
+      showToast(t("Created “{name}”", { name: list.name }));
       return list.id;
     },
     [showToast],
@@ -635,8 +648,8 @@ export function AppProvider({ children }) {
         lists: current.lists.filter((list) => list.id !== id),
         settings: current.settings.watchlistList === id ? { ...current.settings, watchlistList: "main" } : current.settings,
       }));
-      showToast(`Deleted “${removed.name}”`, {
-        label: "Undo",
+      showToast(t("Deleted “{name}”", { name: removed.name }), {
+        label: t("Undo"),
         run: () =>
           setData((current) => {
             if (current.lists.some((list) => list.id === id)) return current;
@@ -651,14 +664,14 @@ export function AppProvider({ children }) {
   // Add or remove one coin in one list; "main" is the classic watchlist.
   const setListMembership = useCallback(
     (coin, listId, member) => {
-      requireAuth(`Sign in to save ${coin.name} to a watchlist`, () => {
+      requireAuth(t("Sign in to save {coin} to a watchlist", { coin: coin.name }), () => {
         setData((current) => {
           const apply = (ids) => (member ? [...new Set([...ids, coin.id])] : ids.filter((id) => id !== coin.id));
           if (listId === "main") return { ...current, watchlist: apply(current.watchlist) };
           return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: apply(list.coinIds) } : list)) };
         });
-        const name = listId === "main" ? "Main" : dataRef.current.lists.find((list) => list.id === listId)?.name ?? "watchlist";
-        showToast(member ? `${coin.name} added to ${name}` : `${coin.name} removed from ${name}`);
+        const name = listId === "main" ? t("Main") : dataRef.current.lists.find((list) => list.id === listId)?.name ?? t("watchlist");
+        showToast(t(member ? "{coin} added to {list}" : "{coin} removed from {list}", { coin: coin.name, list: name }));
       });
     },
     [requireAuth, showToast],
@@ -691,7 +704,7 @@ export function AppProvider({ children }) {
           ? [...current.transactions, { ...transaction, id: newId("tx") }]
           : current.transactions.map((item) => (item.id === transaction.id ? transaction : item)),
       }));
-      showToast(isNew ? "Transaction added" : "Transaction updated");
+      showToast(isNew ? t("Transaction added") : t("Transaction updated"));
     },
     [showToast],
   );
@@ -705,14 +718,14 @@ export function AppProvider({ children }) {
         ...current,
         transactions: [...current.transactions.filter((tx) => !removed.has(tx.id)), ...list.map((tx) => ({ ...tx, id: newId("tx") }))],
       }));
-      showToast(`${list.length} ${list.length === 1 ? "transaction" : "transactions"} imported`);
+      showToast(tn(list.length, "{count} transaction imported", "{count} transactions imported"));
     },
     [showToast],
   );
   const deleteTransaction = useCallback(
     (id) => {
       setData((current) => ({ ...current, transactions: current.transactions.filter((item) => item.id !== id) }));
-      showToast("Transaction deleted");
+      showToast(t("Transaction deleted"));
     },
     [showToast],
   );
@@ -720,7 +733,7 @@ export function AppProvider({ children }) {
   // Follow a fund with a digest frequency (US-5.4); null unfollows.
   const setFollow = useCallback(
     (fund, frequency) =>
-      requireAuth(`Sign in to follow ${fund.name}`, () => {
+      requireAuth(t("Sign in to follow {name}", { name: fund.name }), () => {
         setData((current) => {
           const follows = { ...current.follows };
           if (frequency) follows[fund.id] = frequency;
@@ -728,7 +741,7 @@ export function AppProvider({ children }) {
           return { ...current, follows };
         });
         const names = { instant: "Instant", daily: "Daily digest", weekly: "Weekly digest" };
-        showToast(frequency ? `Following ${fund.name} · ${names[frequency]}` : `Unfollowed ${fund.name}`);
+        showToast(frequency ? `${t("Following {name}", { name: fund.name })} · ${t(names[frequency])}` : t("Unfollowed {name}", { name: fund.name }));
       }),
     [requireAuth, showToast],
   );
@@ -736,12 +749,12 @@ export function AppProvider({ children }) {
   const toggleFollowProject = useCallback(
     (project) => {
       const following = dataRef.current.followedProjects.includes(project);
-      requireAuth(`Sign in to follow ${project}`, () => {
+      requireAuth(t("Sign in to follow {name}", { name: project }), () => {
         setData((current) => ({
           ...current,
           followedProjects: following ? current.followedProjects.filter((name) => name !== project) : [...new Set([...current.followedProjects, project])],
         }));
-        showToast(following ? `Unfollowed ${project}` : `Following ${project}`);
+        showToast(t(following ? "Unfollowed {name}" : "Following {name}", { name: project }));
       });
     },
     [requireAuth, showToast],
@@ -751,11 +764,11 @@ export function AppProvider({ children }) {
   const saveFilter = useCallback(
     (name, filters) => {
       if (dataRef.current.savedFilters.length >= 10) {
-        showToast("You can save up to 10 filters.");
+        showToast(t("You can save up to 10 filters."));
         return false;
       }
       setData((current) => ({ ...current, savedFilters: [{ id: newId("filter"), name, filters }, ...current.savedFilters] }));
-      showToast(`Saved filter “${name}”`);
+      showToast(t("Saved filter “{name}”", { name }));
       return true;
     },
     [showToast],
@@ -766,7 +779,7 @@ export function AppProvider({ children }) {
   const deleteFilter = useCallback(
     (id) => {
       setData((current) => ({ ...current, savedFilters: current.savedFilters.filter((item) => item.id !== id) }));
-      showToast("Saved filter deleted");
+      showToast(t("Saved filter deleted"));
     },
     [showToast],
   );
@@ -779,7 +792,7 @@ export function AppProvider({ children }) {
       const quiet = inQuietHours(dataRef.current.settings.quietHours);
       notes.forEach((note) => {
         if (quiet && !note.bypassQuiet) return;
-        showToast(note.title, { label: "View", run: () => navigate(note.path) });
+        showToast(note.title, { label: tc("action", "View"), run: () => navigate(note.path) });
         showBrowserNotification(note.title, note.detail);
       });
     },
@@ -821,10 +834,10 @@ export function AppProvider({ children }) {
       // Reminders follow their unlock or sale when its date changes, and say so (US-4.2).
       const { reminders: followed, moves } = rescheduleReminders(current.reminders, (id, item) => reminderCandidates(id, item, coins), now);
       moves.forEach(({ previous, reminder }) => {
-        const what = reminder.kind === "sale" ? `${reminder.symbol} token sale` : `${reminder.symbol} unlock`;
+        const what = t(reminder.kind === "sale" ? "{symbol} token sale" : "{symbol} unlock", { symbol: reminder.symbol });
         notes.push({
-          id: newId("note"), kind: reminder.kind, title: `${what} moved to ${formatDate(reminder.date)}`,
-          detail: `Your reminder was rescheduled. It was ${formatDate(previous)}.`,
+          id: newId("note"), kind: reminder.kind, title: t("{what} moved to {date}", { what, date: formatDate(reminder.date) }),
+          detail: t("Your reminder was rescheduled. It was {date}.", { date: formatDate(previous) }),
           path: reminder.kind === "sale" ? "/token-sales" : "/unlocks", at: now, read: false, bypassQuiet: false,
         });
       });
@@ -838,8 +851,8 @@ export function AppProvider({ children }) {
         changed = true;
         reminders[id] = { ...reminder, fired: [...(reminder.fired ?? []), ...due] };
         if (now >= date) return; // Missed while the app was closed: mark done without a stale alert.
-        const what = reminder.kind === "sale" ? `${reminder.symbol} token sale starts` : `${reminder.symbol} unlock`;
-        const timing = due.includes("1h") ? "in 1 hour" : "in 24 hours";
+        const what = t(reminder.kind === "sale" ? "{symbol} token sale starts" : "{symbol} unlock", { symbol: reminder.symbol });
+        const timing = due.includes("1h") ? t("in 1 hour") : t("in 24 hours");
         notes.push({
           id: newId("note"), kind: reminder.kind, title: `${what} ${timing}`, detail: `${reminder.name} · ${formatDate(date)}`,
           path: reminder.kind === "sale" ? "/token-sales" : "/unlocks", at: now, read: false, bypassQuiet: false,
@@ -852,10 +865,10 @@ export function AppProvider({ children }) {
       if (now >= digestAt && lastDigest < digestAt) {
         if (lastDigest > 0 && current.settings.weeklyDigest) {
           notes.push({
-            id: newId("note"), kind: "digest", title: "Your weekly digest",
+            id: newId("note"), kind: "digest", title: t("Your weekly digest"),
             detail: current.settings.ai.digestSummary
-              ? `✦ Generated summary: ${digestRecap(current.watchlist, coins)}`
-              : `${current.watchlist.length} coins on your watchlist · ${Object.keys(current.follows).length} funds followed`,
+              ? `✦ ${t("Generated summary:")} ${digestRecap(current.watchlist, coins)}`
+              : t("{coins} coins on your watchlist · {funds} funds followed", { coins: current.watchlist.length, funds: Object.keys(current.follows).length }),
             path: "/watchlist", at: now, read: false, bypassQuiet: false,
           });
         }
@@ -898,7 +911,7 @@ export function AppProvider({ children }) {
           ? [{ ...alert, id: newId("alert"), active: true, lastFired: 0, created: Date.now() }, ...current.alerts]
           : current.alerts.map((item) => (item.id === alert.id ? { ...item, ...alert, active: true, lastFired: 0 } : item)),
       }));
-      showToast(isNew ? "Alert set" : "Alert updated");
+      showToast(isNew ? t("Alert set") : t("Alert updated"));
     },
     [showToast],
   );
@@ -908,7 +921,7 @@ export function AppProvider({ children }) {
   const deleteAlert = useCallback(
     (id) => {
       setData((current) => ({ ...current, alerts: current.alerts.filter((item) => item.id !== id) }));
-      showToast("Alert deleted");
+      showToast(t("Alert deleted"));
     },
     [showToast],
   );
@@ -925,7 +938,7 @@ export function AppProvider({ children }) {
         delete reminders[id];
         return { ...current, reminders };
       });
-      showToast("Reminder deleted");
+      showToast(t("Reminder deleted"));
     },
     [showToast],
   );
@@ -967,7 +980,7 @@ export function AppProvider({ children }) {
     setAuthPrompt(null);
     setSearch({ open: false, scope: "all" });
     setAccessibilityOpen(false);
-    const guest = { ...guestData(), onboarded: true };
+    const guest = keepLanguage({ ...guestData(), onboarded: true }, dataRef.current);
     dataRef.current = guest;
     setData(guest);
     setSession({ kind: "guest" });
@@ -993,13 +1006,13 @@ export function AppProvider({ children }) {
         return;
       }
       if (loaded.status !== "ok") {
-        notifyRef.current?.("We couldn't load your account. Check your connection and refresh to try again.");
+        notifyRef.current?.(t("We couldn't load your account. Check your connection and refresh to try again."));
         return;
       }
       // Each app load counts as a visit (feedback prompt after the 5th, 20-feedback.md).
       enterAccount({ ...loaded, data: { ...loaded.data, visits: loaded.data.visits + 1 } });
     })()
-      .catch(() => notifyRef.current?.("We couldn't load your account. Check your connection and refresh to try again."))
+      .catch(() => notifyRef.current?.(t("We couldn't load your account. Check your connection and refresh to try again.")))
       .finally(() => {
         window.clearTimeout(timer);
         if (live) setReady(true);
@@ -1056,7 +1069,7 @@ export function AppProvider({ children }) {
             onboarded: guest.onboarded,
           },
         });
-        showToast("Account created");
+        showToast(t("Account created"));
         return { ok: true };
       } catch {
         return { error: "network" };
@@ -1089,7 +1102,7 @@ export function AppProvider({ children }) {
           return { error: "network" };
         }
         enterAccount(loaded);
-        showToast(`Welcome back, ${loaded.session.name.split(" ")[0]}`);
+        showToast(t("Welcome back, {name}", { name: loaded.session.name.split(" ")[0] }));
         return { ok: true };
       } catch {
         return { error: "network" };
@@ -1129,7 +1142,7 @@ export function AppProvider({ children }) {
       if (result?.error) throw result.error;
       return { ok: true };
     } catch (error) {
-      notifyRef.current?.("Couldn't finish signing out. Refresh the page to make sure you're signed out.");
+      notifyRef.current?.(t("Couldn't finish signing out. Refresh the page to make sure you're signed out."));
       return { ok: false, error };
     }
   }, [flush, resetToGuest]);
@@ -1288,7 +1301,7 @@ export function AppProvider({ children }) {
       if (Date.now() - created > 30 * 86_400_000) return { error: "new-only" };
     }
     setData((latest) => ({ ...latest, billing: { ...latest.billing, promo: { code: promo.code, appliedAt: new Date().toISOString() } } }));
-    showToast(`${promo.code} applied`);
+    showToast(t("{code} applied", { code: promo.code }));
     return { ok: true, promo, previous: current.billing.promo?.code ?? null };
   }, [session, showToast]);
   const redeemPoints = useCallback(() => {
@@ -1299,7 +1312,7 @@ export function AppProvider({ children }) {
       pointsSpent: latest.pointsSpent + POINTS_PROMO.cost,
       billing: { ...latest.billing, promo: { code: POINTS_PROMO.code, appliedAt: new Date().toISOString() } },
     }));
-    showToast(`${POINTS_PROMO.code} applied · ${POINTS_PROMO.cost} points used`);
+    showToast(t("{code} applied · {points} points used", { code: POINTS_PROMO.code, points: POINTS_PROMO.cost }));
     return { ok: true };
   }, [session, showToast]);
 
@@ -1307,7 +1320,7 @@ export function AppProvider({ children }) {
     const base = (session.name ?? "cpa").toLowerCase().replace(/[^a-z]/g, "").slice(0, 8) || "cpa";
     const code = `${base}-${Math.random().toString(36).slice(2, 6)}`;
     setData((current) => ({ ...current, affiliate: { joinedAt: new Date().toISOString(), code, payoutMethod } }));
-    showToast("You've joined the affiliate program");
+    showToast(t("You've joined the affiliate program"));
   }, [session.name, showToast]);
   const setAffiliatePayout = useCallback((payoutMethod) => {
     setData((current) => (current.affiliate ? { ...current, affiliate: { ...current.affiliate, payoutMethod } } : current));
@@ -1427,7 +1440,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={value}>
       <MarketProvider autoRefresh={data.settings.autoRefresh}>
         <AlertWatcher onPrices={checkPrices} onClock={checkClock} />
-        {ready ? children : <div className="app-restoring" aria-busy="true" aria-label="Loading your account" />}
+        {ready ? children : <div className="app-restoring" aria-busy="true" aria-label={t("Loading your account")} />}
       </MarketProvider>
     </AppContext.Provider>
   );

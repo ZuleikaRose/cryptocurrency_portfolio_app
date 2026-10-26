@@ -3,6 +3,7 @@ import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { useApp } from "../state/context.js";
 import { useOnline } from "../lib/hooks.js";
+import { t } from "../lib/i18n.js";
 
 // Toasts sit above the bottom nav; at most two, each for 4 s (00-app-shell.md).
 export function Toasts() {
@@ -21,7 +22,7 @@ export function Toasts() {
                 dismissToast(toast.id);
               }}
             >
-              {toast.action.label}
+              {t(toast.action.label)}
             </button>
           )}
         </p>
@@ -43,14 +44,14 @@ export function SignInSheet() {
   };
 
   return (
-    <Sheet open={Boolean(authPrompt)} onClose={dismissAuthPrompt} title="Sign in" side="bottom">
+    <Sheet open={Boolean(authPrompt)} onClose={dismissAuthPrompt} title={t("Sign in")} side="bottom">
       <div className="signin-sheet">
         <h3>{authPrompt?.reason}</h3>
-        <p>Your change is saved after you sign in. You can also try a private demo; it resets when you refresh.</p>
-        <button className="button-primary" onClick={() => goTo("/login")}>Log in</button>
-        <button className="button-secondary button-block" onClick={() => goTo("/signup")}>Create account</button>
-        <button className="button-tertiary" onClick={startDemo}>Try a private demo</button>
-        <button className="button-tertiary muted" onClick={dismissAuthPrompt}>Not now</button>
+        <p>{t("Your change is saved after you sign in. You can also try a private demo; it resets when you refresh.")}</p>
+        <button className="button-primary" onClick={() => goTo("/login")}>{t("Log in")}</button>
+        <button className="button-secondary button-block" onClick={() => goTo("/signup")}>{t("Create account")}</button>
+        <button className="button-tertiary" onClick={startDemo}>{t("Try a private demo")}</button>
+        <button className="button-tertiary muted" onClick={dismissAuthPrompt}>{t("Not now")}</button>
       </div>
     </Sheet>
   );
@@ -63,7 +64,7 @@ export function OfflineBanner() {
   return (
     <div className="offline-banner" role="status">
       <Icon name="clock" />
-      <span>You're offline: showing saved data</span>
+      <span>{t("You're offline: showing saved data")}</span>
     </div>
   );
 }
@@ -73,8 +74,8 @@ export function DemoBanner() {
   if (session.kind !== "demo") return null;
   return (
     <div className="demo-banner" role="note">
-      <span>Demo mode · changes reset on refresh</span>
-      <button className="icon-button small" onClick={endDemo} aria-label="End demo">
+      <span>{t("Demo mode · changes reset on refresh")}</span>
+      <button className="icon-button small" onClick={endDemo} aria-label={t("End demo")}>
         <Icon name="close" />
       </button>
     </div>

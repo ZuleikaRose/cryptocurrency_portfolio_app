@@ -95,6 +95,10 @@ Accounts run on Supabase:
 
 The schema, migrations, the sample-data seed and the live price Edge Function are in `supabase/` (see below).
 
+## Languages
+
+CPA is in English and Spanish. Guests start in the browser's language and can switch in the menu; signed-in users can also choose in Settings › Preferences, which saves it to their account. `lib/i18n.js` looks up each English string in `src/locales/es/` (one file per area) and falls back to English; numbers and dates follow the language. Run `npm run i18n:check` in `app/` to list strings without a Spanish entry.
+
 ## Design
 
 The design follows `app_outline/style_guide.md`, with the Figma wireframe (`app_outline/figma-wireframe/`) taking precedence where they differ.
