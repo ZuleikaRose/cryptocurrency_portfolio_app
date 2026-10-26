@@ -156,7 +156,8 @@ export default function AppShell() {
         {/* Before <main> so Tab order matches the sidebar on wide screens; the skip link passes it. */}
         <BottomNav />
         <main id="main" className="content" tabIndex={-1}>
-          <Outlet />
+          {/* Re-mount the page when the language changes, so its title and labels set once on open follow. */}
+          <Outlet key={settings.language} />
         </main>
         <SiteFooter />
       </div>
