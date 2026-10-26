@@ -4,6 +4,8 @@ Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) i
 
 ## Commands
 
+Node: 26.12.1 locally (`.nvmrc`; run `nvm use`). Vercel builds on its latest 24.x, since it offers only 22.x and 24.x, so `engines` is `>=24`: don't use APIs newer than Node 24 in build scripts.
+
 Run these from `app/`:
 - `npm run dev`: Vite on http://localhost:5173. Use `npx vite --port 5173 --strictPort` if you need the port fixed for browser tests.
 - `npm run lint`: oxlint. It must pass with no output before you commit.
