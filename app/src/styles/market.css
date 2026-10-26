@@ -200,7 +200,8 @@
 :root[data-theme="light"] .tint-red { background: #fde4e5; color: #b4232c; }
 :root[data-theme="light"] .tint-slate { background: #eceef2; color: #4b5563; }
 
-.coin-name { width: 96px; min-width: 0; margin-left: 10px; }
+/* Grows into spare width, so the price never wraps under the row on narrow phones. */
+.coin-name { flex: 1 1 64px; min-width: 0; margin-left: 10px; }
 .coin-name strong, .coin-name span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coin-name strong { font-size: 14px; font-weight: 650; }
 .coin-name span { margin-top: 3px; color: var(--subtle); font-size: 11px; }

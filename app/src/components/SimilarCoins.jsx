@@ -18,7 +18,7 @@ export default function SimilarCoins({ coin, title }) {
       <ul className="recent-chips">
         {list.map((item) => (
           <li key={item.id}>
-            <Link to={`/coins/${item.id}`} className="chip" aria-label={t("{name}, {change} in 24 hours", { name: item.name, change: formatPercent(item.change24h) })}>
+            <Link to={`/coins/${item.id}`} className="chip" aria-label={t("{symbol} ({name}), {change} in 24 hours", { symbol: item.symbol, name: item.name, change: formatPercent(item.change24h) })}>
               <CoinLogo coin={item} /> {item.symbol}
               <span className={`num ${direction(item.change24h)}`} aria-hidden="true">{formatPercent(item.change24h)}</span>
             </Link>

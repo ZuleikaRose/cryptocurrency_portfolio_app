@@ -13,6 +13,7 @@
 @import "./styles/home.css";
 @import "./styles/account.css";
 @import "./styles/info.css";
+@import "./styles/responsive.css";
 @import "./styles/a11y.css";
 
 *,

@@ -38,7 +38,7 @@ export default function CoinRow({ coin, starred, onStar, currency, rate, changeK
       <Link
         to={`/coins/${coin.id}`}
         className="coin-name row-link"
-        aria-label={t("{name}, {symbol}, rank {rank}, price {price}, {change} in {period}", { name: coin.name, symbol: coin.symbol, rank: coin.rank, price: spokenPrice(coin.price, currency, rate), change: spokenPercent(change), period: changeLabel })}
+        aria-label={t("{name} {symbol}, rank {rank}, price {price}, {change} in {period}", { name: coin.name, symbol: coin.symbol, rank: coin.rank, price: spokenPrice(coin.price, currency, rate), change: spokenPercent(change), period: changeLabel })}
       >
         <strong>{coin.name}</strong>
         <span>{coin.symbol}</span>

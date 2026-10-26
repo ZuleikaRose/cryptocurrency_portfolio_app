@@ -17,7 +17,7 @@ function TopBar({ onOpenMenu, onOpenA11y, onOpenSearch }) {
   return (
     <header className="topbar">
       <Link to="/" className="brand" aria-label={t("CPA, Cryptocurrency Portfolio App — home")}>
-        <span className="brand-mark" aria-hidden="true">C</span>
+        <span className="brand-mark" aria-hidden="true" />
         <span>CPA</span>
       </Link>
       <div className="top-actions">
@@ -62,7 +62,8 @@ function BottomNav() {
           {({ isActive }) => (
             <>
               <Icon name={tab.icon} filled={isActive && tab.icon === "star"} />
-              <span aria-hidden="true">{tc("tab", tab.label)}</span>
+              <span className="nav-short" aria-hidden="true">{tc("tab", tab.label)}</span>
+              <span className="nav-full" aria-hidden="true">{t(tab.label)}</span>
             </>
           )}
         </NavLink>
@@ -152,11 +153,12 @@ export default function AppShell() {
         <TopBar onOpenMenu={() => setMenuOpen(true)} onOpenA11y={() => setA11yOpen(true)} onOpenSearch={() => openSearch()} />
         <OfflineBanner />
         <DemoBanner />
+        {/* Before <main> so Tab order matches the sidebar on wide screens; the skip link passes it. */}
+        <BottomNav />
         <main id="main" className="content" tabIndex={-1}>
           <Outlet />
         </main>
         <SiteFooter />
-        <BottomNav />
       </div>
 
       <Toasts />

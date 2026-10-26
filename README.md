@@ -1,8 +1,8 @@
 # CPA: Cryptocurrency Portfolio App
 
-CPA is a phone-width single-page app for following the crypto market: coin rankings, token unlocks, funding rounds, token sales, a watchlist, a manual portfolio and alerts. It's a build of the CryptoRank-style product described in `app_outline/`. Prices for 34 major coins come live from CryptoRank through a scheduled Supabase Edge Function; everything else is bundled sample data. Accounts use Supabase (Auth plus Postgres in the `cpa` schema).
+CPA is a responsive single-page app for following the crypto market: coin rankings, token unlocks, funding rounds, token sales, a watchlist, a manual portfolio and alerts. It's a build of the CryptoRank-style product described in `app_outline/`. Prices for 34 major coins come live from CryptoRank through a scheduled Supabase Edge Function; everything else is bundled sample data. Accounts use Supabase (Auth plus Postgres in the `cpa` schema).
 
-It also works on desktop, where the phone-width shell sits in a centred frame. It is hosted on Vercel at https://cpa-black.vercel.app/
+It adapts to phones, tablets, notebooks and desktops: a bottom nav on phones, full-width pages on tablets and a sidebar from 1024px wide (`app/src/styles/responsive.css`). It is hosted on Vercel at https://cpa-black.vercel.app/
 
 > Not financial advice. Data provided for informational purposes. Live prices come from CryptoRank; unlocks, rounds and the remaining coins are sample data.
 

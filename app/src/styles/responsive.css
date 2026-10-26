@@ -1,0 +1,106 @@
+/* Responsive layout (prompt.md clarification 31): the phone layout below 700px, a full-width
+   tablet layout from 700px and a sidebar layout from 1024px (notebooks, PCs, Macs, Linux and
+   Chromebooks). Only CSS that every current Chrome, Edge, Firefox and Safari supports. */
+
+html {
+  -webkit-text-size-adjust: 100%; /* iOS and Android don't inflate text in landscape */
+  text-size-adjust: 100%;
+}
+.sheet-bottom .sheet-panel, .sheet-top .sheet-panel { max-height: 85vh; max-height: 85dvh; }
+
+/* Phones in landscape: a shorter nav leaves room for content. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
+  :root { --nav-h: 54px; --topbar-h: 56px; }
+  .nav-item { gap: 2px; }
+}
+
+/* Tablets and narrow windows: the app fills the width; pages keep a readable measure. */
+@media (min-width: 700px) {
+  :root { --shell-width: 640px; --page-width: 760px; --gutter: 24px; }
+  .phone { max-width: none; border-inline: 0; }
+  .topbar { padding-inline: var(--gutter) 16px; }
+  .content {
+    width: 100%;
+    max-width: var(--page-width);
+    margin-inline: auto;
+    padding: 28px var(--gutter) 32px;
+  }
+  .offline-banner, .demo-banner {
+    width: calc(100% - 2 * var(--gutter));
+    max-width: calc(var(--page-width) - 2 * var(--gutter));
+    margin: 12px auto 0;
+  }
+  .site-footer { padding-inline: max(var(--gutter), calc((100% - var(--page-width)) / 2 + var(--gutter))); }
+  .bottom-nav { width: 100%; padding-inline: max(8px, calc((100% - var(--page-width)) / 2)); }
+  .nav-item { font-size: 12px; }
+  .sheet-right .sheet-panel { right: 0; width: min(86%, 400px); }
+  /* As many cards per row as fit, so two cards share the row instead of leaving half of it empty. */
+  .pulse-grid, .discover-grid, .skeleton-tiles { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+}
+
+/* Notebooks and desktops: the seven tabs become a sidebar under the top bar. */
+@media (min-width: 1024px) {
+  :root { --rail-w: 232px; --page-width: 1120px; --nav-h: 0px; --gutter: 32px; }
+  .phone {
+    display: grid;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto;
+    padding-bottom: 0;
+  }
+  .topbar { grid-column: 1 / -1; grid-row: 1; padding-inline: 24px; }
+  .offline-banner { grid-column: 2; grid-row: 2; }
+  .demo-banner { grid-column: 2; grid-row: 3; }
+  .content { grid-column: 2; grid-row: 4; }
+  .site-footer { grid-column: 2; grid-row: 5; }
+  .bottom-nav {
+    grid-column: 1;
+    grid-row: 2 / -1;
+    position: sticky;
+    top: var(--topbar-h);
+    left: auto;
+    bottom: auto;
+    transform: none;
+    align-self: start;
+    width: auto;
+    height: calc(100vh - var(--topbar-h));
+    height: calc(100dvh - var(--topbar-h));
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    border-top: 0;
+    border-right: 1px solid var(--line-soft);
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .nav-item {
+    min-height: 44px;
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+  .nav-item:hover { background: var(--surface-raised); color: var(--text); }
+  .nav-item.active { background: var(--surface-raised); }
+  /* The bottom-nav labels are short for phones; the sidebar has room for the full ones. */
+  .nav-item .nav-short { display: none; }
+  .nav-item .nav-full { display: inline; }
+  .toast-region { left: calc(50% + var(--rail-w) / 2); bottom: 24px; }
+
+  /* Forms and reading pages keep a comfortable line length on wide screens. */
+  .auth-page, .settings, .info-page, .not-found { max-width: 760px; }
+  .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1440px) {
+  :root { --rail-w: 256px; --page-width: 1200px; }
+}
+
+/* Touch screens (tablets, touch Chromebooks): no sticky hover tint after a tap. */
+@media (hover: none) {
+  .coin-row:hover, .holding-row:hover, .nav-item:not(.active):hover { background: transparent; }
+}
