@@ -5,7 +5,7 @@ import Icon from "../components/Icon.jsx";
 import { POINTS_PROMO, promoStatus, promotions } from "../data/promotions.js";
 import { copyText } from "../lib/clipboard.js";
 import { formatDate } from "../lib/format.js";
-import { t } from "../lib/i18n.js";
+import { t, tc } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
 const promoErrors = {
@@ -51,7 +51,7 @@ export default function Promotions() {
       ) : (
         active.map((promo) => (
           <article key={promo.code} className="card promo-card">
-            <span className="tag tag-active">{t("Active")}</span>
+            <span className="tag tag-active">{tc("promotion", "Active")}</span>
             <h2>{t(promo.title)}</h2>
             <p className="num">{t(promo.detail)}</p>
             <p className="muted-line num">{t("Ends {date}", { date: formatDate(promo.ends) })}</p>

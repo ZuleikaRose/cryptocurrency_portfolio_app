@@ -299,4 +299,25 @@ export const portfolio = {
   // Share cards (lib/share.js)
   "Source: CPA sample data · {time} · Not financial advice": "Fuente: datos de muestra de CPA · {time} · No es asesoramiento financiero",
   "{title} on CPA": "{title} en CPA",
+
+  // wallet-lookup Edge Function messages (lib/wallet.js serverMessage)
+  "Origin not allowed.": "Origen no permitido.",
+  "Use POST.": "Usa POST.",
+  "Request body too large.": "La solicitud es demasiado grande.",
+  "Wallet import isn't configured.": "La importación de monederos no está configurada.",
+  "Wallet import is unavailable. Try again later.": "La importación de monederos no está disponible. Vuelve a intentarlo más tarde.",
+  "Sign in to import a wallet.": "Inicia sesión para importar un monedero.",
+  "Send JSON with chain and address.": "Envía JSON con la cadena y la dirección.",
+  "Chain must be bitcoin or ethereum.": "La cadena debe ser bitcoin o ethereum.",
+  "Enter a public address.": "Introduce una dirección pública.",
+  "That isn't a Bitcoin address.": "Esa no es una dirección de Bitcoin.",
+  "That isn't an Ethereum address (0x followed by 40 characters).": "Esa no es una dirección de Ethereum (0x seguido de 40 caracteres).",
+  "That isn't a valid Bitcoin address.": "Esa no es una dirección de Bitcoin válida.",
+  "You can look up {count} wallets an hour. Try again later.": "Puedes consultar {count} monederos por hora. Vuelve a intentarlo más tarde.",
+  "Ethereum import isn't configured yet.": "La importación de Ethereum aún no está configurada.",
+  "We couldn't read that wallet's balances. Try again in a minute.": "No pudimos leer los saldos de ese monedero. Vuelve a intentarlo en un minuto.",
+  "We couldn't read that wallet's history. Try again in a minute.": "No pudimos leer el historial de ese monedero. Vuelve a intentarlo en un minuto.",
+  "We couldn't reach the {explorer} explorer. Try again in a minute.": "No pudimos conectar con el explorador de {explorer}. Vuelve a intentarlo en un minuto.",
+  "We couldn't read the {explorer} explorer's reply. Try again in a minute.": "No pudimos leer la respuesta del explorador de {explorer}. Vuelve a intentarlo en un minuto.",
+  "The Ethereum explorer is busy. Try again in a minute.": "El explorador de Ethereum está ocupado. Vuelve a intentarlo en un minuto.",
 };

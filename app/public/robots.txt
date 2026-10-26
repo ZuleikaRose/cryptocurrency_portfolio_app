@@ -1,0 +1,9 @@
+# CPA: public market pages can be indexed; account pages can't.
+User-agent: *
+Allow: /
+Disallow: /settings
+Disallow: /alerts
+Disallow: /logout
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /account-deleted

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { profiles, resetPatch, toggleProfile } from "../lib/a11y.js";
+import { formatNumber } from "../lib/format.js";
 import { languages, t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
@@ -145,20 +146,20 @@ export default function AccessibilityMenu({ open, onClose, onShowShortcuts }) {
           <Stepper
             label="Line height"
             value={a11y.lineHeight || 1.5}
-            display={a11y.lineHeight ? a11y.lineHeight.toFixed(1) : t("Default")}
+            display={a11y.lineHeight ? formatNumber(a11y.lineHeight, 1) : t("Default")}
             min={1}
             max={2}
             step={0.1}
-            onChange={(lineHeight) => setA11y({ lineHeight }, `${t("Line height")} ${lineHeight.toFixed(1)}`)}
+            onChange={(lineHeight) => setA11y({ lineHeight }, `${t("Line height")} ${formatNumber(lineHeight, 1)}`)}
           />
           <Stepper
             label="Letter spacing"
             value={a11y.letterSpacing}
-            display={a11y.letterSpacing ? `+${a11y.letterSpacing.toFixed(2)}em` : t("Default")}
+            display={a11y.letterSpacing ? `+${formatNumber(a11y.letterSpacing)}em` : t("Default")}
             min={0}
             max={0.2}
             step={0.02}
-            onChange={(letterSpacing) => setA11y({ letterSpacing }, `${t("Letter spacing")} ${letterSpacing.toFixed(2)} em`)}
+            onChange={(letterSpacing) => setA11y({ letterSpacing }, `${t("Letter spacing")} ${formatNumber(letterSpacing)} em`)}
           />
           <Choice
             label="Alignment"

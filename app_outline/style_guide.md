@@ -36,6 +36,8 @@
 - Percentages: always signed and to 2 decimals: `+3.21%`, `−0.48%` (true minus sign U+2212).
 - Dates: `Oct 17, 2026` for display. Relative time for anything under 7 days ("in 3d 4h", "2h ago").
 
+> **CPA build (Oct 26, 2026), Spanish:** the same rules in Spanish formats: decimal comma, symbol after the amount, "mil" / "M" / "mil M" / "B" (billón) instead of K / M / B / T: `80.156,48 $`, `2,88 B $`, `842,5 M $`, `−0,48%`, `26 oct 2026`, "hace 2 h", "en 3d 4h". Sentence case and the analyst voice carry over; use informal "tú". Keep tickers, project names and the source names CryptoRank and Coinbase as they are. Name each language in its own language ("English", "Español"). **Portuguese (Brazil):** decimal comma, `US$` before the amount, "mil" / "mi" / "bi" / "tri": `US$ 80.156,48`, `US$ 2,88 tri`, `842,5 mi`, `−0,48%`, `26 de out. de 2026`, "há 2 h"; informal "você". Where a label is too long for the phone tab bar, use a short form there only ("Desbloq.", "Lista") and keep the full name in its accessible label and the desktop sidebar.
+
 ---
 
 ## 3. Color
@@ -124,6 +126,16 @@ Bottom tab bar (5 items max):
 | More | menu | Token sales, exchanges, news, settings |
 
 A persistent **search** button sits in the top app bar on every root screen.
+
+> **CPA build (Oct 26, 2026), layout by width:**
+>
+> | Width | Layout |
+> |---|---|
+> | under 700 px | Phone: bottom tab bar (7 tabs), 18 px gutters, 440 px shell |
+> | 700–1023 px | Tablet: full width, pages up to 760 px, 24 px gutters, bottom tab bar across the width |
+> | 1024 px and up | Notebook / desktop: the tabs become a sidebar (232 px, 256 px from 1440 px) under the top bar; pages up to 1,120 px (1,200 px from 1440 px), 32 px gutters; forms and reading pages stay at 760 px |
+>
+> Phones in landscape get a 56 px top bar and 54 px tab bar. Card grids fit as many 200 px cards as the width allows. Sheets keep their phone width and centre on wide screens.
 
 ---
 
@@ -215,6 +227,9 @@ ARB · Arbitrum                       in 3d 04h
 - [ ] Dynamic Type up to 200% without truncating prices
 - [ ] Focus order follows visual order
 - [ ] Live price updates are **not** announced continuously (no announcement spam)
+- [ ] The page's `lang` matches the interface language, and each language option carries its own `lang`
+- [ ] No sideways scrolling at any width, at 200% text, or in landscape; the sidebar comes before the page in focus order
+- [ ] A control's accessible name starts with its visible text ("ETH (Ethereum), …"), so voice control works (WCAG 2.5.3)
 
 ---
 

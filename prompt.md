@@ -81,6 +81,9 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 29. **Exchange CSV import (Oct 26, 2026).** The transactions CSV import also reads Coinbase transaction history, Kraken trades and Binance spot trade history exports, in the browser. Coinbase converts become a sell and a buy, and rewards and staking income become transfers in at that day's price. Prices must be in US dollars; USD stablecoin prices count 1:1, and the preview says so. Rows in other currencies, cash deposits and moves inside an exchange are skipped with a reason. CPA never asks for exchange API keys.
 30. **Spanish translation (Oct 26, 2026).** The whole interface is available in Spanish as well as English. Guests start in the browser's language; anyone can switch in the menu, and accounts also in Settings › Preferences, where the choice is saved (`user_settings.language`). Numbers and dates follow the language (decimal comma, "mil M" for billions). Stored data (CSV formats, transaction notes, saved notifications) stays as written. Legal pages say the English version prevails.
 31. **Responsive layout (Oct 26, 2026).** CPA adapts to phones, tablets, notebooks and desktops (Windows, macOS, Linux and ChromeOS, in current Chrome, Edge, Firefox and Safari). Below 700px it keeps the phone layout. From 700px it fills the width with pages up to 760px wide. From 1024px the seven tabs become a sidebar and pages grow to 1,120px (1,200px from 1440px). Phones in landscape get a shorter top bar and nav. This replaces the centred phone frame on desktop.
+32. **Language in the Accessibility menu (Oct 26, 2026).** The Accessibility menu (♿ or Alt+A) starts with Language: English | Español, each named in its own language with its own `lang`. It's the same setting as the main menu and Settings, and Reset leaves it alone. Switching language also updates the page title straight away.
+33. **Node 26 for development (Oct 26, 2026).** Local development uses Node 26.12.1 (`.nvmrc`). Vercel offers only Node 22 and 24, so `engines` is `>=24` and production builds on Node 24.
+34. **Portuguese (Oct 26, 2026).** Portuguese (Brazil) joins English and Spanish everywhere a language can be chosen, with Brazilian formats (`US$ 80.156,48`, `US$ 2,88 tri`, `842,5 mi`, `26 de out. de 2026`). Guests start in the first of their browser's languages that CPA has. `user_settings.language` accepts `pt` (migration `user_settings_language_pt`).
 
 # Required material from the outline documents
 
@@ -144,6 +147,9 @@ The journey maps name a pain point at each stage and the fix they propose. All o
 4. Show the data source, last-updated time and verified contract on key screens.
 5. Offer a Simple vs Pro density setting.
 6. Allow full browsing as a guest; require sign-in only for saving, alerts and portfolio.
+7. Take a public wallet address or an exported CSV file only, never a recovery phrase, private key or exchange key.
+8. Open in the browser's language and let anyone switch (English, Spanish or Portuguese, US-9.7).
+9. Work on any screen, from a phone to a desktop (US-9.8).
 
 ## MVP stories (user_stories.md, P0)
 

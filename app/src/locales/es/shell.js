@@ -52,7 +52,13 @@ export const shell = {
   "tab|Funding": "Rondas",
   "tab|Unlocks": "Desbloq.",
   "tab|Watchlist": "Lista",
+  "sidebar|Watchlist": "Seguimiento", // desktop sidebar (tc("sidebar", …))
   "action|View": "Ver", // toast button; plain "View" is the noun
+  // Feminine forms where the noun is "venta" or "promoción".
+  "sales|Upcoming": "Próximas",
+  "sales|Active": "Activas",
+  "sales|Past": "Pasadas",
+  "promotion|Active": "Activa",
 
   // Menu groups
   Research: "Investigación",
