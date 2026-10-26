@@ -72,3 +72,54 @@ export function usePriceHistory(coin, rangeId) {
     retry,
   };
 }
+
+// Several coins' ranges at once (Portfolio value chart, clarification 28). { series } maps a coin
+// id to its Coinbase points once read; { loading } is true while a live coin has nothing to show
+// yet, and { error } when the last read of any of them failed (cached ranges are kept).
+export function usePriceHistories(coins, rangeId) {
+  const ids = supabase ? coins.filter((coin) => coin.historyUpdatedAt).map((coin) => coin.id).sort() : [];
+  const key = `${ids.join(",")}:${rangeId}`;
+  const [state, setState] = useState({ key: null, error: false });
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!ids.length) return undefined;
+    let cancelled = false;
+    Promise.allSettled(ids.map((id) => fetchPriceHistory(id, rangeId))).then((results) => {
+      const failed = results.filter((result) => result.status === "rejected");
+      failed.forEach((result) => console.error(`Price history for ${rangeId} failed: ${result.reason?.message}`));
+      if (!cancelled) setState({ key, error: failed.length > 0 });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // ids is derived from key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, attempt]);
+
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
+  const series = new Map();
+  ids.forEach((id) => {
+    const points = cachedHistory(id, rangeId)?.points;
+    if (points?.length >= 2) series.set(id, points);
+  });
+  const settled = state.key === key;
+  return {
+    ids,
+    series,
+    version: `${key}:${settled}:${attempt}`,
+    loading: !settled && ids.some((id) => !series.has(id)),
+    error: settled && state.error,
+    retry,
+  };
+}
+
+// The nearest Coinbase close to a moment (cpa.price_at), for "Use market price". Returns
+// { price, time } in USD, or null when the coin has no stored history; throws when the request
+// fails.
+export async function fetchPriceAt(coinId, time) {
+  if (!supabase) throw new Error("Supabase isn't configured.");
+  const { data, error } = await supabase.rpc("price_at", { coin_id: coinId, at_ms: Math.round(time) });
+  if (error) throw new Error(error.message);
+  return toPoint(data);
+}

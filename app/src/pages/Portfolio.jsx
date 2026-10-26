@@ -6,9 +6,12 @@ import Icon from "../components/Icon.jsx";
 import ChartSummary from "../components/ChartSummary.jsx";
 import PriceChart from "../components/PriceChart.jsx";
 import Sheet from "../components/Sheet.jsx";
+import TaxReportSheet from "../components/TaxReportSheet.jsx";
+import { ErrorBanner } from "../components/LoadState.jsx";
 import { researchFor } from "../data/research.js";
 import { direction, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
-import { amountHeld, computeHoldings, priceAt, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
+import { amountHeld, chartRange, computeHoldings, priceAt, rangePerformance, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
+import { closeDay, fetchPriceAt, usePriceHistories } from "../lib/history.js";
 import { chartSummary } from "../lib/chart.js";
 import { downloadText } from "../lib/clipboard.js";
 import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
@@ -39,6 +42,7 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
       : { type: "buy", coinId: coin.id, amount: "", price: coin.price.toFixed(coin.price >= 1 ? 2 : 6), date: toLocalInput(new Date()), fee: "", note: "", ...initial };
   });
   const [touched, setTouched] = useState(false);
+  const [priceNote, setPriceNote] = useState(null);
   const now = useNow(30_000);
 
   const coin = coins.find((item) => item.id === form.coinId);
@@ -58,10 +62,34 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
   const valid = Object.keys(errors).length === 0;
 
   const set = (patch) => setForm((current) => ({ ...current, ...patch }));
-  const applyMarketPrice = () => {
+  const setPrice = (value) => set({ price: value.toFixed(value >= 1 ? 2 : 6) });
+  // The nearest Coinbase close for coins with history (clarification 28), sample history otherwise.
+  const applyMarketPrice = async () => {
     if (!coin || errors.date) return;
-    const value = priceAt(coin, new Date(form.date).getTime());
-    set({ price: value.toFixed(value >= 1 ? 2 : 6) });
+    const time = new Date(form.date).getTime();
+    if (!coin.historyUpdatedAt) {
+      setPrice(priceAt(coin, time));
+      setPriceNote("CPA sample data.");
+      return;
+    }
+    setPriceNote("Looking up the price…");
+    try {
+      const close = await fetchPriceAt(coin.id, time);
+      if (close) {
+        setPrice(close.price);
+        // A close stamped at midnight UTC is that day's daily close.
+        const stamp = new Date(close.time).toISOString();
+        setPriceNote(stamp.slice(11, 16) === "00:00"
+          ? `Coinbase daily close for ${formatDate(closeDay(close.time))} (UTC).`
+          : `Coinbase close at ${stamp.slice(0, 16).replace("T", " ")} UTC.`);
+      } else {
+        setPrice(priceAt(coin, time));
+        setPriceNote("No Coinbase close for that date, so this is CPA sample data.");
+      }
+    } catch (error) {
+      console.error(`Market price lookup failed: ${error.message}`);
+      setPriceNote("We couldn't load the market price. Enter it yourself or try again.");
+    }
   };
 
   const submit = (event) => {
@@ -121,9 +149,13 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
         <div className="form-field">
           <label htmlFor={`${formId}-price`}>Price per coin (USD)</label>
           <div className="input-row">
-            <input {...field("price")} className="input num" inputMode="decimal" value={form.price} onChange={(event) => set({ price: event.target.value })} />
+            <input {...field("price")} className="input num" inputMode="decimal" value={form.price} onChange={(event) => {
+              set({ price: event.target.value });
+              setPriceNote(null);
+            }} />
             <button type="button" className="button-tertiary" onClick={applyMarketPrice}>↺ Use market price</button>
           </div>
+          <small className="field-hint" role="status">{priceNote}</small>
           {showError("price") && <span id={`${formId}-price-error`} className="field-error">{errors.price}</span>}
         </div>
 
@@ -401,7 +433,19 @@ function GuestPreview({ onDemo, onLogin }) {
 }
 
 function Disclaimer() {
-  return <p className="disclaimer">Not financial advice. Data provided for informational purposes. Prices are CPA sample data.</p>;
+  return (
+    <p className="disclaimer">
+      Not financial advice. Data provided for informational purposes. Prices: CryptoRank (live) and Coinbase closes (history) where available, CPA sample data otherwise.
+    </p>
+  );
+}
+
+// Names the price source under the value chart (clarification 28).
+function chartSource(ids, series, coins) {
+  const sample = ids.filter((id) => !series.has(id)).map((id) => coins.find((coin) => coin.id === id)?.symbol ?? id);
+  if (!sample.length) return "Coinbase closes, USD, UTC";
+  if (sample.length === ids.length) return "CPA sample data";
+  return `Coinbase closes, USD, UTC; CPA sample data for ${sample.join(", ")}`;
 }
 
 export default function Portfolio() {
@@ -413,6 +457,7 @@ export default function Portfolio() {
   const [sheet, setSheet] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [taxOpen, setTaxOpen] = useState(false);
 
   useEffect(() => {
     document.title = "Portfolio · CPA";
@@ -424,7 +469,13 @@ export default function Portfolio() {
   const money = (value) => (hide ? MASK : formatPrice(value, currency, rate));
   const holdings = useMemo(() => computeHoldings(transactions, coins).filter((item) => item.amount > 1e-12), [transactions, coins]);
   const summary = summarize(holdings);
-  const history = useMemo(() => valueHistory(transactions, coins, range), [transactions, coins, range]);
+  const tradedIds = useMemo(() => [...new Set(transactions.map((tx) => tx.coinId))].sort().join(","), [transactions]);
+  const traded = useMemo(() => coins.filter((coin) => tradedIds.split(",").includes(coin.id)), [coins, tradedIds]);
+  const live = usePriceHistories(traded, chartRange[range]);
+  // live.version changes when a range has been read; the series come from the history cache.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const history = useMemo(() => (live.loading ? [] : valueHistory(transactions, coins, range, live.series)), [transactions, coins, range, live.loading, live.version]);
+  const performance = range === "ALL" ? null : rangePerformance(transactions, history);
   const sorted = [...holdings].sort((a, b) => (sort === "name" ? a.coin.name.localeCompare(b.coin.name) : b[sort] - a[sort]));
   const slices = [...holdings].sort((a, b) => b.value - a.value).map((item) => ({ label: item.coin.symbol, value: item.value }));
 
@@ -467,13 +518,35 @@ export default function Portfolio() {
                 {arrow(summary.pnl)} {hide ? MASK : signedMoney(summary.pnl, currency, rate)} ({formatPercent(summary.pnlPct)})
               </span>
             </p>
+            <p className="num muted-line">
+              Unrealized{" "}
+              <span className={direction(summary.unrealized)}>{arrow(summary.unrealized)} {hide ? MASK : signedMoney(summary.unrealized, currency, rate)}</span>
+              {" · "}Realized{" "}
+              <span className={direction(summary.realized)}>{arrow(summary.realized)} {hide ? MASK : signedMoney(summary.realized, currency, rate)}</span>
+            </p>
           </section>
 
           <section className="card chart-card" aria-label="Portfolio value chart">
+            {live.error && <ErrorBanner what="price history" onRetry={live.retry} />}
+            {live.loading && (
+              <>
+                <p className="visually-hidden" role="status">Loading the value chart…</p>
+                <div className="skeleton skeleton-chart" aria-hidden="true" />
+              </>
+            )}
+            {performance && (
+              <p className="num muted-line">
+                P&L over {range}{" "}
+                <span className={direction(performance.pnl)}>
+                  {arrow(performance.pnl)} {hide ? MASK : signedMoney(performance.pnl, currency, rate)} ({formatPercent(performance.pct)})
+                </span>
+              </p>
+            )}
             {history.length > 1 && (
               <PriceChart points={history} rangeId={range === "24h" ? "1D" : range} currency={currency} rate={rate} label={range} mask={hide} name="Portfolio value" />
             )}
             {history.length > 1 && !hide && <ChartSummary text={`Portfolio value: ${chartSummary(history, range, currency, rate)}`} />}
+            {!live.loading && <p className="muted-line chart-source">Chart: {chartSource(tradedIds.split(","), live.series, coins)}</p>}
             <div className="segmented" role="group" aria-label="Chart range">
               {ranges.map((item) => (
                 <button key={item} className={range === item ? "segment active" : "segment"} aria-pressed={range === item} onClick={() => setRange(item)}>
@@ -553,8 +626,21 @@ export default function Portfolio() {
         </div>
       )}
 
+      {session.kind !== "guest" && (
+        <div className="import-row csv-row">
+          <span>
+            <strong>Tax-lot report</strong>
+            <small>Realized gains by FIFO or average cost, as CSV. Not tax advice.</small>
+          </span>
+          <span className="csv-actions">
+            <button className="button-secondary compact" onClick={() => setTaxOpen(true)} disabled={!transactions.length}>Open report</button>
+          </span>
+        </div>
+      )}
+
       <Disclaimer />
 
+      {taxOpen && <TaxReportSheet open onClose={() => setTaxOpen(false)} transactions={transactions} coins={coins} hide={hide} onToast={showToast} />}
       {sheet && (
         <TransactionSheet open onClose={() => setSheet(null)} initial={sheet} coins={coins} transactions={transactions} onSave={saveTransaction} />
       )}
@@ -627,6 +713,14 @@ export function Holding() {
           <div><dt>Holding</dt><dd className="num">{hide ? MASK : formatAmount(holding.amount)} {coin.symbol}</dd></div>
           <div><dt>Value</dt><dd className="num">{money(holding.value)}</dd></div>
           <div><dt>Average buy price</dt><dd className="num">{money(holding.avgPrice)}</dd></div>
+          <div>
+            <dt>Unrealized P&L</dt>
+            <dd className={`num ${direction(holding.unrealized)}`}>{hide ? MASK : signedMoney(holding.unrealized, currency, rate)}</dd>
+          </div>
+          <div>
+            <dt>Realized P&L</dt>
+            <dd className={`num ${direction(holding.realized)}`}>{hide ? MASK : signedMoney(holding.realized, currency, rate)}</dd>
+          </div>
           <div>
             <dt>All-time P&L</dt>
             <dd className={`num ${direction(holding.pnl)}`}>
