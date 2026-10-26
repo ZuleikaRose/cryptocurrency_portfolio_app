@@ -75,6 +75,8 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 23. **Hosting on Vercel (Oct 25, 2026).** CPA is live at https://cpa-black.vercel.app. The Vercel project `cpa` (root directory `app`) is connected to GitHub: merging to `main` deploys production, and branches and PRs get previews. Vercel holds only the two `VITE_` variables. `ALLOWED_ORIGINS` includes the hosted origin, and Supabase Auth redirects allow it.
 24. **Wallet import cost basis (Oct 25, 2026).** Imported transfers are dated and priced per UTC day from the address's history (Coinbase daily closes), with an opening balance for partial history and adjustments at today's price; "Rebuild from history" replaces earlier rows (US-6.4).
 25. **Sparkline direction (Oct 25, 2026).** The 7-day sparkline stays sample data, but its direction must match the live 7d change and its colour.
+26. **Real price history (Oct 26, 2026).** Coin detail charts, all-time high and low, 1h and 7d change and the list sparklines use Coinbase Exchange closes for the 31 live coins Coinbase lists (all but TRON, USDC and Maker). The `price-history-sync` Edge Function fills `coin_prices` every 15 minutes; the other coins keep sample charts, and every chart names its source. This supersedes clarification 25 for those coins.
+27. **Neutral risk indicators (Oct 26, 2026).** Coin detail shows "High unlock pressure", "Low liquidity" and "Low float" when a coin crosses a fixed threshold, with its own figures and the threshold in plain words. They're facts, never a score, rating or advice.
 
 # Required material from the outline documents
 
@@ -107,7 +109,7 @@ The journey maps name a pain point at each stage and the fix they propose. All o
   - A Simple view with fewer columns.
   - Tap-to-explain ⓘ on every metric.
   - A watchlist pre-filled from his chosen interests.
-  - Neutral risk indicators, such as high unlock pressure or low liquidity, with explanations and never advice (not built yet).
+  - Neutral risk indicators, such as high unlock pressure or low liquidity, with explanations and never advice (built Oct 26, 2026; clarification 27).
 
 ## Moments that matter (user_journey.md §7)
 

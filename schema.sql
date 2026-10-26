@@ -7,7 +7,9 @@
 -- Live prices: a scheduled job (the cryptorank-sync Edge Function on Supabase) writes CryptoRank
 -- v3 price, 24h change, market cap and volume into coins every 10 minutes, and 7d change and FDV
 -- about every 2 days, and records each run in market_sync. Coins without a cryptorank_slug keep
--- their sample figures.
+-- their sample figures. A second job (the price-history-sync Edge Function) writes Coinbase
+-- Exchange closes into coin_prices, and 1h change and the 7d sparkline into coins, every 15
+-- minutes, recording each run in price_history_sync.
 --
 -- Guest and demo sessions stay in memory and are not stored (prompt.md clarifications).
 -- Passwords are never stored: only a salted PBKDF2-SHA-256 hash (lib/auth.js).
@@ -57,7 +59,7 @@ CREATE TABLE coins (
   market_cap_usd   numeric(24, 2) NOT NULL CHECK (market_cap_usd >= 0),
   fdv_usd          numeric(24, 2) CHECK (fdv_usd >= 0),
   volume_24h_usd   numeric(24, 2) CHECK (volume_24h_usd >= 0),
-  sparkline_7d     numeric[] NOT NULL DEFAULT '{}',           -- 24 points
+  sparkline_7d     numeric[] NOT NULL DEFAULT '{}',           -- 24 points: Coinbase hourly closes over 7 days, or a sample shape
   listed_on        date,
   contract_address text CHECK (contract_address ~ '^0x[0-9a-f]{40}$'),  -- null for native coins
   contract_verified boolean NOT NULL DEFAULT false,           -- trust signal (journey rule 4)
@@ -70,13 +72,17 @@ CREATE TABLE coins (
   price_updated_at timestamptz,                               -- when CryptoRank last reported price, 24h, cap, volume
   cryptorank_id    integer UNIQUE,                            -- CryptoRank v3 id, for the per-coin endpoint
   details_updated_at timestamptz,                             -- when CryptoRank last reported change_7d and fdv_usd (~every 2 days)
+  history_updated_at timestamptz,                             -- when price-history-sync last wrote coin_prices, change_1h and sparkline_7d; null keeps the sample chart
   updated_at       timestamptz NOT NULL DEFAULT now()         -- "Last updated" / stale over 5 min
 );
 CREATE INDEX coins_symbol_idx ON coins (symbol);   -- not unique: copycat tickers exist (US-2.5)
 CREATE INDEX coins_category_idx ON coins (category);
 CREATE TRIGGER coins_touch BEFORE UPDATE ON coins FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
--- Price history for charts: ranges 1D · 7D · 1M · 3M · 1Y · ALL (03-coin-detail.md).
+-- Price history for charts: ranges 1D · 7D · 1M · 3M · 1Y · ALL (03-coin-detail.md). Coinbase
+-- Exchange closes in USD, stamped at the candle's close (UTC): 15-minute closes kept 26 hours,
+-- hourly 8 days, 6-hourly 32 days, daily for the whole history. price_history(coin_id, range_id)
+-- returns one range plus the highest and lowest daily close (ATH / ATL).
 CREATE TABLE coin_prices (
   coin_id   text NOT NULL REFERENCES coins (id) ON DELETE CASCADE,
   at        timestamptz NOT NULL,
@@ -111,6 +117,20 @@ CREATE TABLE market_sync (
   coins_updated    integer NOT NULL DEFAULT 0,
   credits_used     integer NOT NULL DEFAULT 0,                -- CryptoRank credits (free plan: 400 a day)
   missing_slugs    text[] NOT NULL DEFAULT '{}',              -- mapped coins not found in the top 200
+  last_error       text
+);
+
+-- Last run of the price history sync (the price-history-sync Edge Function). One row; server-only.
+CREATE TABLE price_history_sync (
+  id               boolean PRIMARY KEY DEFAULT true CHECK (id),
+  last_started_at  timestamptz,                               -- runs start at most every 10 minutes
+  last_finished_at timestamptz,
+  last_status      text CHECK (last_status IN ('ok', 'error')),
+  coins_updated    integer NOT NULL DEFAULT 0,
+  requests         integer NOT NULL DEFAULT 0,                -- Coinbase requests (public, 10 a second)
+  fetched_at       jsonb NOT NULL DEFAULT '{}',               -- last fetch per candle size in seconds
+  backfilled       text[] NOT NULL DEFAULT '{}',              -- coins whose daily closes reach their first Coinbase day
+  skipped_coins    text[] NOT NULL DEFAULT '{}',              -- no Coinbase product, or price over 10% from CryptoRank's
   last_error       text
 );
 

@@ -83,6 +83,8 @@
 - Scrubbing shows a crosshair, price, and timestamp, with a selection haptic.
 - An accessible text summary is available to screen readers.
 
+> **CPA build (Oct 26, 2026):** the 31 live coins Coinbase lists chart Coinbase Exchange closes (15-minute for 1D, hourly for 7D, 6-hourly for 1M, daily for 3M, 1Y and ALL), ending at the live CryptoRank price. All-time high and low are the highest and lowest daily close. The other coins keep sample charts, and a line under each chart names its source.
+
 ### US-3.2 Event markers on chart · P1 · 5 pts
 **As** Daniel, **I want** unlocks, funding rounds, and listings marked on the chart **so that** I can understand why the price moved.
 
