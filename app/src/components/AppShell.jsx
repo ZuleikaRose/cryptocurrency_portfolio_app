@@ -63,7 +63,7 @@ function BottomNav() {
             <>
               <Icon name={tab.icon} filled={isActive && tab.icon === "star"} />
               <span className="nav-short" aria-hidden="true">{tc("tab", tab.label)}</span>
-              <span className="nav-full" aria-hidden="true">{t(tab.label)}</span>
+              <span className="nav-full" aria-hidden="true">{tc("sidebar", tab.label)}</span>
             </>
           )}
         </NavLink>

@@ -329,8 +329,8 @@ export const help = {
   "Chrome, Edge, Firefox and Safari: the latest 2 versions. iOS Safari 17+ and Android Chrome.":
     "Chrome, Edge, Firefox y Safari: las 2 últimas versiones. Safari para iOS 17 o posterior y Chrome para Android.",
   "Screen sizes": "Tamaños de pantalla",
-  "320px wide and up. Best at 360–430px, or on desktop, where CPA shows a centred phone layout.":
-    "Desde 320 px de ancho. Se ve mejor entre 360 y 430 px, o en el ordenador, donde CPA muestra un diseño de móvil centrado.",
+  "320px wide and up: phones, tablets, notebooks and desktops, in portrait or landscape. From 1024px the tabs become a sidebar.":
+    "Desde 320 px de ancho: móviles, tabletas, portátiles y ordenadores, en vertical u horizontal. A partir de 1024 px las pestañas pasan a una barra lateral.",
   Internet: "Internet",
   "Needed only to load the app (about 1 MB). Prices come from bundled sample data, so CPA keeps working offline once loaded.":
     "Solo se necesita para cargar la app (aprox. 1 MB). Los precios vienen de datos de muestra incluidos, así que CPA sigue funcionando sin conexión una vez cargada.",

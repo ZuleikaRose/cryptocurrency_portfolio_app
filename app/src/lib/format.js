@@ -1,6 +1,6 @@
 // Number formatting per style guide §2: abbreviations, signed % to 2 decimals
 // with a true minus sign (U+2212), and spoken forms for screen readers.
-// Spanish uses a decimal comma, the symbol after the amount and "mil" / "mil M" / "B" (billón).
+// Spanish and Portuguese use a decimal comma and their own large-number words (styles below).
 import { getLanguage, locale, t } from "./i18n.js";
 
 const MINUS = "−";
@@ -25,14 +25,21 @@ export function rateFor(currency, coins) {
   return 1;
 }
 
-const spanish = () => getLanguage() === "es";
+// Per language: compact suffixes for 1e12 / 1e9 / 1e6 / 1e3, and where the currency symbol goes.
+// es: "2,88 B $" (billón), "842,5 M $"; pt-BR: "US$ 2,88 tri", "US$ 842,5 mi".
+const styles = {
+  en: { suffixes: ["T", "B", "M", "K"], fiat: (text, symbol) => `${symbol}${text}` },
+  es: { suffixes: [" B", " mil M", " M", " mil"], fiat: (text, symbol) => `${text} ${symbol}` },
+  pt: { suffixes: [" tri", " bi", " mi", " mil"], fiat: (text, symbol) => `${symbol === "$" ? "US$" : symbol} ${text}` },
+};
+const style = () => styles[getLanguage()] ?? styles.en;
 const decimal = (value, digits) =>
   value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false });
 
 function withUnit(text, currency) {
   const { symbol, fiat } = currencies[currency] ?? currencies.USD;
   if (!fiat) return `${text} ${currency}`;
-  return spanish() ? `${text} ${symbol}` : `${symbol}${text}`;
+  return style().fiat(text, symbol);
 }
 
 // Full price: 2 decimals at ≥ 1, otherwise 4 significant digits (e.g. $0.00002371).
@@ -52,9 +59,8 @@ export function formatCompact(usd, currency = "USD", rate = 1) {
   if (usd == null || Number.isNaN(usd)) return "—";
   const value = usd * rate;
   const abs = Math.abs(value);
-  const units = spanish()
-    ? [[1e12, " B", 2], [1e9, " mil M", 2], [1e6, " M", 1], [1e3, " mil", 1]]
-    : [[1e12, "T", 2], [1e9, "B", 2], [1e6, "M", 1], [1e3, "K", 1]];
+  const [trillions, billions, millions, thousands] = style().suffixes;
+  const units = [[1e12, trillions, 2], [1e9, billions, 2], [1e6, millions, 1], [1e3, thousands, 1]];
   const [divisor, suffix, digits] = units.find(([size]) => abs >= size) ?? [1, "", 2];
   const text = `${decimal(value / divisor, digits)}${suffix}`;
   return withUnit(text, currency);
@@ -99,17 +105,17 @@ export function relativeTime(timestamp, now = Date.now()) {
   return t("{n}d ago", { n: Math.round(hours / 24) });
 }
 
-// Token amounts: 92.65M, 2.50B, 18.0K.
 // Plain numbers and multiples in the current language: 1.8 → "1,8", ROI 2.5 → "2,50x".
 export const formatNumber = (value, digits = 2) => decimal(value, digits);
 export const formatMultiple = (value) => `${decimal(value, 2)}x`;
 
+// Token amounts: 92.65M, 2.50B, 18.0K.
 export function formatTokens(value) {
   const abs = Math.abs(value);
-  const es = spanish();
-  if (abs >= 1e9) return `${decimal(value / 1e9, 2)}${es ? " mil M" : "B"}`;
-  if (abs >= 1e6) return `${decimal(value / 1e6, 2)}${es ? " M" : "M"}`;
-  if (abs >= 1e3) return `${decimal(value / 1e3, 1)}${es ? " mil" : "K"}`;
+  const [, billions, millions, thousands] = style().suffixes;
+  if (abs >= 1e9) return `${decimal(value / 1e9, 2)}${billions}`;
+  if (abs >= 1e6) return `${decimal(value / 1e6, 2)}${millions}`;
+  if (abs >= 1e3) return `${decimal(value / 1e3, 1)}${thousands}`;
   return decimal(value, 0);
 }
 
