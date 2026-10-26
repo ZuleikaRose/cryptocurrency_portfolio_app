@@ -47,6 +47,7 @@ A OneTap-style panel with one-tap profiles and individual adjustments that chang
 ```
 
 ## Components & content
+- **Language (Oct 26, 2026, clarification 30):** English or Español at the top of the menu, each named in its own language. It's the same setting as the main menu and Settings › Preferences; Reset leaves it unchanged.
 - **Profiles (one tap, can combine; each sets a bundle and the switches show what changed):**
   - Low vision: text 150%, high contrast, strong focus outline, big cursor.
   - Focus (ADHD): reading guide, stop animations, auto-refresh off.
