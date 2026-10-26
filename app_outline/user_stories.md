@@ -196,6 +196,8 @@
 > **CPA build (Oct 25, 2026):** signed-in users can export transactions as CSV and import a CSV (up to 1 MB and 2,000 rows). The import previews what will be added, skips duplicates, unknown coins, future dates and sells larger than the holding, and says why for each skipped row. Cells that start with = + − @ are escaped on export so spreadsheets don't run them.
 >
 > **CPA build (Oct 26, 2026; clarification 28):** the value chart uses Coinbase closes where available, the summary splits P&L into unrealized and realized, the chart shows P&L over the chosen range, "Use market price" fills the nearest Coinbase close, and a tax-lot report (FIFO or average cost, by year sold) downloads as CSV. Not tax advice.
+>
+> **CPA build (Oct 26, 2026; clarification 35):** the chart range, holdings sort and tax-lot method are remembered between visits and saved with the account (cross-journey rule 2).
 
 ### US-6.4 Read-only wallet / exchange import · P2 · 13 pts
 **As a** user, **I want** to import holdings from a public wallet address or a read-only exchange API **so that** I don't have to enter trades by hand.

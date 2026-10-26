@@ -179,6 +179,8 @@ A persistent **search** button sits in the top app bar on every root screen.
 - Unlock and funding events can be overlaid as small markers on the price chart.
 
 > **CPA build (Oct 26, 2026):** a secondary-text source line sits under every chart ("Chart: Coinbase closes, USD, UTC" / "Chart: CPA sample data"). While a live range loads, the chart area is a skeleton of the same size; a failed load shows the error banner with Retry and keeps any cached range. On Portfolio, "P&L over 1M ▼ −$2,522.56 (−7.93%)" sits above the chart in secondary text, with the change in market colours and an arrow.
+>
+> **CPA build (Oct 26, 2026; clarification 35):** Portfolio's range control reads **24h · 7D · 1M · 3M · 1Y · ALL**. Every chart range control opens on the last range chosen on that screen (Coin detail and Portfolio each keep their own), and so do sort menus and the tax-lot method's segmented control.
 
 ### 7.5 Unlock card
 ```
