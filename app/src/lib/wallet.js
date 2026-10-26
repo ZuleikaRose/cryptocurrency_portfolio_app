@@ -75,6 +75,19 @@ function demoWallet(chain, now) {
   return { balances, history: { entries, complete: true }, asOf: new Date(now).toISOString(), demo: true };
 }
 
+// The wallet-lookup function answers in English; show its messages in the current language.
+// The three with a name or number are matched as patterns, anything else unknown stays as sent.
+export function serverMessage(text) {
+  if (typeof text !== "string" || !text) return null;
+  const limit = text.match(/^You can look up (\d+) wallets an hour\./);
+  if (limit) return t("You can look up {count} wallets an hour. Try again later.", { count: limit[1] });
+  const reach = text.match(/^We couldn't reach the (.+) explorer\./);
+  if (reach) return t("We couldn't reach the {explorer} explorer. Try again in a minute.", { explorer: reach[1] });
+  const reply = text.match(/^We couldn't read the (.+) explorer's reply\./);
+  if (reply) return t("We couldn't read the {explorer} explorer's reply. Try again in a minute.", { explorer: reply[1] });
+  return t(text);
+}
+
 // Calls the Edge Function. Resolves { balances, history, asOf, demo } or throws an Error with a
 // plain message.
 export async function lookupWallet(chain, address, { demo = false } = {}) {
@@ -91,7 +104,7 @@ export async function lookupWallet(chain, address, { demo = false } = {}) {
     // The function's own message (bad address, rate limit) is in the response body.
     let message = null;
     try {
-      message = (await error.context?.json?.())?.error ?? null;
+      message = serverMessage((await error.context?.json?.())?.error);
     } catch {
       // Not JSON: fall back below.
     }
