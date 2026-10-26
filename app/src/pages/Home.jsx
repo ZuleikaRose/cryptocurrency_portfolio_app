@@ -205,7 +205,7 @@ export default function Home() {
         <ul className="mover-carousel" tabIndex={0} aria-label={t(movers === "gainers" ? "Top gainers (scrolls sideways)" : "Top losers (scrolls sideways)")}>
           {moverList.map((coin) => (
             <li key={coin.id}>
-              <Link to={`/coins/${coin.id}`} className="mover-card" aria-label={t("{name}, {change} in 24 hours", { name: coin.name, change: spokenPercent(coin.change24h) })}>
+              <Link to={`/coins/${coin.id}`} className="mover-card" aria-label={t("{symbol} ({name}), {change} in 24 hours", { symbol: coin.symbol, name: coin.name, change: spokenPercent(coin.change24h) })}>
                 <CoinLogo coin={coin} />
                 <strong>{coin.symbol}</strong>
                 <span className={`num ${direction(coin.change24h)}`}>

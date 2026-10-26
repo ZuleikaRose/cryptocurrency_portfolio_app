@@ -17,7 +17,7 @@ function TopBar({ onOpenMenu, onOpenA11y, onOpenSearch }) {
   return (
     <header className="topbar">
       <Link to="/" className="brand" aria-label={t("CPA, Cryptocurrency Portfolio App — home")}>
-        <span className="brand-mark" aria-hidden="true">C</span>
+        <span className="brand-mark" aria-hidden="true" />
         <span>CPA</span>
       </Link>
       <div className="top-actions">

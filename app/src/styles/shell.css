@@ -58,6 +58,8 @@
   color: var(--bg);
   font-size: 16px;
 }
+/* The logo letter is drawn here so it isn't part of the link's visible text (WCAG 2.5.3). */
+.brand-mark::before { content: "C"; }
 .top-actions { display: flex; gap: 2px; }
 .icon-button {
   width: 44px; height: 44px;

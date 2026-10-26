@@ -177,7 +177,7 @@ export const coin = {
   // Similar coins (lib/similar.js)
   "Similar coins": "Monedas similares",
   "✦ Generated": "✦ Generado",
-  "{name}, {change} in 24 hours": "{name}, {change} en 24 horas",
+  "{symbol} ({name}), {change} in 24 hours": "{symbol} ({name}), {change} en 24 horas",
   "Same category ({category}) and a similar market cap to {symbol}.":
     "Misma categoría ({category}) y una capitalización de mercado similar a la de {symbol}.",
 
