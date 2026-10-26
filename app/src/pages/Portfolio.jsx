@@ -19,11 +19,18 @@ import { useNow } from "../lib/hooks.js";
 import { chainFor, lookupWallet, normaliseAddress, secretWarning, shortAddress, WALLET_CHAINS, walletImportPlan, walletNote } from "../lib/wallet.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
+import { locale, t, tn } from "../lib/i18n.js";
 
 const ranges = ["24h", "7D", "1M", "3M", "1Y", "ALL"];
 const MASK = "••••";
 const arrow = (value) => (direction(value) === "up" ? "▲" : direction(value) === "down" ? "▼" : "");
-const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString("en-US", { maximumFractionDigits: 8 });
+const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString(locale(), { maximumFractionDigits: 8 });
+// Import tags stay English in stored rows (wallet re-imports match on them); show them translated.
+const IMPORT_NOTES = new Set(["Coinbase import", "Coinbase convert", "Kraken import", "Binance import"]);
+const noteText = (note) => {
+  if (note.startsWith("Wallet import ")) return t("Wallet import {address}", { address: note.slice("Wallet import ".length) });
+  return IMPORT_NOTES.has(note) ? t(note) : note;
+};
 // Signed money: +$809.71 / −$12.00 (true minus sign).
 const signedMoney = (value, currency, rate) => `${value >= 0 ? "+" : "−"}${formatPrice(Math.abs(value), currency, rate)}`;
 
@@ -53,12 +60,14 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
   const reduces = form.type === "sell" || form.type === "transfer-out";
 
   const errors = {};
-  if (!(amount > 0)) errors.amount = "Enter an amount greater than 0.";
-  else if (reduces && amount > held + 1e-12) errors.amount = `You can't ${form.type === "sell" ? "sell" : "transfer out"} more than you hold (${formatAmount(Math.max(held, 0))} ${coin?.symbol}).`;
-  if (!(price >= 0) || form.price === "") errors.price = "Enter a price of 0 or more.";
-  if (!(fee >= 0)) errors.fee = "Fee can't be negative.";
-  if (!form.date || Number.isNaN(new Date(form.date).getTime())) errors.date = "Choose a date and time.";
-  else if (new Date(form.date).getTime() > now + 60_000) errors.date = "The date can't be in the future.";
+  if (!(amount > 0)) errors.amount = t("Enter an amount greater than 0.");
+  else if (reduces && amount > held + 1e-12) {
+    errors.amount = t(form.type === "sell" ? "You can't sell more than you hold ({amount} {symbol})." : "You can't transfer out more than you hold ({amount} {symbol}).", { amount: formatAmount(Math.max(held, 0)), symbol: coin?.symbol });
+  }
+  if (!(price >= 0) || form.price === "") errors.price = t("Enter a price of 0 or more.");
+  if (!(fee >= 0)) errors.fee = t("Fee can't be negative.");
+  if (!form.date || Number.isNaN(new Date(form.date).getTime())) errors.date = t("Choose a date and time.");
+  else if (new Date(form.date).getTime() > now + 60_000) errors.date = t("The date can't be in the future.");
   const valid = Object.keys(errors).length === 0;
 
   const set = (patch) => setForm((current) => ({ ...current, ...patch }));
@@ -69,10 +78,10 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
     const time = new Date(form.date).getTime();
     if (!coin.historyUpdatedAt) {
       setPrice(priceAt(coin, time));
-      setPriceNote("CPA sample data.");
+      setPriceNote(t("CPA sample data."));
       return;
     }
-    setPriceNote("Looking up the price…");
+    setPriceNote(t("Looking up the price…"));
     try {
       const close = await fetchPriceAt(coin.id, time);
       if (close) {
@@ -80,15 +89,15 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
         // A close stamped at midnight UTC is that day's daily close.
         const stamp = new Date(close.time).toISOString();
         setPriceNote(stamp.slice(11, 16) === "00:00"
-          ? `Coinbase daily close for ${formatDate(closeDay(close.time))} (UTC).`
-          : `Coinbase close at ${stamp.slice(0, 16).replace("T", " ")} UTC.`);
+          ? t("Coinbase daily close for {date} (UTC).", { date: formatDate(closeDay(close.time)) })
+          : t("Coinbase close at {time} UTC.", { time: stamp.slice(0, 16).replace("T", " ") }));
       } else {
         setPrice(priceAt(coin, time));
-        setPriceNote("No Coinbase close for that date, so this is CPA sample data.");
+        setPriceNote(t("No Coinbase close for that date, so this is CPA sample data."));
       }
     } catch (error) {
       console.error(`Market price lookup failed: ${error.message}`);
-      setPriceNote("We couldn't load the market price. Enter it yourself or try again.");
+      setPriceNote(t("We couldn't load the market price. Enter it yourself or try again."));
     }
   };
 
@@ -118,18 +127,18 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
   const total = amount * price + (reduces ? -fee : fee);
 
   return (
-    <Sheet open={open} onClose={onClose} title={initial?.id ? "Edit transaction" : "Add transaction"} side="bottom">
+    <Sheet open={open} onClose={onClose} title={initial?.id ? t("Edit transaction") : t("Add transaction")} side="bottom">
       <form className="tx-form" onSubmit={submit} noValidate>
-        <div className="segmented tx-types" role="group" aria-label="Transaction type">
+        <div className="segmented tx-types" role="group" aria-label={t("Transaction type")}>
           {transactionTypes.map((type) => (
             <button key={type.id} type="button" className={form.type === type.id ? "segment active" : "segment"} aria-pressed={form.type === type.id} onClick={() => set({ type: type.id })}>
-              {type.label}
+              {t(type.label)}
             </button>
           ))}
         </div>
 
         <label className="form-field" htmlFor={`${formId}-coin`}>
-          <span>Coin</span>
+          <span>{t("Coin")}</span>
           <select id={`${formId}-coin`} className="select" value={form.coinId} onChange={(event) => {
             const next = coins.find((item) => item.id === event.target.value);
             set({ coinId: next.id, price: next.price.toFixed(next.price >= 1 ? 2 : 6) });
@@ -141,46 +150,46 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
         </label>
 
         <label className="form-field" htmlFor={`${formId}-amount`}>
-          <span>Amount{reduces && <small className="num"> · You hold {formatAmount(Math.max(held, 0))} {coin?.symbol}</small>}</span>
+          <span>{t("Amount")}{reduces && <small className="num"> · {t("You hold {amount} {symbol}", { amount: formatAmount(Math.max(held, 0)), symbol: coin?.symbol })}</small>}</span>
           <input {...field("amount")} className="input num" inputMode="decimal" value={form.amount} onChange={(event) => set({ amount: event.target.value })} placeholder="0.00" />
           {showError("amount") && <span id={`${formId}-amount-error`} className="field-error">{errors.amount}</span>}
         </label>
 
         <div className="form-field">
-          <label htmlFor={`${formId}-price`}>Price per coin (USD)</label>
+          <label htmlFor={`${formId}-price`}>{t("Price per coin (USD)")}</label>
           <div className="input-row">
             <input {...field("price")} className="input num" inputMode="decimal" value={form.price} onChange={(event) => {
               set({ price: event.target.value });
               setPriceNote(null);
             }} />
-            <button type="button" className="button-tertiary" onClick={applyMarketPrice}>↺ Use market price</button>
+            <button type="button" className="button-tertiary" onClick={applyMarketPrice}>↺ {t("Use market price")}</button>
           </div>
           <small className="field-hint" role="status">{priceNote}</small>
           {showError("price") && <span id={`${formId}-price-error`} className="field-error">{errors.price}</span>}
         </div>
 
         <label className="form-field" htmlFor={`${formId}-date`}>
-          <span>Date</span>
+          <span>{t("Date")}</span>
           <input {...field("date")} type="datetime-local" className="input" value={form.date} max={toLocalInput(new Date(now))} onChange={(event) => set({ date: event.target.value })} />
           {showError("date") && <span id={`${formId}-date-error`} className="field-error">{errors.date}</span>}
         </label>
 
         <label className="form-field" htmlFor={`${formId}-fee`}>
-          <span>Fee (USD)</span>
+          <span>{t("Fee (USD)")}</span>
           <input {...field("fee")} className="input num" inputMode="decimal" value={form.fee} onChange={(event) => set({ fee: event.target.value })} placeholder="0.00" />
           {showError("fee") && <span id={`${formId}-fee-error`} className="field-error">{errors.fee}</span>}
         </label>
 
         <label className="form-field" htmlFor={`${formId}-note`}>
-          <span>Note</span>
-          <input id={`${formId}-note`} className="input" value={form.note} maxLength={140} onChange={(event) => set({ note: event.target.value })} placeholder="Optional" />
+          <span>{t("Note")}</span>
+          <input id={`${formId}-note`} className="input" value={form.note} maxLength={140} onChange={(event) => set({ note: event.target.value })} placeholder={t("Optional")} />
         </label>
 
         <p className="tx-total num">
-          {form.type === "buy" ? "Total spent" : form.type === "sell" ? "Total received" : "Value"}{" "}
+          {form.type === "buy" ? t("Total spent") : form.type === "sell" ? t("Total received") : t("Value")}{" "}
           <strong>{Number.isFinite(total) && amount > 0 ? formatPrice(Math.max(total, 0)) : "—"}</strong>
         </p>
-        <button type="submit" className="button-primary">{initial?.id ? "Save changes" : "Add transaction"}</button>
+        <button type="submit" className="button-primary">{initial?.id ? t("Save changes") : t("Add transaction")}</button>
       </form>
     </Sheet>
   );
@@ -198,7 +207,7 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
     setFileError(null);
     if (!file) return;
     if (file.size > MAX_IMPORT_BYTES) {
-      setFileError("Choose a file under 1 MB.");
+      setFileError(t("Choose a file under 1 MB."));
       return;
     }
     const reader = new FileReader();
@@ -207,21 +216,21 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
       if (read.error) setFileError(read.error);
       else setResult({ ...read, name: file.name });
     };
-    reader.onerror = () => setFileError("Couldn't read that file. Try saving it again as CSV.");
+    reader.onerror = () => setFileError(t("Couldn't read that file. Try saving it again as CSV."));
     reader.readAsText(file);
   };
 
   const count = result?.transactions.length ?? 0;
   return (
-    <Sheet open={open} onClose={onClose} title="Import transactions" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Import transactions")} side="bottom">
       <div className="tx-form">
         <p className="sheet-note">
-          A CPA export, an exchange export (Coinbase transaction history, Kraken trades or Binance spot trade history), or a CSV with the columns{" "}
-          <span className="mono">{CSV_COLUMNS.join(", ")}</span>. Up to {MAX_IMPORT_ROWS.toLocaleString("en-US")} rows; rows already in your portfolio are skipped.
-          The file is read on this device, and CPA never asks for exchange API keys.
+          {t("A CPA export, an exchange export (Coinbase transaction history, Kraken trades or Binance spot trade history), or a CSV with the columns")}{" "}
+          <span className="mono">{CSV_COLUMNS.join(", ")}</span>.{" "}
+          {t("Up to {max} rows; rows already in your portfolio are skipped. The file is read on this device, and CPA never asks for exchange API keys.", { max: MAX_IMPORT_ROWS.toLocaleString(locale()) })}
         </p>
         <label className="form-field" htmlFor={inputId}>
-          <span>CSV file</span>
+          <span>{t("CSV file")}</span>
           <input
             id={inputId}
             className="input file-input"
@@ -236,17 +245,17 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
         {result && (
           <div role="status">
             <p className="num">
-              {result.name}: {count} {count === 1 ? "transaction" : "transactions"} ready
-              {result.skipped.length > 0 && `, ${result.skipped.length} skipped`}.
-              {result.format && ` Read as ${result.format}.`}
+              {result.name}: {tn(count, "{count} transaction ready", "{count} transactions ready")}
+              {result.skipped.length > 0 && t(", {count} skipped", { count: result.skipped.length })}.
+              {result.format && ` ${t("Read as {format}.", { format: result.format })}`}
             </p>
             {result.notes.length > 0 && <p className="sheet-note">{result.notes.join(" ")}</p>}
             {result.skipped.length > 0 && (
               <ul className="import-skipped">
                 {result.skipped.slice(0, 20).map((item) => (
-                  <li key={item.line} className="num">Row {item.line}: {item.reason}</li>
+                  <li key={item.line} className="num">{t("Row {line}: {reason}", { line: item.line, reason: item.reason })}</li>
                 ))}
-                {result.skipped.length > 20 && <li>…and {result.skipped.length - 20} more.</li>}
+                {result.skipped.length > 20 && <li>{t("…and {count} more.", { count: result.skipped.length - 20 })}</li>}
               </ul>
             )}
           </div>
@@ -259,7 +268,7 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
             onClose();
           }}
         >
-          {count ? `Import ${count} ${count === 1 ? "transaction" : "transactions"}` : "Import"}
+          {count ? tn(count, "Import {count} transaction", "Import {count} transactions") : t("Import")}
         </button>
       </div>
     </Sheet>
@@ -271,10 +280,10 @@ function walletRowText(row, currency, rate) {
   if (!row.txs.length) return row.reason;
   const day = (value) => formatDate(`${value}T12:00:00Z`);
   const parts = [];
-  if (row.openingDay) parts.push(`${formatAmount(row.txs[0].amount)} held before ${day(row.openingDay)}`);
-  if (row.transfers) parts.push(`transfers on ${row.transfers} ${row.transfers === 1 ? "day" : "days"} from ${day(row.firstDay)}`);
-  if (row.adjustment) parts.push(`${row.adjustment > 0 ? "+" : "−"}${formatAmount(Math.abs(row.adjustment))} adjustment at ${formatPrice(row.coin.price, currency, rate)}`);
-  if (row.unpriced) parts.push(`${row.unpriced} ${row.unpriced === 1 ? "day" : "days"} without a closing price use today's`);
+  if (row.openingDay) parts.push(t("{amount} held before {date}", { amount: formatAmount(row.txs[0].amount), date: day(row.openingDay) }));
+  if (row.transfers) parts.push(tn(row.transfers, "transfers on {count} day from {date}", "transfers on {count} days from {date}", { date: day(row.firstDay) }));
+  if (row.adjustment) parts.push(t("{amount} adjustment at {price}", { amount: `${row.adjustment > 0 ? "+" : "−"}${formatAmount(Math.abs(row.adjustment))}`, price: formatPrice(row.coin.price, currency, rate) }));
+  if (row.unpriced) parts.push(tn(row.unpriced, "{count} day without a closing price uses today's", "{count} days without a closing price use today's"));
   return parts.join(" · ");
 }
 
@@ -314,16 +323,16 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
     }
   };
 
-  const fieldError = warning ?? (address.trim() && !chain ? "Enter a Bitcoin address (1…, 3… or bc1…) or an Ethereum address (0x…)." : null);
+  const fieldError = warning ?? (address.trim() && !chain ? t("Enter a Bitcoin address (1…, 3… or bc1…) or an Ethereum address (0x…).") : null);
   const count = plan?.transactions.length ?? 0;
   return (
-    <Sheet open={open} onClose={onClose} title="Import from wallet" side="bottom">
+    <Sheet open={open} onClose={onClose} title={t("Import from wallet")} side="bottom">
       <form className="tx-form" onSubmit={lookUp} noValidate>
         <p className="sheet-note wallet-safety">
-          <Icon name="info" /> Never enter a recovery phrase or private key. CPA only needs a public address, and it's read, never stored.
+          <Icon name="info" /> {t("Never enter a recovery phrase or private key. CPA only needs a public address, and it's read, never stored.")}
         </p>
         <label className="form-field" htmlFor={inputId}>
-          <span>Bitcoin or Ethereum address</span>
+          <span>{t("Bitcoin or Ethereum address")}</span>
           <input
             id={inputId}
             className="input mono"
@@ -338,7 +347,7 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
             autoCorrect="off"
             spellCheck={false}
             maxLength={120}
-            placeholder="bc1q… or 0x…"
+            placeholder={t("bc1q… or 0x…")}
             aria-invalid={Boolean(fieldError) || undefined}
             aria-describedby={`${inputId}-hint`}
           />
@@ -346,12 +355,12 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
             <small id={`${inputId}-hint`} className="field-error">{fieldError}</small>
           ) : (
             <small id={`${inputId}-hint`} className="field-hint">
-              {chainLabel ? `${chainLabel} address.` : "ETH also brings in the ERC-20 tokens CPA lists, such as USDT, LINK and UNI."}
+              {chainLabel ? t("{chain} address.", { chain: chainLabel }) : t("ETH also brings in the ERC-20 tokens CPA lists, such as USDT, LINK and UNI.")}
             </small>
           )}
         </label>
         <button type="submit" className="button-secondary" disabled={!chain || state.status === "loading"}>
-          {state.status === "loading" ? "Looking up…" : "Look up balances"}
+          {state.status === "loading" ? t("Looking up…") : t("Look up balances")}
         </button>
 
         <div role="status" aria-live="polite">
@@ -360,10 +369,10 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
             <>
               <p className="num">
                 {shortAddress(state.address)}
-                {state.demo ? " · demo balances, no lookup made" : ` · as of ${formatDate(state.asOf)}`}
+                {state.demo ? ` · ${t("demo balances, no lookup made")}` : ` · ${t("as of {date}", { date: formatDate(state.asOf) })}`}
               </p>
               {plan.rows.length === 0 ? (
-                <p>This address holds none of the coins CPA lists.</p>
+                <p>{t("This address holds none of the coins CPA lists.")}</p>
               ) : (
                 <ul className="wallet-preview">
                   {plan.rows.map((row) => (
@@ -380,10 +389,10 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
               {count > 0 && (
                 <p className="sheet-note">
                   {plan.rows.some((row) => row.transfers)
-                    ? `Cost basis: each transfer at that day's closing price (${state.demo ? "CPA sample data" : "Coinbase, UTC"}); adjustments at today's price.`
-                    : "Cost basis is today's price."}
-                  {!state.history.complete && " Only recent history was read; the balance before it is priced at the earliest day read."}
-                  {" "}Edit a transaction to change it.
+                    ? t("Cost basis: each transfer at that day's closing price ({source}); adjustments at today's price.", { source: state.demo ? t("CPA sample data") : "Coinbase, UTC" })
+                    : t("Cost basis is today's price.")}
+                  {!state.history.complete && ` ${t("Only recent history was read; the balance before it is priced at the earliest day read.")}`}
+                  {" "}{t("Edit a transaction to change it.")}
                 </p>
               )}
             </>
@@ -392,7 +401,7 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
         {canRebuild && (
           <label className="check-row">
             <input type="checkbox" checked={rebuild} onChange={(event) => setRebuild(event.target.checked)} />
-            Rebuild from history: replace the {earlier.length} earlier {earlier.length === 1 ? "transaction" : "transactions"} from this address
+            {tn(earlier.length, "Rebuild from history: replace the {count} earlier transaction from this address", "Rebuild from history: replace the {count} earlier transactions from this address")}
           </label>
         )}
         {plan && (
@@ -405,7 +414,7 @@ function WalletSheet({ open, onClose, coins, transactions, demo, onImport, curre
               onClose();
             }}
           >
-            {count ? `Import ${count} ${count === 1 ? "transaction" : "transactions"}` : "Nothing to import"}
+            {count ? tn(count, "Import {count} transaction", "Import {count} transactions") : t("Nothing to import")}
           </button>
         )}
       </form>
@@ -418,7 +427,7 @@ function GuestPreview({ onDemo, onLogin }) {
     <div className="guest-preview">
       <div className="guest-blur" aria-hidden="true">
         <p className="display-value">$24,580.12</p>
-        <p className="up">▲ +$412.30 (+1.71%) 24h</p>
+        <p className="up">▲ +$412.30 (+1.71%) {t("24h")}</p>
         <div className="guest-bars">
           <span style={{ width: "62%" }} />
           <span style={{ width: "38%" }} />
@@ -426,10 +435,10 @@ function GuestPreview({ onDemo, onLogin }) {
         </div>
       </div>
       <div className="guest-cta card">
-        <h2 className="subsection-title">Track your portfolio</h2>
-        <p className="muted-line">Sign in or try the demo to log buys and sells and see your P&L.</p>
-        <button className="button-primary" onClick={onLogin}>Log in</button>
-        <button className="button-tertiary" onClick={onDemo}>Try a private demo</button>
+        <h2 className="subsection-title">{t("Track your portfolio")}</h2>
+        <p className="muted-line">{t("Sign in or try the demo to log buys and sells and see your P&L.")}</p>
+        <button className="button-primary" onClick={onLogin}>{t("Log in")}</button>
+        <button className="button-tertiary" onClick={onDemo}>{t("Try a private demo")}</button>
       </div>
     </div>
   );
@@ -438,7 +447,8 @@ function GuestPreview({ onDemo, onLogin }) {
 function Disclaimer() {
   return (
     <p className="disclaimer">
-      Not financial advice. Data provided for informational purposes. Prices: CryptoRank (live) and Coinbase closes (history) where available, CPA sample data otherwise.
+      {t("Not financial advice. Data provided for informational purposes.")}{" "}
+      {t("Prices: CryptoRank (live) and Coinbase closes (history) where available, CPA sample data otherwise.")}
     </p>
   );
 }
@@ -446,9 +456,9 @@ function Disclaimer() {
 // Names the price source under the value chart (clarification 28).
 function chartSource(ids, series, coins) {
   const sample = ids.filter((id) => !series.has(id)).map((id) => coins.find((coin) => coin.id === id)?.symbol ?? id);
-  if (!sample.length) return "Coinbase closes, USD, UTC";
-  if (sample.length === ids.length) return "CPA sample data";
-  return `Coinbase closes, USD, UTC; CPA sample data for ${sample.join(", ")}`;
+  if (!sample.length) return t("Coinbase closes, USD, UTC");
+  if (sample.length === ids.length) return t("CPA sample data");
+  return t("Coinbase closes, USD, UTC; CPA sample data for {coins}", { coins: sample.join(", ") });
 }
 
 export default function Portfolio() {
@@ -463,7 +473,7 @@ export default function Portfolio() {
   const [taxOpen, setTaxOpen] = useState(false);
 
   useEffect(() => {
-    document.title = "Portfolio · CPA";
+    document.title = `${t("Portfolio")} · CPA`;
   }, []);
 
   const currency = settings.currency;
@@ -482,18 +492,18 @@ export default function Portfolio() {
   const sorted = [...holdings].sort((a, b) => (sort === "name" ? a.coin.name.localeCompare(b.coin.name) : b[sort] - a[sort]));
   const slices = [...holdings].sort((a, b) => b.value - a.value).map((item) => ({ label: item.coin.symbol, value: item.value }));
 
-  const openAdd = () => requireAuth("Sign in to track a portfolio", () => setSheet({}));
+  const openAdd = () => requireAuth(t("Sign in to track a portfolio"), () => setSheet({}));
   const exportCsv = () => {
     const ok = downloadText(`cpa-transactions-${new Date().toISOString().slice(0, 10)}.csv`, transactionsToCsv(transactions, coins), "text/csv");
-    showToast(ok ? `Exported ${transactions.length} ${transactions.length === 1 ? "transaction" : "transactions"}` : "Couldn't start the download in this browser.");
+    showToast(ok ? tn(transactions.length, "Exported {count} transaction", "Exported {count} transactions") : t("Couldn't start the download in this browser."));
   };
 
   return (
     <div className="portfolio">
       <div className="page-head">
-        <h1>Portfolio</h1>
+        <h1>{t("Portfolio")}</h1>
         {session.kind !== "guest" && (
-          <button className="icon-button" onClick={() => updateSettings({ hideBalances: !hide })} aria-pressed={hide} aria-label={hide ? "Show balances" : "Hide balances"}>
+          <button className="icon-button" onClick={() => updateSettings({ hideBalances: !hide })} aria-pressed={hide} aria-label={hide ? t("Show balances") : t("Hide balances")}>
             <Icon name={hide ? "eyeOff" : "eye"} />
           </button>
         )}
@@ -504,53 +514,53 @@ export default function Portfolio() {
       ) : holdings.length === 0 ? (
         <div className="empty-state">
           <Icon name="chart" className="empty-icon" />
-          <p>Log your first transaction to see your portfolio.</p>
-          <button className="button-primary" onClick={openAdd}>Add transaction</button>
+          <p>{t("Log your first transaction to see your portfolio.")}</p>
+          <button className="button-primary" onClick={openAdd}>{t("Add transaction")}</button>
         </div>
       ) : (
         <>
-          <section className="portfolio-summary" aria-label="Summary">
-            <p className="muted-line">Total value</p>
+          <section className="portfolio-summary" aria-label={t("Summary")}>
+            <p className="muted-line">{t("Total value")}</p>
             <p className="display-value num">{money(summary.value)}</p>
             <p className={`num ${direction(summary.change24h)}`}>
-              {arrow(summary.change24h)} {hide ? MASK : signedMoney(summary.change24h, currency, rate)} ({formatPercent(summary.change24hPct)}) 24h
+              {arrow(summary.change24h)} {hide ? MASK : signedMoney(summary.change24h, currency, rate)} ({formatPercent(summary.change24hPct)}) {t("24h")}
             </p>
             <p className="num muted-line">
-              All-time P&L{" "}
+              {t("All-time P&L")}{" "}
               <span className={direction(summary.pnl)}>
                 {arrow(summary.pnl)} {hide ? MASK : signedMoney(summary.pnl, currency, rate)} ({formatPercent(summary.pnlPct)})
               </span>
             </p>
             <p className="num muted-line">
-              Unrealized{" "}
+              {t("Unrealized")}{" "}
               <span className={direction(summary.unrealized)}>{arrow(summary.unrealized)} {hide ? MASK : signedMoney(summary.unrealized, currency, rate)}</span>
-              {" · "}Realized{" "}
+              {" · "}{t("Realized")}{" "}
               <span className={direction(summary.realized)}>{arrow(summary.realized)} {hide ? MASK : signedMoney(summary.realized, currency, rate)}</span>
             </p>
           </section>
 
-          <section className="card chart-card" aria-label="Portfolio value chart">
+          <section className="card chart-card" aria-label={t("Portfolio value chart")}>
             {live.error && <ErrorBanner what="price history" onRetry={live.retry} />}
             {live.loading && (
               <>
-                <p className="visually-hidden" role="status">Loading the value chart…</p>
+                <p className="visually-hidden" role="status">{t("Loading the value chart…")}</p>
                 <div className="skeleton skeleton-chart" aria-hidden="true" />
               </>
             )}
             {performance && (
               <p className="num muted-line">
-                P&L over {range}{" "}
+                {t("P&L over {range}", { range })}{" "}
                 <span className={direction(performance.pnl)}>
                   {arrow(performance.pnl)} {hide ? MASK : signedMoney(performance.pnl, currency, rate)} ({formatPercent(performance.pct)})
                 </span>
               </p>
             )}
             {history.length > 1 && (
-              <PriceChart points={history} rangeId={range === "24h" ? "1D" : range} currency={currency} rate={rate} label={range} mask={hide} name="Portfolio value" />
+              <PriceChart points={history} rangeId={range === "24h" ? "1D" : range} currency={currency} rate={rate} label={range} mask={hide} name={t("Portfolio value")} />
             )}
-            {history.length > 1 && !hide && <ChartSummary text={`Portfolio value: ${chartSummary(history, range, currency, rate)}`} />}
-            {!live.loading && <p className="muted-line chart-source">Chart: {chartSource(tradedIds.split(","), live.series, coins)}</p>}
-            <div className="segmented" role="group" aria-label="Chart range">
+            {history.length > 1 && !hide && <ChartSummary text={t("Portfolio value: {summary}", { summary: chartSummary(history, range, currency, rate) })} />}
+            {!live.loading && <p className="muted-line chart-source">{t("Chart: {source}", { source: chartSource(tradedIds.split(","), live.series, coins) })}</p>}
+            <div className="segmented" role="group" aria-label={t("Chart range")}>
               {ranges.map((item) => (
                 <button key={item} className={range === item ? "segment active" : "segment"} aria-pressed={range === item} onClick={() => setRange(item)}>
                   {item}
@@ -560,20 +570,20 @@ export default function Portfolio() {
           </section>
 
           <section aria-labelledby="allocation-title">
-            <h2 id="allocation-title" className="subsection-title">Allocation</h2>
+            <h2 id="allocation-title" className="subsection-title">{t("Allocation")}</h2>
             <Donut slices={slices} />
           </section>
 
           <section aria-labelledby="holdings-title">
             <div className="section-row">
-              <h2 id="holdings-title" className="subsection-title">Holdings</h2>
+              <h2 id="holdings-title" className="subsection-title">{t("Holdings")}</h2>
               <label className="inline-select">
-                Sort
+                {t("Sort")}
                 <select className="select" value={sort} onChange={(event) => setSort(event.target.value)}>
-                  <option value="value">Value</option>
-                  <option value="pnl">P&L</option>
-                  <option value="pnlPct">P&L %</option>
-                  <option value="name">Name</option>
+                  <option value="value">{t("Value")}</option>
+                  <option value="pnl">{t("P&L")}</option>
+                  <option value="pnlPct">{t("P&L %")}</option>
+                  <option value="name">{t("Name")}</option>
                 </select>
               </label>
             </div>
@@ -586,7 +596,7 @@ export default function Portfolio() {
                       <strong>
                         {item.coin.symbol} <span className="num">{hide ? MASK : formatAmount(item.amount)}</span>
                       </strong>
-                      <span className="num">Avg {money(item.avgPrice)}</span>
+                      <span className="num">{t("Avg {price}", { price: money(item.avgPrice) })}</span>
                     </span>
                     <span className="holding-value num">
                       <strong>{money(item.value)}</strong>
@@ -600,19 +610,19 @@ export default function Portfolio() {
             </ul>
           </section>
 
-          <button className="button-primary" onClick={openAdd}>+ Add transaction</button>
+          <button className="button-primary" onClick={openAdd}>{t("+ Add transaction")}</button>
         </>
       )}
 
       {session.kind !== "guest" && (
         <div className="import-row csv-row">
           <span>
-            <strong>Transactions as CSV</strong>
-            <small>For spreadsheets and tax tools, or to bring trades in from Coinbase, Kraken, Binance and other tools.</small>
+            <strong>{t("Transactions as CSV")}</strong>
+            <small>{t("For spreadsheets and tax tools, or to bring trades in from Coinbase, Kraken, Binance and other tools.")}</small>
           </span>
           <span className="csv-actions">
-            <button className="button-secondary compact" onClick={exportCsv} disabled={!transactions.length}>Export</button>
-            <button className="button-secondary compact" onClick={() => setImportOpen(true)}>Import</button>
+            <button className="button-secondary compact" onClick={exportCsv} disabled={!transactions.length}>{t("Export")}</button>
+            <button className="button-secondary compact" onClick={() => setImportOpen(true)}>{t("Import")}</button>
           </span>
         </div>
       )}
@@ -620,11 +630,11 @@ export default function Portfolio() {
       {session.kind !== "guest" && (
         <div className="import-row csv-row">
           <span>
-            <strong>Import from wallet (read-only)</strong>
-            <small>Bitcoin and Ethereum public addresses. CPA never asks for recovery phrases or private keys.</small>
+            <strong>{t("Import from wallet (read-only)")}</strong>
+            <small>{t("Bitcoin and Ethereum public addresses. CPA never asks for recovery phrases or private keys.")}</small>
           </span>
           <span className="csv-actions">
-            <button className="button-secondary compact" onClick={() => setWalletOpen(true)}>Import</button>
+            <button className="button-secondary compact" onClick={() => setWalletOpen(true)}>{t("Import")}</button>
           </span>
         </div>
       )}
@@ -632,11 +642,11 @@ export default function Portfolio() {
       {session.kind !== "guest" && (
         <div className="import-row csv-row">
           <span>
-            <strong>Tax-lot report</strong>
-            <small>Realized gains by FIFO or average cost, as CSV. Not tax advice.</small>
+            <strong>{t("Tax-lot report")}</strong>
+            <small>{t("Realized gains by FIFO or average cost, as CSV. Not tax advice.")}</small>
           </span>
           <span className="csv-actions">
-            <button className="button-secondary compact" onClick={() => setTaxOpen(true)} disabled={!transactions.length}>Open report</button>
+            <button className="button-secondary compact" onClick={() => setTaxOpen(true)} disabled={!transactions.length}>{t("Open report")}</button>
           </span>
         </div>
       )}
@@ -674,7 +684,7 @@ export function Holding() {
   const coin = coins.find((item) => item.id === slug);
 
   useEffect(() => {
-    if (coin) document.title = `${coin.symbol} holding · CPA`;
+    if (coin) document.title = `${t("{symbol} holding", { symbol: coin.symbol })} · CPA`;
   }, [coin]);
 
   if (!coin) return <NotFound />;
@@ -682,8 +692,8 @@ export function Holding() {
     return (
       <div className="portfolio">
         <h1>{coin.name}</h1>
-        <p className="muted-line">Sign in or try the demo to see holdings.</p>
-        <Link to="/portfolio" className="button-secondary">Back to portfolio</Link>
+        <p className="muted-line">{t("Sign in or try the demo to see holdings.")}</p>
+        <Link to="/portfolio" className="button-secondary">{t("Back to portfolio")}</Link>
       </div>
     );
   }
@@ -699,7 +709,7 @@ export function Holding() {
   return (
     <div className="portfolio">
       <Link to="/portfolio" className="link-button back">
-        <Icon name="chevron" className="icon flip" /> Portfolio
+        <Icon name="chevron" className="icon flip" /> {t("Portfolio")}
       </Link>
       <header className="detail-header">
         <CoinLogo coin={coin} size="lg" />
@@ -707,67 +717,67 @@ export function Holding() {
           <h1>
             {coin.name} <span className="ticker">{coin.symbol}</span>
           </h1>
-          <Link to={`/coins/${coin.id}`} className="inline-link">View coin details</Link>
+          <Link to={`/coins/${coin.id}`} className="inline-link">{t("View coin details")}</Link>
         </div>
       </header>
 
       {holding && holding.amount > 1e-12 ? (
         <dl className="stats">
-          <div><dt>Holding</dt><dd className="num">{hide ? MASK : formatAmount(holding.amount)} {coin.symbol}</dd></div>
-          <div><dt>Value</dt><dd className="num">{money(holding.value)}</dd></div>
-          <div><dt>Average buy price</dt><dd className="num">{money(holding.avgPrice)}</dd></div>
+          <div><dt>{t("Holding")}</dt><dd className="num">{hide ? MASK : formatAmount(holding.amount)} {coin.symbol}</dd></div>
+          <div><dt>{t("Value")}</dt><dd className="num">{money(holding.value)}</dd></div>
+          <div><dt>{t("Average buy price")}</dt><dd className="num">{money(holding.avgPrice)}</dd></div>
           <div>
-            <dt>Unrealized P&L</dt>
+            <dt>{t("Unrealized P&L")}</dt>
             <dd className={`num ${direction(holding.unrealized)}`}>{hide ? MASK : signedMoney(holding.unrealized, currency, rate)}</dd>
           </div>
           <div>
-            <dt>Realized P&L</dt>
+            <dt>{t("Realized P&L")}</dt>
             <dd className={`num ${direction(holding.realized)}`}>{hide ? MASK : signedMoney(holding.realized, currency, rate)}</dd>
           </div>
           <div>
-            <dt>All-time P&L</dt>
+            <dt>{t("All-time P&L")}</dt>
             <dd className={`num ${direction(holding.pnl)}`}>
               {hide ? MASK : signedMoney(holding.pnl, currency, rate)} ({formatPercent(holding.pnlPct)})
             </dd>
           </div>
         </dl>
       ) : (
-        <p className="empty-line">You don't hold any {coin.symbol} right now.</p>
+        <p className="empty-line">{t("You don't hold any {symbol} right now.", { symbol: coin.symbol })}</p>
       )}
 
       {holding && rounds.length > 0 && (
         <p className="card entry-compare num">
-          Your entry {money(holding.avgPrice)} vs {rounds.map((round) => `${round.type.toLowerCase()} ${formatPrice(round.tokenPrice, currency, rate)}`).join(" / ")}
+          {t("Your entry {price} vs", { price: money(holding.avgPrice) })} {rounds.map((round) => `${round.type.toLowerCase()} ${formatPrice(round.tokenPrice, currency, rate)}`).join(" / ")}
         </p>
       )}
 
       <section aria-labelledby="tx-title">
         <div className="section-row">
-          <h2 id="tx-title" className="subsection-title">Transactions</h2>
-          <button className="button-secondary compact" onClick={() => setSheet({ coinId: coin.id })}>+ Add</button>
+          <h2 id="tx-title" className="subsection-title">{t("Transactions")}</h2>
+          <button className="button-secondary compact" onClick={() => setSheet({ coinId: coin.id })}>{t("+ Add")}</button>
         </div>
         {history.length ? (
           <ul className="tx-list">
             {history.map((tx) => (
               <li key={tx.id} className="tx-row">
                 <span>
-                  <strong>{transactionTypes.find((type) => type.id === tx.type)?.label}</strong>{" "}
+                  <strong>{t(transactionTypes.find((type) => type.id === tx.type)?.label ?? "")}</strong>{" "}
                   <span className="num">{hide ? MASK : formatAmount(tx.amount)} {coin.symbol} @ {money(tx.price)}</span>
                   <small className="num">
                     {formatDate(tx.date)}
-                    {tx.fee ? ` · fee ${money(tx.fee)}` : ""}
-                    {tx.note ? ` · ${tx.note}` : ""}
+                    {tx.fee ? ` · ${t("fee {amount}", { amount: money(tx.fee) })}` : ""}
+                    {tx.note ? ` · ${noteText(tx.note)}` : ""}
                   </small>
                 </span>
                 <span className="tx-actions">
-                  <button className="button-tertiary" onClick={() => setSheet(tx)}>Edit</button>
-                  <button className="button-tertiary danger" onClick={() => setConfirm(tx)}>Delete</button>
+                  <button className="button-tertiary" onClick={() => setSheet(tx)}>{t("Edit")}</button>
+                  <button className="button-tertiary danger" onClick={() => setConfirm(tx)}>{t("Delete")}</button>
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="empty-line">No transactions for {coin.symbol} yet.</p>
+          <p className="empty-line">{t("No transactions for {symbol} yet.", { symbol: coin.symbol })}</p>
         )}
       </section>
 
@@ -775,12 +785,16 @@ export function Holding() {
 
       {sheet && <TransactionSheet open onClose={() => setSheet(null)} initial={sheet} coins={coins} transactions={transactions} onSave={saveTransaction} />}
 
-      <Sheet open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Delete transaction" side="bottom">
+      <Sheet open={Boolean(confirm)} onClose={() => setConfirm(null)} title={t("Delete transaction")} side="bottom">
         {confirm && (
           <>
             <p className="sheet-note num">
-              Delete this {transactionTypes.find((type) => type.id === confirm.type)?.label.toLowerCase()} of {formatAmount(confirm.amount)} {coin.symbol} on {formatDate(confirm.date)}? Your
-              totals will be recalculated.
+              {t("Delete this {type} of {amount} {symbol} on {date}? Your totals will be recalculated.", {
+                type: t(transactionTypes.find((type) => type.id === confirm.type)?.label ?? "").toLowerCase(),
+                amount: formatAmount(confirm.amount),
+                symbol: coin.symbol,
+                date: formatDate(confirm.date),
+              })}
             </p>
             <button
               className="button-primary danger-fill"
@@ -789,9 +803,9 @@ export function Holding() {
                 setConfirm(null);
               }}
             >
-              Delete transaction
+              {t("Delete transaction")}
             </button>
-            <button className="button-secondary button-block" onClick={() => setConfirm(null)}>Keep it</button>
+            <button className="button-secondary button-block" onClick={() => setConfirm(null)}>{t("Keep it")}</button>
           </>
         )}
       </Sheet>

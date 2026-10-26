@@ -1,0 +1,90 @@
+// App shell, navigation, page titles (routes.js), menu groups, shortcuts and lib/format.js.
+export const shell = {
+  // Shell
+  "CPA, Cryptocurrency Portfolio App — home": "CPA, Cryptocurrency Portfolio App: inicio",
+  Search: "Buscar",
+  "Accessibility menu": "Menú de accesibilidad",
+  "Alerts, {count} unread": "Alertas, {count} sin leer",
+  Alerts: "Alertas",
+  "Sign in to see your alerts": "Inicia sesión para ver tus alertas",
+  "Open menu": "Abrir menú",
+  Primary: "Principal",
+  "Not financial advice. Data provided for informational purposes.": "No es asesoramiento financiero. Datos ofrecidos con fines informativos.",
+  Footer: "Pie de página",
+  "Skip to content": "Saltar al contenido",
+  Menu: "Menú",
+  "Keyboard shortcuts": "Atajos de teclado",
+  "End demo": "Salir de la demo",
+
+  // Tabs and page titles (routes.js)
+  Home: "Inicio",
+  Market: "Mercado",
+  Explore: "Explorar",
+  Funding: "Financiación",
+  Fundraising: "Rondas de financiación",
+  Unlocks: "Desbloqueos",
+  Watchlist: "Seguimiento",
+  Portfolio: "Cartera",
+  "Coin detail": "Detalle de la moneda",
+  "Fund profile": "Perfil del fondo",
+  "Token unlocks": "Desbloqueos de tokens",
+  "Token sales": "Ventas de tokens",
+  Holding: "Posición",
+  "Log in or sign up": "Inicia sesión o regístrate",
+  "Forgot password": "Contraseña olvidada",
+  "Reset password": "Restablecer contraseña",
+  "Log out": "Cerrar sesión",
+  "Account settings": "Ajustes de la cuenta",
+  "Customer support": "Atención al cliente",
+  FAQs: "Preguntas frecuentes",
+  "Report an issue": "Informar de un problema",
+  "Send feedback": "Enviar comentarios",
+  Promotions: "Promociones",
+  "Affiliate program": "Programa de afiliados",
+  "Technical requirements": "Requisitos técnicos",
+  "AI features": "Funciones de IA",
+  "Terms of service": "Condiciones del servicio",
+  "Privacy policy": "Política de privacidad",
+  "Accessibility policy": "Política de accesibilidad",
+  "Not found": "Página no encontrada",
+
+  // Bottom nav labels (tc("tab", …)): the tab's aria-label keeps the full title.
+  "tab|Funding": "Rondas",
+  "tab|Unlocks": "Desbloq.",
+  "tab|Watchlist": "Lista",
+  "action|View": "Ver", // toast button; plain "View" is the noun
+
+  // Menu groups
+  Research: "Investigación",
+  Account: "Cuenta",
+  Help: "Ayuda",
+  "About CPA": "Acerca de CPA",
+  Legal: "Legal",
+
+  // Shortcuts (data/shortcuts.js)
+  "Open search": "Abrir la búsqueda",
+  "Close dialog or menu": "Cerrar el diálogo o el menú",
+  "Chart range 1D…ALL (on a coin)": "Rango del gráfico 1D…ALL (en una moneda)",
+  "Move chart crosshair; switch tabs": "Mover la cruz del gráfico; cambiar de pestaña",
+  "Shortcuts help": "Ayuda de atajos",
+
+  // lib/format.js
+  unchanged: "sin cambios",
+  "up {value} percent": "sube un {value} por ciento",
+  "down {value} percent": "baja un {value} por ciento",
+  dollars: "dólares",
+  euros: "euros",
+  pounds: "libras",
+  bitcoin: "bitcoin",
+  ether: "ether",
+  "just now": "ahora mismo",
+  "{n}s ago": "hace {n} s",
+  "{n}m ago": "hace {n} min",
+  "{n}h ago": "hace {n} h",
+  "{n}d ago": "hace {n} d",
+  now: "ahora",
+  "in {time}": "en {time}",
+
+  // Language setting
+  Language: "Idioma",
+};

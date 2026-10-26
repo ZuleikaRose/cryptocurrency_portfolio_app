@@ -11,7 +11,9 @@ import { formatDate, rateFor } from "../lib/format.js";
 import { useNow } from "../lib/hooks.js";
 import { notificationPermission, requestNotifications } from "../lib/notify.js";
 import { useApp, useMarket } from "../state/context.js";
+import { locale, t } from "../lib/i18n.js";
 
+// Labels are translated where they're shown.
 const tabs = [
   { id: "notifications", label: "Notifications" },
   { id: "my-alerts", label: "My alerts" },
@@ -27,11 +29,11 @@ const DAY_MS = 86_400_000;
 function dayLabel(at, now) {
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
-  if (at >= start.getTime()) return "Today";
-  if (at >= start.getTime() - DAY_MS) return "Yesterday";
+  if (at >= start.getTime()) return t("Today");
+  if (at >= start.getTime() - DAY_MS) return t("Yesterday");
   return formatDate(at);
 }
-const timeOf = (at) => new Date(at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+const timeOf = (at) => new Date(at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", hour12: false });
 
 function PermissionBanner({ onAsked }) {
   const [permission, setPermission] = useState(notificationPermission);
@@ -40,10 +42,10 @@ function PermissionBanner({ onAsked }) {
     <div className="card banner-info info-card" role="note">
       <Icon name="info" />
       {permission === "denied" ? (
-        <span>Browser notifications are blocked. Alerts still show here. To get them in the background, allow notifications for this site in your browser settings.</span>
+        <span>{t("Browser notifications are blocked. Alerts still show here. To get them in the background, allow notifications for this site in your browser settings.")}</span>
       ) : (
         <span>
-          Browser notifications are off. Alerts still show here.{" "}
+          {t("Browser notifications are off. Alerts still show here.")}{" "}
           <button
             className="link-button inline"
             onClick={async () => {
@@ -51,7 +53,7 @@ function PermissionBanner({ onAsked }) {
               onAsked();
             }}
           >
-            Turn on
+            {t("Turn on")}
           </button>
         </span>
       )}
@@ -64,7 +66,7 @@ function Switch({ checked, onChange, label }) {
     <label className="switch">
       <input type="checkbox" checked={checked} onChange={onChange} aria-label={label} />
       <span className="switch-track" aria-hidden="true" />
-      <span aria-hidden="true">{checked ? "On" : "Paused"}</span>
+      <span aria-hidden="true">{checked ? t("On") : t("Paused")}</span>
     </label>
   );
 }
@@ -86,7 +88,7 @@ export default function Alerts() {
   const draft = editing ?? (newCoin && coins.some((coin) => coin.id === newCoin) ? { coinId: newCoin } : null);
 
   useEffect(() => {
-    document.title = unreadCount ? `(${unreadCount}) Alerts · CPA` : "Alerts · CPA";
+    document.title = unreadCount ? `(${unreadCount}) ${t("Alerts")} · CPA` : `${t("Alerts")} · CPA`;
   }, [unreadCount]);
 
   const setTab = (id) => {
@@ -107,12 +109,12 @@ export default function Alerts() {
   if (session.kind === "guest") {
     return (
       <div className="alerts">
-        <h1>Alerts</h1>
+        <h1>{t("Alerts")}</h1>
         <div className="card empty-state">
           <Icon name="bell" className="empty-icon" />
-          <p>Sign in to set price alerts, unlock reminders and fund follows. Alerts run while CPA is open.</p>
-          <button className="button-primary" onClick={() => app.requireAuth("Sign in to use alerts", () => {})}>Sign in</button>
-          <button className="button-tertiary" onClick={app.startDemo}>Try a private demo</button>
+          <p>{t("Sign in to set price alerts, unlock reminders and fund follows. Alerts run while CPA is open.")}</p>
+          <button className="button-primary" onClick={() => app.requireAuth(t("Sign in to use alerts"), () => {})}>{t("Sign in")}</button>
+          <button className="button-tertiary" onClick={app.startDemo}>{t("Try a private demo")}</button>
         </div>
       </div>
     );
@@ -136,13 +138,13 @@ export default function Alerts() {
   return (
     <div className="alerts">
       <div className="page-head">
-        <h1>Alerts</h1>
+        <h1>{t("Alerts")}</h1>
         <button className="button-secondary compact" onClick={newAlert}>
-          <Icon name="plus" /> New
+          <Icon name="plus" /> {t("New")}
         </button>
       </div>
 
-      <div className="filters" role="tablist" aria-label="Alerts sections">
+      <div className="filters" role="tablist" aria-label={t("Alerts sections")}>
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -161,9 +163,9 @@ export default function Alerts() {
               document.getElementById(`alerts-tab-${next.id}`)?.focus();
             }}
           >
-            {item.label}
+            {t(item.label)}
             {counts[item.id] > 0 && <span className="num"> {counts[item.id]}</span>}
-            {item.id === "notifications" && counts.notifications > 0 && <span className="visually-hidden"> unread</span>}
+            {item.id === "notifications" && counts.notifications > 0 && <span className="visually-hidden"> {t("unread")}</span>}
           </button>
         ))}
       </div>
@@ -175,8 +177,8 @@ export default function Alerts() {
           (notifications.length === 0 ? (
             <div className="empty-state">
               <Icon name="bell" className="empty-icon" />
-              <p>No alerts yet. Set one from any coin.</p>
-              <Link to="/market" className="button-secondary">Browse market</Link>
+              <p>{t("No alerts yet. Set one from any coin.")}</p>
+              <Link to="/market" className="button-secondary">{t("Browse market")}</Link>
             </div>
           ) : (
             groups.map((group, index) => (
@@ -184,7 +186,7 @@ export default function Alerts() {
                 <div className="section-row">
                   <h2 className="subsection-title">{group.label}</h2>
                   {index === 0 && unreadCount > 0 && (
-                    <button className="link-button" onClick={app.markAllRead}>Mark all read</button>
+                    <button className="link-button" onClick={app.markAllRead}>{t("Mark all read")}</button>
                   )}
                 </div>
                 <ul className="note-list">
@@ -197,7 +199,7 @@ export default function Alerts() {
                           {coin ? <CoinLogo coin={coin} /> : <span className="square-logo" aria-hidden="true">{note.title[0]}</span>}
                           <span className="note-main">
                             <strong>
-                              {!note.read && <span className="visually-hidden">Unread: </span>}
+                              {!note.read && <span className="visually-hidden">{t("Unread:")} </span>}
                               {note.title}
                             </strong>
                             <span className="num">
@@ -217,8 +219,8 @@ export default function Alerts() {
           (myCount === 0 ? (
             <div className="empty-state">
               <Icon name="bell" className="empty-icon" />
-              <p>No alerts or reminders yet.</p>
-              <button className="button-primary" onClick={newAlert}>New alert</button>
+              <p>{t("No alerts or reminders yet.")}</p>
+              <button className="button-primary" onClick={newAlert}>{t("New alert")}</button>
             </div>
           ) : (
             <ul className="alert-list">
@@ -232,15 +234,15 @@ export default function Alerts() {
                     <span className="alert-main">
                       <Link to={`/coins/${coin.id}`}><strong className="num">{text}</strong></Link>
                       <span>
-                        {alert.repeat === "recurring" ? "Recurring" : "One-time"}
-                        {alert.lastFired ? ` · last triggered ${timeOf(alert.lastFired)}` : ""}
+                        {alert.repeat === "recurring" ? t("Recurring") : t("One-time")}
+                        {alert.lastFired ? ` · ${t("last triggered {time}", { time: timeOf(alert.lastFired) })}` : ""}
                       </span>
                     </span>
-                    <Switch checked={alert.active} onChange={() => app.toggleAlert(alert.id)} label={`${text}, ${alert.active ? "on" : "paused"}`} />
-                    <button className="icon-button small" onClick={() => setEditing(alert)} aria-label={`Edit ${text}`}>
+                    <Switch checked={alert.active} onChange={() => app.toggleAlert(alert.id)} label={`${text}, ${alert.active ? t("on") : t("paused")}`} />
+                    <button className="icon-button small" onClick={() => setEditing(alert)} aria-label={t("Edit {item}", { item: text })}>
                       <Icon name="pencil" />
                     </button>
-                    <button className="icon-button small danger-text" onClick={() => setConfirm({ kind: "alert", id: alert.id, text })} aria-label={`Delete ${text}`}>
+                    <button className="icon-button small danger-text" onClick={() => setConfirm({ kind: "alert", id: alert.id, text })} aria-label={t("Delete {item}", { item: text })}>
                       <Icon name="trash" />
                     </button>
                   </li>
@@ -248,24 +250,24 @@ export default function Alerts() {
               })}
               {reminderList.map((reminder) => {
                 const coin = coins.find((item) => item.symbol === reminder.symbol);
-                const what = reminder.kind === "sale" ? "Token sale" : "Unlock";
+                const what = reminder.kind === "sale" ? t("Token sale") : t("Unlock");
                 const text = `${reminder.symbol} · ${what} ${formatDate(reminder.date)}`;
                 return (
                   <li key={reminder.id} className={reminder.paused ? "alert-row paused" : "alert-row"}>
                     {coin && reminder.kind !== "sale" ? <CoinLogo coin={coin} /> : <span className="square-logo" aria-hidden="true">{reminder.symbol[0]}</span>}
                     <span className="alert-main">
                       <strong className="num">{text}</strong>
-                      <span>{reminder.timings.map((timing) => `${timing} before`).join(" and ")}</span>
+                      <span>{reminder.timings.map((timing) => t("{timing} before", { timing })).join(` ${t("and")} `)}</span>
                     </span>
-                    <Switch checked={!reminder.paused} onChange={() => app.toggleReminder(reminder.id)} label={`${text} reminder, ${reminder.paused ? "paused" : "on"}`} />
+                    <Switch checked={!reminder.paused} onChange={() => app.toggleReminder(reminder.id)} label={t("{item} reminder, {state}", { item: text, state: reminder.paused ? t("paused") : t("on") })} />
                     <button
                       className="icon-button small"
                       onClick={() => setReminderItem({ id: reminder.id, kind: reminder.kind, symbol: reminder.symbol, name: reminder.name, date: reminder.date })}
-                      aria-label={`Edit ${text} reminder`}
+                      aria-label={t("Edit {item} reminder", { item: text })}
                     >
                       <Icon name="pencil" />
                     </button>
-                    <button className="icon-button small danger-text" onClick={() => setConfirm({ kind: "reminder", id: reminder.id, text })} aria-label={`Delete ${text} reminder`}>
+                    <button className="icon-button small danger-text" onClick={() => setConfirm({ kind: "reminder", id: reminder.id, text })} aria-label={t("Delete {item} reminder", { item: text })}>
                       <Icon name="trash" />
                     </button>
                   </li>
@@ -279,8 +281,8 @@ export default function Alerts() {
             {fundList.length === 0 && followedProjects.length === 0 ? (
               <div className="empty-state">
                 <Icon name="coins" className="empty-icon" />
-                <p>You're not following any funds or projects yet.</p>
-                <Link to="/fundraising?view=funds" className="button-secondary">Browse funds</Link>
+                <p>{t("You're not following any funds or projects yet.")}</p>
+                <Link to="/fundraising?view=funds" className="button-secondary">{t("Browse funds")}</Link>
               </div>
             ) : (
               <ul className="alert-list">
@@ -289,14 +291,14 @@ export default function Alerts() {
                     <span className="square-logo" aria-hidden="true">{fund.name[0]}</span>
                     <span className="alert-main">
                       <Link to={`/funds/${fund.id}`}><strong>{fund.name}</strong></Link>
-                      <span>Tier {fund.tier} · {fund.type}</span>
+                      <span>{t("Tier {tier}", { tier: fund.tier })} · {t(fund.type)}</span>
                     </span>
-                    <select className="select" value={frequency} onChange={(event) => app.setFollow(fund, event.target.value)} aria-label={`How often to hear about ${fund.name}`}>
+                    <select className="select" value={frequency} onChange={(event) => app.setFollow(fund, event.target.value)} aria-label={t("How often to hear about {name}", { name: fund.name })}>
                       {frequencies.map(([id, label]) => (
-                        <option key={id} value={id}>{label}</option>
+                        <option key={id} value={id}>{t(label)}</option>
                       ))}
                     </select>
-                    <button className="icon-button small danger-text" onClick={() => app.setFollow(fund, null)} aria-label={`Unfollow ${fund.name}`}>
+                    <button className="icon-button small danger-text" onClick={() => app.setFollow(fund, null)} aria-label={t("Unfollow {name}", { name: fund.name })}>
                       <Icon name="close" />
                     </button>
                   </li>
@@ -306,9 +308,9 @@ export default function Alerts() {
                     <span className="square-logo" aria-hidden="true">{project[0]}</span>
                     <span className="alert-main">
                       <strong>{project}</strong>
-                      <span>Project · new funding rounds</span>
+                      <span>{t("Project · new funding rounds")}</span>
                     </span>
-                    <button className="icon-button small danger-text" onClick={() => app.toggleFollowProject(project)} aria-label={`Unfollow ${project}`}>
+                    <button className="icon-button small danger-text" onClick={() => app.toggleFollowProject(project)} aria-label={t("Unfollow {name}", { name: project })}>
                       <Icon name="close" />
                     </button>
                   </li>
@@ -320,16 +322,16 @@ export default function Alerts() {
       </section>
 
       <p className="muted-line">
-        Alerts are checked while CPA is open; nothing fires when the tab is closed.{" "}
-        <Link to="/settings" className="link-button inline">Digest and quiet hours</Link>
+        {t("Alerts are checked while CPA is open; nothing fires when the tab is closed.")}{" "}
+        <Link to="/settings" className="link-button inline">{t("Digest and quiet hours")}</Link>
       </p>
 
       <AlertSheet key={draft ? draft.id ?? `new-${draft.coinId}` : "closed"} draft={draft} onClose={closeSheet} />
       <ReminderSheet key={reminderItem?.id ?? "none"} item={reminderItem} onClose={() => setReminderItem(null)} />
-      <Sheet open={Boolean(confirm)} onClose={() => setConfirm(null)} title={confirm?.kind === "reminder" ? "Delete this reminder?" : "Delete this alert?"} side="bottom">
+      <Sheet open={Boolean(confirm)} onClose={() => setConfirm(null)} title={confirm?.kind === "reminder" ? t("Delete this reminder?") : t("Delete this alert?")} side="bottom">
         <p className="sheet-note num">{confirm?.text}</p>
         <div className="sheet-actions">
-          <button className="button-secondary" onClick={() => setConfirm(null)}>Cancel</button>
+          <button className="button-secondary" onClick={() => setConfirm(null)}>{t("Cancel")}</button>
           <button
             className="button-primary danger-fill"
             onClick={() => {
@@ -338,7 +340,7 @@ export default function Alerts() {
               setConfirm(null);
             }}
           >
-            Delete
+            {t("Delete")}
           </button>
         </div>
       </Sheet>

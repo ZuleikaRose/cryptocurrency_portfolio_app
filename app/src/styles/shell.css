@@ -102,6 +102,7 @@ main.content:focus-visible { outline: none; }
   transition: color var(--dur-micro) var(--ease-out);
 }
 .nav-item .icon { width: 20px; height: 20px; }
+.nav-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-item:hover { color: var(--muted); }
 .nav-item.active { color: var(--text); font-weight: 600; }
 .nav-item.active .icon { color: var(--accent); }
@@ -155,6 +156,7 @@ main.content:focus-visible { outline: none; }
 .sheet-body { overflow-y: auto; padding: 8px 20px 24px; }
 .sheet-note { margin: 12px 0; color: var(--muted); font-size: 14px; }
 
+.menu-language { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding-top: 12px; font-size: 15px; }
 .menu-group { padding-top: 16px; }
 .menu-group h3 { margin: 0 0 4px; color: var(--subtle); font-size: 12px; font-weight: 600; }
 .menu-group ul { margin: 0; padding: 0; list-style: none; }

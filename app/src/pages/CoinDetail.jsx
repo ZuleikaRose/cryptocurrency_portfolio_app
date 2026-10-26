@@ -31,6 +31,7 @@ import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 import { coinSource } from "../lib/market.js";
 import { closeDay, usePriceHistory, withLivePrice } from "../lib/history.js";
+import { locale, t, tn } from "../lib/i18n.js";
 
 const tabs = [
   { id: "overview", label: "Overview" },
@@ -40,6 +41,7 @@ const tabs = [
 ];
 
 const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
+const fixed = (value, digits) => value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 
 function Overview({ coin, research, currency, rate, onMarker, onRemind, reminders, vote, onVote, now }) {
@@ -102,8 +104,8 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
 
   return (
     <>
-      <section className="card chart-card" aria-label="Price chart">
-        {history.error && <ErrorBanner what="the price chart" onRetry={history.retry} />}
+      <section className="card chart-card" aria-label={t("Price chart")}>
+        {history.error && <ErrorBanner what={t("the price chart")} onRetry={history.retry} />}
         {points ? (
           <PriceChart
             points={points}
@@ -119,13 +121,13 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
         ) : (
           !history.error && (
             <>
-              <p className="visually-hidden" role="status">Loading the price chart…</p>
+              <p className="visually-hidden" role="status">{t("Loading the price chart…")}</p>
               <div className="skeleton skeleton-chart" aria-hidden="true" />
             </>
           )
         )}
         <div className="chart-controls">
-          <div className="segmented" role="group" aria-label="Chart range">
+          <div className="segmented" role="group" aria-label={t("Chart range")}>
             {ranges.map((item, index) => (
               <button
                 key={item.id}
@@ -138,13 +140,13 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
               </button>
             ))}
           </div>
-          <div className="segmented" role="group" aria-label="Chart type">
+          <div className="segmented" role="group" aria-label={t("Chart type")}>
             {[
               ["line", "Line"],
               ["candle", "Candle"],
             ].map(([id, label]) => (
               <button key={id} className={mode === id ? "segment active" : "segment"} aria-pressed={mode === id} onClick={() => setMode(id)}>
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -153,46 +155,80 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
           <label className="switch">
             <input type="checkbox" checked={showMarkers} onChange={(event) => setShowMarkers(event.target.checked)} />
             <span className="switch-track" aria-hidden="true" />
-            Event markers
+            {t("Event markers")}
           </label>
         </div>
         {showMarkers && (
           <p className="marker-legend">
             {/* Each key stays with its label when the legend wraps at large text sizes. */}
-            <span className="marker-item"><span className="marker-key marker-unlock">U</span> Unlock</span>
-            <span className="marker-item"><span className="marker-key marker-funding">F</span> Funding</span>
-            <span className="marker-item"><span className="marker-key marker-listing">L</span> Listing</span>
+            <span className="marker-item"><span className="marker-key marker-unlock">U</span> {t("Unlock")}</span>
+            <span className="marker-item"><span className="marker-key marker-funding">F</span> {t("Funding")}</span>
+            <span className="marker-item"><span className="marker-key marker-listing">L</span> {t("Listing")}</span>
           </p>
         )}
         {points && <ChartSummary text={chartSummary(points, range.label, currency, rate)} />}
-        <p className="muted-line chart-source">Chart: {real ? "Coinbase closes, USD, UTC" : waiting ? "Coinbase" : "CPA sample data"}</p>
+        <p className="muted-line chart-source">{t("Chart: {source}", { source: real ? t("Coinbase closes, USD, UTC") : waiting ? "Coinbase" : t("CPA sample data") })}</p>
       </section>
 
       <dl className="stats">
         <div>
-          <dt>Market cap <InfoTip term="marketCap" label="market cap" detail={`${coin.symbol}: ${formatPrice(coin.price, currency, rate)} × ${formatTokens(coin.marketCap / coin.price)} tokens circulating ≈ ${formatCompact(coin.marketCap, currency, rate)}.`} /></dt>
+          <dt>
+            {t("Market cap")}{" "}
+            <InfoTip
+              term="marketCap"
+              label={t("market cap")}
+              detail={t("{symbol}: {price} × {tokens} tokens circulating ≈ {cap}.", {
+                symbol: coin.symbol,
+                price: formatPrice(coin.price, currency, rate),
+                tokens: formatTokens(coin.marketCap / coin.price),
+                cap: formatCompact(coin.marketCap, currency, rate),
+              })}
+            />
+          </dt>
           <dd className="num">{formatCompact(coin.marketCap, currency, rate)}</dd>
         </div>
         <div>
-          <dt>FDV <InfoTip term="fdv" label="FDV" detail={`${coin.symbol}'s FDV is ${(coin.fdv / coin.marketCap).toFixed(1)}× its market cap: ${Math.round((coin.marketCap / coin.fdv) * 100)}% of all tokens are circulating today.`} /></dt>
+          <dt>
+            FDV{" "}
+            <InfoTip
+              term="fdv"
+              label="FDV"
+              detail={t("{symbol}'s FDV is {multiple}× its market cap: {pct}% of all tokens are circulating today.", {
+                symbol: coin.symbol,
+                multiple: fixed(coin.fdv / coin.marketCap, 1),
+                pct: Math.round((coin.marketCap / coin.fdv) * 100),
+              })}
+            />
+          </dt>
           <dd className="num">{formatCompact(coin.fdv, currency, rate)}</dd>
         </div>
         <div>
-          <dt>24h volume <InfoTip term="volume" label="24h volume" detail={`${formatCompact(coin.volume24h, currency, rate)} traded in 24h, ${((coin.volume24h / coin.marketCap) * 100).toFixed(1)}% of ${coin.symbol}'s market cap.`} /></dt>
+          <dt>
+            {t("24h volume")}{" "}
+            <InfoTip
+              term="volume"
+              label={t("24h volume")}
+              detail={t("{volume} traded in 24h, {pct}% of {symbol}'s market cap.", {
+                volume: formatCompact(coin.volume24h, currency, rate),
+                pct: fixed((coin.volume24h / coin.marketCap) * 100, 1),
+                symbol: coin.symbol,
+              })}
+            />
+          </dt>
           <dd className="num">{formatCompact(coin.volume24h, currency, rate)}</dd>
         </div>
         <div>
-          <dt>Circulating</dt>
+          <dt>{t("Circulating")}</dt>
           <dd className="num">{formatTokens(supply.circulating)} {coin.symbol}</dd>
         </div>
         <div>
-          <dt>All-time high <InfoTip term="ath" label="all-time high and low" /></dt>
+          <dt>{t("All-time high")} <InfoTip term="ath" label={t("all-time high and low")} /></dt>
           <dd className="num">
             {athPoint ? <>{formatPrice(athPoint.price, currency, rate)} <small>{formatDate(athPoint.time)}</small></> : "—"}
           </dd>
         </div>
         <div>
-          <dt>All-time low</dt>
+          <dt>{t("All-time low")}</dt>
           <dd className="num">
             {atlPoint ? <>{formatPrice(atlPoint.price, currency, rate)} <small>{formatDate(atlPoint.time)}</small></> : "—"}
           </dd>
@@ -204,49 +240,49 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
       <SupplyBar supply={supply} symbol={coin.symbol} />
 
       {nextUnlock ? (
-        <section className={`card unlock-card ${(nextUnlock.amount / supply.circulating) * 100 > 2 ? "warning" : ""}`} aria-label="Next unlock">
+        <section className={`card unlock-card ${(nextUnlock.amount / supply.circulating) * 100 > 2 ? "warning" : ""}`} aria-label={t("Next unlock")}>
           <div className="unlock-head">
-            <h2 className="subsection-title">Next unlock</h2>
+            <h2 className="subsection-title">{t("Next unlock")}</h2>
             <span className="num countdown">{formatCountdown(nextUnlock.date.getTime(), now)}</span>
           </div>
           <p className="num">
             {formatTokens(nextUnlock.amount)} {coin.symbol} · {formatCompact(nextUnlock.amount * coin.price, currency, rate)} ·{" "}
-            {((nextUnlock.amount / supply.circulating) * 100).toFixed(2)}% of circ. supply
+            {t("{pct}% of circ. supply", { pct: fixed((nextUnlock.amount / supply.circulating) * 100, 2) })}
           </p>
           <p className="muted-line">
-            {formatDate(nextUnlock.date)} · {nextUnlock.allocations.join(", ")}
+            {formatDate(nextUnlock.date)} · {nextUnlock.allocations.map((name) => t(name)).join(", ")}
           </p>
           <button className={reminders[nextUnlock.id] ? "button-secondary reminder-set" : "button-secondary"} onClick={() => onRemind(nextUnlock)}>
             <Icon name={reminders[nextUnlock.id] ? "check" : "bell"} />
-            {reminders[nextUnlock.id] ? "Reminder set" : "Remind me"}
+            {reminders[nextUnlock.id] ? t("Reminder set") : t("Remind me")}
           </button>
         </section>
       ) : (
-        <p className="empty-line">No scheduled unlocks.</p>
+        <p className="empty-line">{t("No scheduled unlocks.")}</p>
       )}
 
       <section className="card sentiment" aria-labelledby="sentiment-title">
-        <h2 id="sentiment-title" className="subsection-title">Community sentiment <span className="muted-inline">(not advice)</span></h2>
-        <div className="sentiment-bar" role="img" aria-label={`${bullish} percent bullish, ${100 - bullish} percent bearish`}>
+        <h2 id="sentiment-title" className="subsection-title">{t("Community sentiment")} <span className="muted-inline">{t("(not advice)")}</span></h2>
+        <div className="sentiment-bar" role="img" aria-label={t("{bullish} percent bullish, {bearish} percent bearish", { bullish, bearish: 100 - bullish })}>
           <span className="sentiment-bull" style={{ width: `${bullish}%` }} />
         </div>
         <div className="sentiment-labels num">
-          <span className="up">Bullish {bullish}%</span>
-          <span className="down">Bearish {100 - bullish}%</span>
+          <span className="up">{t("Bullish {pct}%", { pct: bullish })}</span>
+          <span className="down">{t("Bearish {pct}%", { pct: 100 - bullish })}</span>
         </div>
         <div className="sentiment-actions">
           {["bullish", "bearish"].map((choice) => (
             <button key={choice} className={vote === choice ? "button-secondary selected" : "button-secondary"} aria-pressed={vote === choice} onClick={() => onVote(choice)} disabled={Boolean(vote)}>
-              {choice === "bullish" ? "▲ Bullish" : "▼ Bearish"}
+              {choice === "bullish" ? t("▲ Bullish") : t("▼ Bearish")}
             </button>
           ))}
-          <span className="muted-line num">{(sentiment.votes + (vote ? 1 : 0)).toLocaleString("en-US")} votes today</span>
+          <span className="muted-line num">{t("{count} votes today", { count: (sentiment.votes + (vote ? 1 : 0)).toLocaleString(locale()) })}</span>
         </div>
-        {vote && <p className="muted-line">You voted {vote} today. You can vote again tomorrow.</p>}
+        {vote && <p className="muted-line">{vote === "bullish" ? t("You voted bullish today. You can vote again tomorrow.") : t("You voted bearish today. You can vote again tomorrow.")}</p>}
       </section>
 
       <section aria-labelledby="about-title">
-        <h2 id="about-title" className="subsection-title">About {coin.name}</h2>
+        <h2 id="about-title" className="subsection-title">{t("About {name}", { name: coin.name })}</h2>
         <p className="about">{research.about}</p>
       </section>
 
@@ -261,15 +297,15 @@ function Tokenomics({ coin, research, currency, rate }) {
     <>
       <SupplyBar supply={research.supply} symbol={coin.symbol} />
       <section aria-labelledby="vesting-title">
-        <h2 id="vesting-title" className="subsection-title">Vesting schedule</h2>
+        <h2 id="vesting-title" className="subsection-title">{t("Vesting schedule")}</h2>
         {research.vesting ? (
           <VestingChart vesting={research.vesting} events={research.vestingEvents} symbol={coin.symbol} />
         ) : (
-          <p className="empty-line">No vesting schedule on record for {coin.name}.</p>
+          <p className="empty-line">{t("No vesting schedule on record for {name}.", { name: coin.name })}</p>
         )}
       </section>
       <section aria-labelledby="next-unlocks-title">
-        <h2 id="next-unlocks-title" className="subsection-title">Next {upcoming.length || ""} unlocks</h2>
+        <h2 id="next-unlocks-title" className="subsection-title">{upcoming.length ? t("Next {count} unlocks", { count: upcoming.length }) : t("Next unlocks")}</h2>
         {upcoming.length ? (
           <ol className="unlock-list">
             {upcoming.map((unlock) => {
@@ -278,12 +314,12 @@ function Tokenomics({ coin, research, currency, rate }) {
                 <li key={unlock.id} className={share > 2 ? "warning" : undefined}>
                   <div>
                     <strong>{formatDate(unlock.date)}</strong>
-                    <span>{unlock.allocations.join(", ")}</span>
+                    <span>{unlock.allocations.map((name) => t(name)).join(", ")}</span>
                   </div>
                   <div className="num">
                     <strong>{formatTokens(unlock.amount)} {coin.symbol}</strong>
                     <span>
-                      {formatCompact(unlock.amount * coin.price, currency, rate)} · {share.toFixed(2)}%
+                      {formatCompact(unlock.amount * coin.price, currency, rate)} · {fixed(share, 2)}%
                     </span>
                   </div>
                 </li>
@@ -291,7 +327,7 @@ function Tokenomics({ coin, research, currency, rate }) {
             })}
           </ol>
         ) : (
-          <p className="empty-line">No scheduled unlocks.</p>
+          <p className="empty-line">{t("No scheduled unlocks.")}</p>
         )}
       </section>
     </>
@@ -300,12 +336,12 @@ function Tokenomics({ coin, research, currency, rate }) {
 
 function Funding({ coin, research, currency, rate }) {
   const rounds = research.rounds;
-  if (!rounds.length) return <p className="empty-line">No funding rounds on record for {coin.name}.</p>;
+  if (!rounds.length) return <p className="empty-line">{t("No funding rounds on record for {name}.", { name: coin.name })}</p>;
   const total = rounds.reduce((sum, round) => sum + round.amount, 0);
   return (
     <section aria-labelledby="funding-title">
       <h2 id="funding-title" className="subsection-title">
-        Total raised <span className="num">{formatCompact(total, currency, rate)}</span> · {rounds.length} rounds
+        {t("Total raised")} <span className="num">{formatCompact(total, currency, rate)}</span> · {tn(rounds.length, "{count} round", "{count} rounds")}
       </h2>
       <ol className="round-list">
         {rounds.map((round) => {
@@ -313,25 +349,25 @@ function Funding({ coin, research, currency, rate }) {
           return (
             <li key={round.id} className="card round">
               <div className="round-head">
-                <span className="tag tag-fundraising">{round.type}</span>
+                <span className="tag tag-fundraising">{t(round.type)}</span>
                 <span className="muted-line">{formatDate(round.date)}</span>
                 <strong className="num">{formatCompact(round.amount, currency, rate)}</strong>
               </div>
-              <p className="num muted-line">Valuation {round.valuation ? formatCompact(round.valuation, currency, rate) : "undisclosed"}</p>
+              <p className="num muted-line">{t("Valuation {value}", { value: round.valuation ? formatCompact(round.valuation, currency, rate) : t("undisclosed") })}</p>
               {roi && (
                 <p className="num">
-                  Token price {formatPrice(round.tokenPrice, currency, rate)} → {formatPrice(coin.price, currency, rate)}{" "}
-                  <span className={direction(roi - 1)}>ROI {roi.toFixed(1)}x</span> <InfoTip term="roi" label="ROI" />
+                  {t("Token price {then} → {now}", { then: formatPrice(round.tokenPrice, currency, rate), now: formatPrice(coin.price, currency, rate) })}{" "}
+                  <span className={direction(roi - 1)}>ROI {fixed(roi, 1)}x</span> <InfoTip term="roi" label="ROI" />
                 </p>
               )}
               <p className="investors">
-                Lead:{" "}
+                {t("Lead:")}{" "}
                 {round.leads.map((id) => (
                   <Link key={id} to={`/funds/${id}`} className="inline-link">
                     {fundById(id)?.name}
                   </Link>
                 ))}
-                {round.investors.length > round.leads.length && <span className="muted-inline"> +{round.investors.length - round.leads.length} more</span>}
+                {round.investors.length > round.leads.length && <span className="muted-inline"> {t("+{count} more", { count: round.investors.length - round.leads.length })}</span>}
               </p>
             </li>
           );
@@ -351,15 +387,15 @@ function Markets({ coin, research, currency, rate }) {
       return sign * (a[sort.key] - b[sort.key]);
     });
   const columns = [
-    ["exchange", "Exchange"],
-    ["price", "Price"],
-    ["volume", "24h volume"],
-    ["share", "Share"],
+    ["exchange", t("Exchange")],
+    ["price", t("Price")],
+    ["volume", t("24h volume")],
+    ["share", t("Share")],
   ];
   const onSort = (key) => setSort((current) => ({ key, dir: current.key === key && current.dir === "desc" ? "asc" : "desc" }));
 
   return (
-    <div className="table-scroll" tabIndex={0} role="region" aria-label={`Markets for ${coin.name}`}>
+    <div className="table-scroll" tabIndex={0} role="region" aria-label={t("Markets for {name}", { name: coin.name })}>
       <table className="pro-table markets-table">
         <thead>
           <tr>
@@ -382,7 +418,7 @@ function Markets({ coin, research, currency, rate }) {
               </th>
               <td className="num">{formatPrice(row.price, currency, rate)}</td>
               <td className="num">{formatCompact(row.volume, currency, rate)}</td>
-              <td className="num">{(row.share * 100).toFixed(1)}%</td>
+              <td className="num">{fixed(row.share * 100, 1)}%</td>
             </tr>
           ))}
         </tbody>
@@ -431,7 +467,7 @@ export default function CoinDetail() {
   const rate = rateFor(currency, coins);
   // The star fills if the coin is in any list; with named lists it opens a picker (US-6.2).
   const starred = watchlist.includes(coin.id) || lists.some((list) => list.coinIds.includes(coin.id));
-  const onStar = () => (lists.length ? requireAuth(`Sign in to save ${coin.name} to a watchlist`, () => setListsOpen(true)) : toggleWatch(coin));
+  const onStar = () => (lists.length ? requireAuth(t("Sign in to save {name} to a watchlist", { name: coin.name }), () => setListsOpen(true)) : toggleWatch(coin));
   const dir = direction(coin.change24h);
 
   const setTab = (id) => {
@@ -447,7 +483,7 @@ export default function CoinDetail() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast("Couldn't copy. Select the address and copy it manually.");
+      showToast(t("Couldn't copy. Select the address and copy it manually."));
     }
   };
 
@@ -456,11 +492,11 @@ export default function CoinDetail() {
       fileName: `cpa-${coin.symbol.toLowerCase()}`,
       title: `${coin.name} · ${coin.symbol}`,
       headline: formatPrice(coin.price, currency, rate),
-      detail: `${formatPercent(coin.change24h)} in 24h`,
+      detail: t("{change} in 24h", { change: formatPercent(coin.change24h) }),
       detailTone: coin.change24h >= 0 ? "up" : "down",
     });
-    if (result === "downloaded") showToast(`Share card for ${coin.symbol} downloaded`);
-    if (result === "failed") showToast("Couldn't create the share card in this browser. Copy the page link instead.");
+    if (result === "downloaded") showToast(t("Share card for {symbol} downloaded", { symbol: coin.symbol }));
+    if (result === "failed") showToast(t("Couldn't create the share card in this browser. Copy the page link instead."));
   };
 
   const panel = { coin, research, currency, rate };
@@ -469,10 +505,10 @@ export default function CoinDetail() {
     <article className="coin-detail">
       <div className="detail-toolbar">
         <button className="link-button back" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/market"))}>
-          <Icon name="chevron" className="icon flip" /> Back
+          <Icon name="chevron" className="icon flip" /> {t("Back")}
         </button>
         <button className="button-secondary compact" onClick={onShare}>
-          <Icon name="share" /> Share
+          <Icon name="share" /> {t("Share")}
         </button>
       </div>
 
@@ -485,11 +521,11 @@ export default function CoinDetail() {
           <p className="detail-meta">
             {research.verified && (
               <span className="verified">
-                <Icon name="check" /> Verified
+                <Icon name="check" /> {t("Verified")}
               </span>
             )}
             <span className="num">#{coin.rank}</span>
-            {coin.formerSymbols?.length > 0 && <span>Formerly {coin.formerSymbols.join(", ")}</span>}
+            {coin.formerSymbols?.length > 0 && <span>{t("Formerly {symbols}", { symbols: coin.formerSymbols.join(", ") })}</span>}
           </p>
         </div>
       </header>
@@ -497,7 +533,7 @@ export default function CoinDetail() {
       <p className="detail-price num">
         <strong>{formatPrice(coin.price, currency, rate)}</strong>
         <span className={`change-pill ${dir}`}>
-          {dir === "up" ? "▲" : dir === "down" ? "▼" : ""} {formatPercent(coin.change24h)} <span className="visually-hidden">in</span>24h
+          {dir === "up" ? "▲" : dir === "down" ? "▼" : ""} {formatPercent(coin.change24h)} <span className="visually-hidden">{t("in")}</span>24h
         </span>
       </p>
 
@@ -505,29 +541,29 @@ export default function CoinDetail() {
         {research.contract ? (
           <span className="contract">
             <span className="mono" title={research.contract}>{shortAddress(research.contract)}</span>
-            <button className="link-button" onClick={copyContract} aria-label="Copy contract address">
-              {copied ? "Copied" : "Copy"}
+            <button className="link-button" onClick={copyContract} aria-label={t("Copy contract address")}>
+              {copied ? t("Copied") : t("Copy")}
             </button>
           </span>
         ) : (
-          <span className="muted-inline">Native coin</span>
+          <span className="muted-inline">{t("Native coin")}</span>
         )}
-        <span className="tag">{coin.category}</span>
+        <span className="tag">{t(coin.category)}</span>
       </div>
 
       <div className="detail-actions">
         <button className={starred ? "button-primary in-watchlist" : "button-primary"} aria-pressed={lists.length ? undefined : starred} aria-haspopup={lists.length ? "dialog" : undefined} onClick={onStar}>
-          <Icon name="star" filled={starred} /> {starred ? "In watchlist" : "Add to watchlist"}
+          <Icon name="star" filled={starred} /> {starred ? t("In watchlist") : t("Add to watchlist")}
         </button>
         <button
           className="button-secondary"
-          onClick={() => requireAuth(`Sign in to set a price alert for ${coin.name}`, () => navigate(`/alerts?new=${coin.id}`))}
+          onClick={() => requireAuth(t("Sign in to set a price alert for {name}", { name: coin.name }), () => navigate(`/alerts?new=${coin.id}`))}
         >
-          <Icon name="bell" /> Alert
+          <Icon name="bell" /> {t("Alert")}
         </button>
       </div>
 
-      <div className="detail-tabs filters" role="tablist" aria-label={`${coin.name} sections`}>
+      <div className="detail-tabs filters" role="tablist" aria-label={t("{name} sections", { name: coin.name })}>
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -546,7 +582,7 @@ export default function CoinDetail() {
               document.getElementById(`coin-tab-${next.id}`)?.focus();
             }}
           >
-            {item.label}
+            {t(item.label)}
           </button>
         ))}
       </div>
@@ -559,7 +595,7 @@ export default function CoinDetail() {
             onMarker={setEventSheet}
             reminders={reminders}
             onRemind={(unlock) =>
-              requireAuth(`Sign in to set a reminder for the ${coin.symbol} unlock`, () => setReminderSheet({ ...unlock, kind: "unlock", name: coin.name }))
+              requireAuth(t("Sign in to set a reminder for the {symbol} unlock", { symbol: coin.symbol }), () => setReminderSheet({ ...unlock, kind: "unlock", name: coin.name }))
             }
             vote={voteFor(coin.id)}
             onVote={(choice) => castVote(coin, choice)}
@@ -571,42 +607,47 @@ export default function CoinDetail() {
       </section>
 
       <p className="disclaimer">
-        Not financial advice. Data provided for informational purposes. Source: {coinSource(coin)} · Last updated {relativeTime(coin.priceUpdatedAt ?? lastUpdated, now)}
+        {t("Not financial advice. Data provided for informational purposes.")}{" "}
+        {t("Source: {source} · Last updated {time}", { source: coinSource(coin), time: relativeTime(coin.priceUpdatedAt ?? lastUpdated, now) })}
       </p>
 
-      <Sheet open={Boolean(eventSheet)} onClose={() => setEventSheet(null)} title={eventSheet ? `${{ unlock: "Unlock", funding: "Funding round", listing: "Listing" }[eventSheet.kind]}` : "Event"} side="bottom">
+      <Sheet open={Boolean(eventSheet)} onClose={() => setEventSheet(null)} title={eventSheet ? t({ unlock: "Unlock", funding: "Funding round", listing: "Listing" }[eventSheet.kind]) : t("Event")} side="bottom">
         {eventSheet?.kind === "unlock" && (
           <p className="sheet-note num">
-            Unlock · {formatDate(eventSheet.time)} · {formatTokens(eventSheet.amount)} {coin.symbol} · {formatCompact(eventSheet.amount * coin.price, currency, rate)} at today's price ·{" "}
-            {((eventSheet.amount / research.supply.circulating) * 100).toFixed(2)}% of circ. supply
+            {t("Unlock")} · {formatDate(eventSheet.time)} · {formatTokens(eventSheet.amount)} {coin.symbol} ·{" "}
+            {t("{value} at today's price", { value: formatCompact(eventSheet.amount * coin.price, currency, rate) })} ·{" "}
+            {t("{pct}% of circ. supply", { pct: fixed((eventSheet.amount / research.supply.circulating) * 100, 2) })}
           </p>
         )}
         {eventSheet?.kind === "funding" && (
           <p className="sheet-note num">
-            {eventSheet.round.type} · {formatDate(eventSheet.time)} · {formatCompact(eventSheet.round.amount, currency, rate)} raised · lead{" "}
-            {eventSheet.round.leads.map((id) => fundById(id)?.name).join(", ")}
+            {t(eventSheet.round.type)} · {formatDate(eventSheet.time)} ·{" "}
+            {t("{amount} raised · lead {names}", {
+              amount: formatCompact(eventSheet.round.amount, currency, rate),
+              names: eventSheet.round.leads.map((id) => fundById(id)?.name).join(", "),
+            })}
           </p>
         )}
-        {eventSheet?.kind === "listing" && <p className="sheet-note">{coin.name} listed on {formatDate(eventSheet.time)}.</p>}
+        {eventSheet?.kind === "listing" && <p className="sheet-note">{t("{name} listed on {date}.", { name: coin.name, date: formatDate(eventSheet.time) })}</p>}
       </Sheet>
 
       <ReminderSheet key={reminderSheet?.id ?? "none"} item={reminderSheet} onClose={() => setReminderSheet(null)} />
 
-      <Sheet open={listsOpen} onClose={() => setListsOpen(false)} title="Save to watchlists" side="bottom">
-        <ul className="pick-list" aria-label={`Watchlists for ${coin.name}`}>
-          {[{ id: "main", name: "Main", coinIds: watchlist }, ...lists].map((list) => (
+      <Sheet open={listsOpen} onClose={() => setListsOpen(false)} title={t("Save to watchlists")} side="bottom">
+        <ul className="pick-list" aria-label={t("Watchlists for {name}", { name: coin.name })}>
+          {[{ id: "main", name: t("Main"), coinIds: watchlist }, ...lists].map((list) => (
             <li key={list.id}>
               <label className="pick-row">
                 <input type="checkbox" checked={list.coinIds.includes(coin.id)} onChange={(event) => setListMembership(coin, list.id, event.target.checked)} />
                 <span className="edit-name">
                   <strong>{list.name}</strong>
-                  <span className="num">{list.coinIds.length} {list.coinIds.length === 1 ? "coin" : "coins"}</span>
+                  <span className="num">{tn(list.coinIds.length, "{count} coin", "{count} coins")}</span>
                 </span>
               </label>
             </li>
           ))}
         </ul>
-        <button className="button-primary" onClick={() => setListsOpen(false)}>Done</button>
+        <button className="button-primary" onClick={() => setListsOpen(false)}>{t("Done")}</button>
       </Sheet>
     </article>
   );

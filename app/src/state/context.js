@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 
 export const defaultSettings = {
+  language: "en", // lib/i18n.js
   currency: "USD",
   theme: "dark",
   colors: "standard",

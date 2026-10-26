@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import InfoTip from "./InfoTip.jsx";
 import { formatCompact } from "../lib/format.js";
+import { t } from "../lib/i18n.js";
 import { riskIndicators } from "../lib/risk.js";
 
 // Neutral risk indicators on Coin detail (clarification 27). Facts and fixed thresholds only:
@@ -13,7 +14,7 @@ export default function RiskIndicators({ coin, research, currency, rate, now }) 
   return (
     <section className="card risk-card" aria-labelledby="risk-title">
       <h2 id="risk-title" className="subsection-title">
-        Risk indicators <span className="muted-inline">(not advice)</span> <InfoTip term="risk" label="risk indicators" />
+        {t("Risk indicators")} <span className="muted-inline">{t("(not advice)")}</span> <InfoTip term="risk" label={t("risk indicators")} />
       </h2>
       {items.length ? (
         <ul className="risk-list">
@@ -27,7 +28,7 @@ export default function RiskIndicators({ coin, research, currency, rate, now }) 
           ))}
         </ul>
       ) : (
-        <p className="muted-line">None of CPA's indicators apply to {coin.symbol} today.</p>
+        <p className="muted-line">{t("None of CPA's indicators apply to {symbol} today.", { symbol: coin.symbol })}</p>
       )}
     </section>
   );

@@ -4,9 +4,10 @@ import Icon from "../components/Icon.jsx";
 import { PasswordChecklist, PasswordInput } from "../components/PasswordFields.jsx";
 import { isEmail, passwordChecks, passwordErrors, safeNext } from "../lib/auth.js";
 import { useNow } from "../lib/hooks.js";
+import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
-const authUnavailable = "Accounts aren't available right now. You can keep browsing as a guest or try the private demo.";
+const authUnavailable = () => t("Accounts aren't available right now. You can keep browsing as a guest or try the private demo.");
 
 // A deleted account after the correct password (US-9.6, US-P17.2): remove its data for good,
 // or leave it as it is. Leaving ends the Auth session; if the user navigates away instead,
@@ -26,7 +27,7 @@ function DeletedAccount({ onLeave }) {
     setStep("removing");
     const result = await removeDeletedAccountData();
     if (result.error) {
-      setError("We couldn't remove the data. Check your connection and try again. Nothing was removed.");
+      setError(t("We couldn't remove the data. Check your connection and try again. Nothing was removed."));
       setStep("confirm");
       return;
     }
@@ -37,21 +38,21 @@ function DeletedAccount({ onLeave }) {
   if (step === "done") {
     return (
       <div className="auth-form" aria-live="polite">
-        <h2 ref={headingRef} tabIndex={-1}>Your data has been removed</h2>
-        <p>Ticket #{ticketId} completed. All CPA data for this account is gone, and the account can't be used again.</p>
-        <Link to="/" className="button-primary">Continue browsing as guest</Link>
+        <h2 ref={headingRef} tabIndex={-1}>{t("Your data has been removed")}</h2>
+        <p>{t("Ticket #{id} completed. All CPA data for this account is gone, and the account can't be used again.", { id: ticketId })}</p>
+        <Link to="/" className="button-primary">{t("Continue browsing as guest")}</Link>
       </div>
     );
   }
 
   return (
     <div className="auth-form">
-      <h2 ref={headingRef} tabIndex={-1}>{step === "choose" ? "This account was deleted" : "Remove all data?"}</h2>
+      <h2 ref={headingRef} tabIndex={-1}>{step === "choose" ? t("This account was deleted") : t("Remove all data?")}</h2>
       {error && <p className="form-alert" role="alert">{error}</p>}
       {step === "choose" ? (
         <>
-          <p>You no longer have access. Your data is kept until you remove it.</p>
-          <button className="button-primary danger-fill" onClick={() => setStep("confirm")}>Remove my data</button>
+          <p>{t("You no longer have access. Your data is kept until you remove it.")}</p>
+          <button className="button-primary danger-fill" onClick={() => setStep("confirm")}>{t("Remove my data")}</button>
           <button
             className="button-tertiary centered"
             onClick={() => {
@@ -59,16 +60,16 @@ function DeletedAccount({ onLeave }) {
               onLeave();
             }}
           >
-            Keep it and go back
+            {t("Keep it and go back")}
           </button>
         </>
       ) : (
         <>
-          <p>This permanently removes your watchlist, portfolio, alerts, settings and profile. It can't be undone.</p>
+          <p>{t("This permanently removes your watchlist, portfolio, alerts, settings and profile. It can't be undone.")}</p>
           <div className="sheet-actions">
-            <button className="button-secondary" onClick={() => setStep("choose")} disabled={step === "removing"}>Cancel</button>
+            <button className="button-secondary" onClick={() => setStep("choose")} disabled={step === "removing"}>{t("Cancel")}</button>
             <button className="button-primary danger-fill" onClick={remove} disabled={step === "removing"}>
-              {step === "removing" ? "Removing…" : "Remove data"}
+              {step === "removing" ? t("Removing…") : t("Remove data")}
             </button>
           </div>
         </>
@@ -93,7 +94,7 @@ function LogInForm({ next }) {
     event.preventDefault();
     if (locked || busy) return;
     if (!email.trim() || !password) {
-      setError("Enter your email and password.");
+      setError(t("Enter your email and password."));
       emailRef.current?.focus();
       return;
     }
@@ -110,14 +111,14 @@ function LogInForm({ next }) {
   };
 
   const messages = {
-    invalid: "Email or password is incorrect.",
-    unconfirmed: "Confirm your email first: open the link we sent you, then log in.",
-    limited: "Too many attempts. Wait a few minutes and try again.",
-    network: "We couldn't reach CPA. Check your connection and try again.",
-    unavailable: authUnavailable,
+    invalid: t("Email or password is incorrect."),
+    unconfirmed: t("Confirm your email first: open the link we sent you, then log in."),
+    limited: t("Too many attempts. Wait a few minutes and try again."),
+    network: t("We couldn't reach CPA. Check your connection and try again."),
+    unavailable: authUnavailable(),
     locked: null,
   };
-  const message = locked ? `Too many attempts. Try again in ${Math.ceil((lockedUntil - now) / 1000)} s.` : messages[error] ?? error;
+  const message = locked ? t("Too many attempts. Try again in {seconds} s.", { seconds: Math.ceil((lockedUntil - now) / 1000) }) : messages[error] ?? error;
 
   if (error === "deleted") return <DeletedAccount onLeave={() => setError(null)} />;
 
@@ -129,16 +130,16 @@ function LogInForm({ next }) {
         </p>
       )}
       <label className="form-field">
-        <span>Email</span>
+        <span>{t("Email")}</span>
         <input ref={emailRef} className="input" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={locked} />
       </label>
       <label className="form-field" htmlFor="login-password">
-        <span>Password</span>
+        <span>{t("Password")}</span>
       </label>
       <PasswordInput id="login-password" value={password} onChange={setPassword} autoComplete="current-password" />
-      <Link to="/forgot-password" className="link-button forgot-link">Forgot password?</Link>
+      <Link to="/forgot-password" className="link-button forgot-link">{t("Forgot password?")}</Link>
       <button type="submit" className="button-primary" disabled={locked || busy} aria-disabled={locked || busy}>
-        {busy ? "Logging in…" : "Log in"}
+        {busy ? t("Logging in…") : t("Log in")}
       </button>
     </form>
   );
@@ -164,11 +165,11 @@ function SignUpForm({ next }) {
     event.preventDefault();
     if (busy) return;
     const found = [];
-    if (!form.name.trim()) found.push(["name", "Enter your name."]);
-    if (!isEmail(form.email)) found.push(["email", "Enter a valid email address."]);
+    if (!form.name.trim()) found.push(["name", t("Enter your name.")]);
+    if (!isEmail(form.email)) found.push(["email", t("Enter a valid email address.")]);
     passwordErrors(checks).forEach((message) => found.push(["password", message]));
-    if (form.confirm !== form.password || !form.confirm) found.push(["confirm", "Passwords don't match."]);
-    if (!form.terms) found.push(["terms", "Agree to the Terms of service and Privacy policy to continue."]);
+    if (form.confirm !== form.password || !form.confirm) found.push(["confirm", t("Passwords don't match.")]);
+    if (!form.terms) found.push(["terms", t("Agree to the Terms of service and Privacy policy to continue.")]);
     setErrors(found);
     setExists(false);
     if (found.length) {
@@ -188,13 +189,13 @@ function SignUpForm({ next }) {
       emailRef.current?.focus();
     } else {
       const messages = {
-        weak: ["password", "Choose a stronger password."],
-        email: ["email", "We can't send email to that address. Check it, or use a different one."],
-        confirm: ["email", "Check your email and open the link to confirm your account, then log in."],
-        limited: ["email", "Too many attempts. Wait a few minutes and try again."],
-        unavailable: ["email", authUnavailable],
+        weak: ["password", t("Choose a stronger password.")],
+        email: ["email", t("We can't send email to that address. Check it, or use a different one.")],
+        confirm: ["email", t("Check your email and open the link to confirm your account, then log in.")],
+        limited: ["email", t("Too many attempts. Wait a few minutes and try again.")],
+        unavailable: ["email", authUnavailable()],
       };
-      setErrors([messages[result.error] ?? ["email", "We couldn't create your account. Check your connection and try again."]]);
+      setErrors([messages[result.error] ?? ["email", t("We couldn't create your account. Check your connection and try again.")]]);
     }
   };
   const invalid = (field) => errors.some(([key]) => key === field);
@@ -205,7 +206,7 @@ function SignUpForm({ next }) {
         <div className="form-alert" role="alert">
           {exists ? (
             <p>
-              An account with this email already exists. <Link to={`/login${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>Log in instead?</Link>
+              {t("An account with this email already exists.")} <Link to={`/login${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>{t("Log in instead?")}</Link>
             </p>
           ) : (
             <ul>
@@ -217,29 +218,29 @@ function SignUpForm({ next }) {
         </div>
       )}
       <label className="form-field">
-        <span>Name</span>
+        <span>{t("Name")}</span>
         <input ref={nameRef} className="input" autoComplete="name" value={form.name} onChange={(event) => set("name")(event.target.value)} aria-invalid={invalid("name") || undefined} />
       </label>
       <label className="form-field">
-        <span>Email</span>
+        <span>{t("Email")}</span>
         <input ref={emailRef} className="input" type="email" autoComplete="email" value={form.email} onChange={(event) => set("email")(event.target.value)} aria-invalid={invalid("email") || exists || undefined} />
       </label>
       <label className="form-field" htmlFor="signup-password">
-        <span>Password</span>
+        <span>{t("Password")}</span>
       </label>
       <PasswordInput id="signup-password" inputRef={passwordRef} value={form.password} onChange={set("password")} autoComplete="new-password" invalid={invalid("password")} describedBy="signup-checks" />
       <PasswordChecklist id="signup-checks" checks={checks} />
       <label className="form-field" htmlFor="signup-confirm">
-        <span>Confirm password</span>
+        <span>{t("Confirm password")}</span>
       </label>
       <PasswordInput id="signup-confirm" inputRef={confirmRef} value={form.confirm} onChange={set("confirm")} autoComplete="new-password" invalid={invalid("confirm")} />
       <label className="check-row">
         <input ref={termsRef} type="checkbox" checked={form.terms} onChange={(event) => set("terms")(event.target.checked)} aria-invalid={invalid("terms") || undefined} />
         <span>
-          I agree to the <Link to="/terms">Terms of service</Link> and <Link to="/privacy">Privacy policy</Link>
+          {t("I agree to the")} <Link to="/terms">{t("Terms of service")}</Link> {t("and the")} <Link to="/privacy">{t("Privacy policy")}</Link>
         </span>
       </label>
-      <button type="submit" className="button-primary">{busy ? "Creating account…" : "Create account"}</button>
+      <button type="submit" className="button-primary">{busy ? t("Creating account…") : t("Create account")}</button>
     </form>
   );
 }
@@ -255,13 +256,14 @@ export default function Login() {
   const [arrivedSignedIn] = useState(session.kind === "user");
 
   useEffect(() => {
-    document.title = `${mode === "signup" ? "Create account" : "Log in"} · CPA`;
+    document.title = `${mode === "signup" ? t("Create account") : t("Log in")} · CPA`;
   }, [mode]);
 
   // Already signed in when the page opened: nothing to do here.
   if (arrivedSignedIn) return <Navigate to="/" replace />;
 
   const query = location.search;
+  // Labels are translated where they're shown.
   const tabs = [
     { id: "login", label: "Log in", to: `/login${query}` },
     { id: "signup", label: "Create account", to: `/signup${query}` },
@@ -269,9 +271,9 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <h1>Welcome to CPA</h1>
-      <p className="page-sub">Track coins, unlocks, and funding in one place.</p>
-      <div className="filters" role="tablist" aria-label="Account">
+      <h1>{t("Welcome to CPA")}</h1>
+      <p className="page-sub">{t("Track coins, unlocks, and funding in one place.")}</p>
+      <div className="filters" role="tablist" aria-label={t("Account")}>
         {tabs.map((tab) => (
           <Link
             key={tab.id}
@@ -290,7 +292,7 @@ export default function Login() {
               window.setTimeout(() => document.getElementById(`auth-tab-${other.id}`)?.focus(), 0);
             }}
           >
-            {tab.label}
+            {t(tab.label)}
           </Link>
         ))}
       </div>
@@ -299,7 +301,7 @@ export default function Login() {
         {mode === "login" ? <LogInForm key="login" next={next} /> : <SignUpForm key="signup" next={next} />}
       </section>
 
-      <div className="or-divider" aria-hidden="true"><span>or</span></div>
+      <div className="or-divider" aria-hidden="true"><span>{t("or")}</span></div>
       <button
         className="button-secondary button-block"
         onClick={() => {
@@ -307,12 +309,12 @@ export default function Login() {
           navigate(next, { replace: true });
         }}
       >
-        Try a private demo
+        {t("Try a private demo")}
       </button>
-      <p className="muted-line">The demo uses sample data, isn't saved, and resets when you refresh.</p>
+      <p className="muted-line">{t("The demo uses sample data, isn't saved, and resets when you refresh.")}</p>
       <p className="info-card">
         <Icon name="info" />
-        <span>Your account and data are saved on CPA's servers, so you can sign in on any device. Use a password you don't use anywhere else.</span>
+        <span>{t("Your account and data are saved on CPA's servers, so you can sign in on any device. Use a password you don't use anywhere else.")}</span>
       </p>
     </div>
   );

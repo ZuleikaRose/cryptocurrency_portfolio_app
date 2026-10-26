@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
 const features = [
@@ -15,7 +16,7 @@ export default function AiFeatures() {
   const { settings, updateSettings } = useApp();
 
   useEffect(() => {
-    document.title = "AI features · CPA";
+    document.title = `${t("AI features")} · CPA`;
   }, []);
 
   const value = (feature) => (feature.app ? settings[feature.key] : settings.ai[feature.key]);
@@ -23,32 +24,32 @@ export default function AiFeatures() {
 
   return (
     <div className="info-page">
-      <h1>AI features</h1>
-      <p className="page-sub">How CPA uses automation to explain data. In this version every summary is built in your browser from templates and rules on the sample data. Nothing leaves your browser.</p>
+      <h1>{t("AI features")}</h1>
+      <p className="page-sub">{t("How CPA uses automation to explain data. In this version every summary is built in your browser from templates and rules on the sample data. Nothing leaves your browser.")}</p>
       {features.map((feature) => (
         <article key={feature.key} className="card ai-card">
           <label className="setting-row switch-row">
             <span className="setting-label">
-              <strong>✦ {feature.title}</strong>
+              <strong>✦ {t(feature.title)}</strong>
             </span>
             <span className="switch">
               <input type="checkbox" checked={value(feature)} onChange={(event) => toggle(feature, event.target.checked)} />
               <span className="switch-track" aria-hidden="true" />
             </span>
           </label>
-          <p>{feature.body}</p>
+          <p>{t(feature.body)}</p>
         </article>
       ))}
       <section aria-labelledby="limits-title" className="info-section">
-        <h2 id="limits-title">Limits</h2>
+        <h2 id="limits-title">{t("Limits")}</h2>
         <ul className="plain-list bullets">
-          <li>Summaries describe data; they never recommend buying or selling.</li>
-          <li>They can be wrong if the data is wrong. CPA's prices are sample data.</li>
-          <li>Generated text is labelled “✦ Generated summary” wherever it appears.</li>
-          <li>Nothing leaves your browser.</li>
+          <li>{t("Summaries describe data; they never recommend buying or selling.")}</li>
+          <li>{t("They can be wrong if the data is wrong. CPA's prices are sample data.")}</li>
+          <li>{t("Generated text is labelled “✦ Generated summary” wherever it appears.")}</li>
+          <li>{t("Nothing leaves your browser.")}</li>
         </ul>
       </section>
-      <p className="disclaimer">Not financial advice. <Link to="/privacy">Privacy policy</Link></p>
+      <p className="disclaimer">{t("Not financial advice.")} <Link to="/privacy">{t("Privacy policy")}</Link></p>
     </div>
   );
 }

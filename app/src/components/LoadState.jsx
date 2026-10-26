@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { t } from "../lib/i18n.js";
 
 // Loading and error states shared by the list and detail pages (spec "Loading" / "Error" lines).
 
@@ -6,7 +7,7 @@ import { Link, useLocation } from "react-router-dom";
 export function SkeletonCards({ count = 3, label, className = "" }) {
   return (
     <div className={`skeleton-stack ${className}`}>
-      <p className="visually-hidden" role="status">Loading {label}…</p>
+      <p className="visually-hidden" role="status">{t("Loading {label}…", { label })}</p>
       {Array.from({ length: count }, (_, index) => (
         <div key={index} className="skeleton skeleton-card" aria-hidden="true" />
       ))}
@@ -18,7 +19,7 @@ export function SkeletonCards({ count = 3, label, className = "" }) {
 export function SkeletonDetail({ label }) {
   return (
     <div className="skeleton-stack">
-      <p className="visually-hidden" role="status">Loading {label}…</p>
+      <p className="visually-hidden" role="status">{t("Loading {label}…", { label })}</p>
       <div className="skeleton-detail-head" aria-hidden="true">
         <span className="skeleton skeleton-logo" />
         <span className="skeleton skeleton-text" />
@@ -40,10 +41,10 @@ export function ErrorBanner({ what, onRetry }) {
   const from = encodeURIComponent(location.pathname);
   return (
     <div className="banner banner-error" role="alert">
-      <span>We couldn't load {what}. Check your connection and try again.</span>
+      <span>{t("We couldn't load {what}. Check your connection and try again.", { what })}</span>
       <span className="banner-actions">
-        <button className="button-tertiary" onClick={onRetry}>Retry</button>
-        <Link to={`/report-issue?type=data&from=${from}`} className="button-tertiary">Report an issue</Link>
+        <button className="button-tertiary" onClick={onRetry}>{t("Retry")}</button>
+        <Link to={`/report-issue?type=data&from=${from}`} className="button-tertiary">{t("Report an issue")}</Link>
       </span>
     </div>
   );

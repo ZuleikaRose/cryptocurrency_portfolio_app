@@ -153,7 +153,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 - **Freshness:** visible prices no more than 30 s old; alerts fire within 30 s of their trigger. On the free CryptoRank plan synced prices can be up to 10 minutes old, so the stale state must show their real age (`price_updated_at`), never the time of the last REST poll.
 - **Retention signals:** the first watchlist add and the first alert are the moments to make easy; keep both one tap away.
 - **Security and privacy:** no secrets in the bundle; read-only integrations only; analytics opt-in; data export and delete available.
-- **Localization:** keep UI strings out of logic where practical; English only for now.
+- **Localization:** English and Spanish (`prompt.md` clarification 30). Wrap every user-visible string in `t()` / `tn()` from `lib/i18n.js` (English text is the key) and add its Spanish to the area file in `src/locales/es/`; `npm run i18n:check` must report 0 missing. Format numbers and dates with `lib/format.js` or `locale()`, never a hard-coded `"en-US"`. Keep stored data (CSV formats, transaction notes) in English.
 
 ## Workflow
 

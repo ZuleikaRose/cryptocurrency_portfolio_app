@@ -1,7 +1,9 @@
 import { allocationColors, TODAY } from "../data/research.js";
 import { formatTokens } from "../lib/format.js";
+import { locale, t } from "../lib/i18n.js";
 
 const WIDTH = 400;
+const fixed1 = (value) => value.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const HEIGHT = 170;
 
 // Stacked area of cumulative unlocked tokens by allocation, with a "Today" line (US-3.4).
@@ -38,14 +40,20 @@ export default function VestingChart({ vesting, events, symbol }) {
 
   const todayX = x(TODAY.getTime());
   const unlockedToday = events.filter((event) => event.date <= TODAY).reduce((sum, event) => sum + event.amount, 0);
-  const fmt = (time) => new Date(time).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const fmt = (time) => new Date(time).toLocaleDateString(locale(), { month: "short", year: "numeric" });
 
   return (
     <figure className="vesting">
       <div
         className="vesting-plot"
         role="img"
-        aria-label={`Vesting schedule from ${fmt(start)} to ${fmt(end)}. ${((unlockedToday / vesting.total) * 100).toFixed(1)} percent of the ${formatTokens(vesting.total)} ${symbol} supply is unlocked today.`}
+        aria-label={t("Vesting schedule from {start} to {end}. {pct} percent of the {total} {symbol} supply is unlocked today.", {
+          start: fmt(start),
+          end: fmt(end),
+          pct: fixed1((unlockedToday / vesting.total) * 100),
+          total: formatTokens(vesting.total),
+          symbol,
+        })}
       >
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
           {layers.map((layer) => (
@@ -53,7 +61,7 @@ export default function VestingChart({ vesting, events, symbol }) {
           ))}
           <line className="today-line" x1={todayX} x2={todayX} y1="0" y2={HEIGHT} vectorEffect="non-scaling-stroke" />
         </svg>
-        <span className="today-label" style={{ left: `${(todayX / WIDTH) * 100}%` }}>Today</span>
+        <span className="today-label" style={{ left: `${(todayX / WIDTH) * 100}%` }}>{t("Today")}</span>
       </div>
       <figcaption className="vesting-axis num">
         <span>{fmt(start)}</span>
@@ -63,7 +71,7 @@ export default function VestingChart({ vesting, events, symbol }) {
         {vesting.allocations.map((allocation) => (
           <li key={allocation.name}>
             <span className="legend-swatch" style={{ background: allocationColors[allocation.name] }} aria-hidden="true" />
-            {allocation.name} <span className="num">{(allocation.share * 100).toFixed(1)}%</span>
+            {t(allocation.name)} <span className="num">{fixed1(allocation.share * 100)}%</span>
           </li>
         ))}
       </ul>

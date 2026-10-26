@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Icon from "./Icon.jsx";
+import { t } from "../lib/i18n.js";
 
 // Modal panel used for the menu drawer and bottom sheets.
 // Closes on Escape or backdrop click, traps Tab focus, and returns focus to the opener.
@@ -45,7 +46,7 @@ export default function Sheet({ open, onClose, title, side = "right", initialFoc
       <section ref={panelRef} className="sheet-panel" role="dialog" aria-modal="true" aria-label={title}>
         <header className={hideHeader ? "sheet-header visually-hidden" : "sheet-header"}>
           <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label={`Close ${title.toLowerCase()}`}>
+          <button className="icon-button" onClick={onClose} aria-label={t("Close {name}", { name: title.toLowerCase() })}>
             <Icon name="close" />
           </button>
         </header>

@@ -8,6 +8,7 @@ import { promoStatus, promotions } from "../data/promotions.js";
 import { funds } from "../data/research.js";
 import { direction, formatCompact, formatPercent, rateFor } from "../lib/format.js";
 import { useFirstLoad, useSimulatedError } from "../lib/hooks.js";
+import { t } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 // Category accents (style guide §3.3); others fall back to the brand accent.
@@ -24,7 +25,7 @@ export default function Explore() {
   const [failed, retry] = useSimulatedError();
 
   useEffect(() => {
-    document.title = "Explore · CPA";
+    document.title = `${t("Explore")} · CPA`;
   }, []);
 
   // Land on #market-pulse when coming from Market's "View all".
@@ -49,62 +50,65 @@ export default function Explore() {
   const activePromos = promotions.filter((promo) => promoStatus(promo) === "active").length;
   const learn = [
     {
-      title: "What is a token unlock?",
-      body: "Many projects release tokens to their team, investors and community on a schedule. On an unlock date, new tokens can start trading, which adds supply. CPA highlights unlocks above 2% of circulating supply because they're the ones most likely to matter.",
+      title: t("What is a token unlock?"),
+      body: t("Many projects release tokens to their team, investors and community on a schedule. On an unlock date, new tokens can start trading, which adds supply. CPA highlights unlocks above 2% of circulating supply because they're the ones most likely to matter."),
     },
     {
-      title: "Market cap vs FDV",
-      body: `Market cap is price × the tokens trading today; FDV is price × every token that will ever exist. For example, Orbit L2's market cap is ${formatCompact(mcapVsFdv?.marketCap, settings.currency, rate)} but its FDV is ${formatCompact(mcapVsFdv?.fdv, settings.currency, rate)}, because most of its supply is still locked.`,
+      title: t("Market cap vs FDV"),
+      body: t("Market cap is price × the tokens trading today; FDV is price × every token that will ever exist. For example, Orbit L2's market cap is {cap} but its FDV is {fdv}, because most of its supply is still locked.", {
+        cap: formatCompact(mcapVsFdv?.marketCap, settings.currency, rate),
+        fdv: formatCompact(mcapVsFdv?.fdv, settings.currency, rate),
+      }),
     },
     {
-      title: "How to read a vesting chart",
-      body: "Each coloured band is a group (team, investors, ecosystem) and how many of its tokens have unlocked over time. Steep steps mean large unlocks; the dashed Today line shows where the schedule stands now.",
+      title: t("How to read a vesting chart"),
+      body: t("Each coloured band is a group (team, investors, ecosystem) and how many of its tokens have unlocked over time. Steep steps mean large unlocks; the dashed Today line shows where the schedule stands now."),
     },
     {
-      title: "Why prices are signed with ▲ and ▼",
-      body: "Colour alone can't be relied on, so every change in CPA also carries an arrow and a + or − sign. You can swap the up/down colours, or use a colour-blind safe pair, in Settings.",
+      title: t("Why prices are signed with ▲ and ▼"),
+      body: t("Colour alone can't be relied on, so every change in CPA also carries an arrow and a + or − sign. You can swap the up/down colours, or use a colour-blind safe pair, in Settings."),
     },
   ];
 
   const more = [
-    { to: "/promotions", icon: "star", label: "Promotions", meta: `${activePromos} active` },
-    { to: "/affiliate", icon: "user", label: "Affiliate program" },
-    { to: "/ai", icon: "compass", label: "AI features" },
-    { to: "/support", icon: "info", label: "Customer support · FAQs" },
-    { to: "/settings", icon: "menu", label: "Account settings", needsAccount: true },
+    { to: "/promotions", icon: "star", label: t("Promotions"), meta: t("{count} active", { count: activePromos }) },
+    { to: "/affiliate", icon: "user", label: t("Affiliate program") },
+    { to: "/ai", icon: "compass", label: t("AI features") },
+    { to: "/support", icon: "info", label: `${t("Customer support")} · ${t("FAQs")}` },
+    { to: "/settings", icon: "menu", label: t("Account settings"), needsAccount: true },
   ];
 
   return (
     <div className="explore">
-      <h1>Explore</h1>
+      <h1>{t("Explore")}</h1>
       <button className="search-field" onClick={() => openSearch()}>
         <Icon name="search" />
-        <span>Search coins, exchanges, IDO…</span>
+        <span>{t("Search coins, exchanges, IDO…")}</span>
         <kbd aria-hidden="true">⌘ K</kbd>
       </button>
 
       <section aria-labelledby="categories-title">
         <div className="section-title">
-          <h2 id="categories-title">Categories</h2>
+          <h2 id="categories-title">{t("Categories")}</h2>
           <Link to="/market" className="link-button">
-            See all <Icon name="chevron" />
+            {t("See all")} <Icon name="chevron" />
           </Link>
         </div>
         {failed ? (
-          <ErrorBanner what="categories" onRetry={retry} />
+          <ErrorBanner what={t("categories")} onRetry={retry} />
         ) : loading ? (
           <>
-            <p className="visually-hidden" role="status">Loading categories…</p>
+            <p className="visually-hidden" role="status">{t("Loading categories…")}</p>
             <ul className="category-carousel" aria-hidden="true">
               {[0, 1, 2, 3].map((index) => <li key={index}><span className="category-tile skeleton" /></li>)}
             </ul>
           </>
         ) : (
-          <ul className="category-carousel" tabIndex={0} aria-label="Categories (scrolls sideways)">
+          <ul className="category-carousel" tabIndex={0} aria-label={t("Categories (scrolls sideways)")}>
             {tiles.map((tile) => (
               <li key={tile.category}>
                 <Link to={`/market?category=${encodeURIComponent(tile.category)}`} className="category-tile" style={{ "--cat": categoryColors[tile.category] ?? "var(--accent)" }}>
-                  <strong>{tile.category}</strong>
+                  <strong>{t(tile.category)}</strong>
                   <span className="num">{formatCompact(tile.cap, settings.currency, rate)}</span>
                   <span className={`num ${direction(tile.change)}`}>
                     {direction(tile.change) === "up" ? "▲" : "▼"} {formatPercent(tile.change)}
@@ -117,56 +121,56 @@ export default function Explore() {
       </section>
 
       <section id="market-pulse" aria-labelledby="pulse-title" className="pulse-detail">
-        <h2 id="pulse-title" className="subsection-title">Market pulse</h2>
+        <h2 id="pulse-title" className="subsection-title">{t("Market pulse")}</h2>
         <div className="card">
           <div className="pulse-row">
-            <span>Fear & Greed</span>
-            <strong className="num">{marketPulse.fearGreed} · Greed</strong>
+            <span>{t("Fear & Greed")}</span>
+            <strong className="num">{marketPulse.fearGreed} · {t("Greed")}</strong>
           </div>
-          <div className="mini-bars" role="img" aria-label={`Fear and Greed over the last 7 days: ${fearGreedWeek.join(", ")}`}>
+          <div className="mini-bars" role="img" aria-label={t("Fear and Greed over the last 7 days: {values}", { values: fearGreedWeek.join(", ") })}>
             {fearGreedWeek.map((value, index) => (
               <span key={index} style={{ height: `${value}%` }} title={`${value}`} />
             ))}
           </div>
           <div className="pulse-row">
-            <span>BTC dominance</span>
+            <span>{t("BTC dominance")}</span>
             <strong className="num">{marketPulse.btcDominance}%</strong>
           </div>
           <div className="pulse-row">
-            <span>ETH gas</span>
+            <span>{t("ETH gas")}</span>
             <strong className="num">14 gwei</strong>
           </div>
           <div className="pulse-row">
-            <span>Altcoin season index</span>
+            <span>{t("Altcoin season index")}</span>
             <strong className="num">41 / 100</strong>
           </div>
           <p className="muted-line num">
-            BTC {formatPercent(btc?.change24h)} · ETH {formatPercent(eth?.change24h)} in 24h. Sample data.
+            {t("BTC {btc} · ETH {eth} in 24h. Sample data.", { btc: formatPercent(btc?.change24h), eth: formatPercent(eth?.change24h) })}
           </p>
         </div>
       </section>
 
       <section aria-labelledby="discover-title">
-        <h2 id="discover-title" className="subsection-title">Discover</h2>
+        <h2 id="discover-title" className="subsection-title">{t("Discover")}</h2>
         <div className="discover-grid">
           <Link to="/token-sales" className="card discover-tile">
             <Icon name="calendarLock" />
-            <strong>Token sales</strong>
-            <span className="num">{upcomingSales} upcoming</span>
+            <strong>{t("Token sales")}</strong>
+            <span className="num">{t("{count} upcoming", { count: upcomingSales })}</span>
           </Link>
           <Link to="/fundraising?view=funds" className="card discover-tile">
             <Icon name="coins" />
-            <strong>Funds & investors</strong>
-            <span className="num">{funds.length} tracked</span>
+            <strong>{t("Funds & investors")}</strong>
+            <span className="num">{t("{count} tracked", { count: funds.length })}</span>
           </Link>
           <Link to="/search?q=exchange&type=exchanges" className="card discover-tile">
             <Icon name="swap" />
-            <strong>Exchanges</strong>
-            <span className="num">{exchanges.length} tracked</span>
+            <strong>{t("Exchanges")}</strong>
+            <span className="num">{t("{count} tracked", { count: exchanges.length })}</span>
           </Link>
           <Link to="/market?view=gainers" className="card discover-tile">
             <Icon name="star" />
-            <strong>Top gainers</strong>
+            <strong>{t("Top gainers")}</strong>
             <span className="num">
               {topGainer?.symbol} {formatPercent(topGainer?.change24h)}
             </span>
@@ -175,7 +179,7 @@ export default function Explore() {
       </section>
 
       <section aria-labelledby="learn-title">
-        <h2 id="learn-title" className="subsection-title">Learn</h2>
+        <h2 id="learn-title" className="subsection-title">{t("Learn")}</h2>
         <div className="accordion">
           {learn.map((item) => (
             <details key={item.title}>
@@ -189,7 +193,7 @@ export default function Explore() {
       </section>
 
       <section aria-labelledby="more-title">
-        <h2 id="more-title" className="subsection-title">More from CPA</h2>
+        <h2 id="more-title" className="subsection-title">{t("More from CPA")}</h2>
         <ul className="result-list">
           {more.map((item) => (
             <li key={item.to}>
@@ -199,7 +203,7 @@ export default function Explore() {
                 onClick={(event) => {
                   if (!item.needsAccount) return;
                   event.preventDefault();
-                  requireAuth("Sign in to manage your account", () => navigate(item.to));
+                  requireAuth(t("Sign in to manage your account"), () => navigate(item.to));
                 }}
               >
                 <Icon name={item.icon} />

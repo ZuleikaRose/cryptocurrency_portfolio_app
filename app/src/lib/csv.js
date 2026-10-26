@@ -2,6 +2,7 @@
 // import from a CPA export or any CSV with the same columns.
 import { readExchangeRows } from "./exchanges.js";
 import { amountHeld } from "./portfolio.js";
+import { locale, t } from "./i18n.js";
 
 export const CSV_COLUMNS = ["date", "coin_id", "symbol", "type", "amount", "price_usd", "fee_usd", "note"];
 export const MAX_IMPORT_BYTES = 1024 * 1024;
@@ -109,18 +110,18 @@ function toNumber(value) {
 export function readTransactionsCsv(text, coins, existing = [], now = Date.now()) {
   const rows = parseCsv(text);
   const fail = (error) => ({ transactions: [], skipped: [], format: null, notes: [], error });
-  if (rows.length < 2) return fail("The file has no transaction rows.");
+  if (rows.length < 2) return fail(t("The file has no transaction rows."));
 
   const exchange = readExchangeRows(rows);
   let records;
   if (exchange) {
     records = exchange.records;
-    if (!records.length) return fail("The file has no transaction rows.");
+    if (!records.length) return fail(t("The file has no transaction rows."));
   } else {
     const header = rows[0].map((cell) => cell.trim().toLowerCase().replace(/\s+/g, "_"));
     const column = Object.fromEntries(Object.entries(ALIASES).map(([key, names]) => [key, header.findIndex((name) => names.includes(name))]));
     if (column.date < 0 || column.type < 0 || column.amount < 0 || (column.coin_id < 0 && column.symbol < 0)) {
-      return fail("The file needs date, type, amount and coin_id (or symbol) columns, or an export from Coinbase, Kraken or Binance.");
+      return fail(t("The file needs date, type, amount and coin_id (or symbol) columns, or an export from Coinbase, Kraken or Binance."));
     }
     const cell = (cells, key) => (column[key] >= 0 ? unquote(cells[column[key]] ?? "") : "");
     records = rows.slice(1).map((cells, index) => ({
@@ -138,7 +139,7 @@ export function readTransactionsCsv(text, coins, existing = [], now = Date.now()
     }));
   }
   if (records.length > MAX_IMPORT_ROWS) {
-    return fail(`The file has ${records.length} rows. Import up to ${MAX_IMPORT_ROWS.toLocaleString("en-US")} at a time.`);
+    return fail(t("The file has {count} rows. Import up to {max} at a time.", { count: records.length, max: MAX_IMPORT_ROWS.toLocaleString(locale()) }));
   }
 
   const byId = new Map(coins.map((coin) => [coin.id, coin]));
@@ -167,26 +168,26 @@ export function readTransactionsCsv(text, coins, existing = [], now = Date.now()
     let coin = id ? byId.get(id) : null;
     if (!coin && symbol) {
       const matches = bySymbol.get(symbol) ?? [];
-      if (matches.length > 1) return skip(`${symbol} matches more than one coin. Add its coin_id.`);
+      if (matches.length > 1) return skip(t("{symbol} matches more than one coin. Add its coin_id.", { symbol }));
       coin = matches[0];
     }
-    if (!coin) return skip(`Unknown coin ${id || symbol || "(blank)"}.`);
+    if (!coin) return skip(t("Unknown coin {coin}.", { coin: id || symbol || t("(blank)") }));
 
     const { type } = record;
-    if (!type) return skip(`Type must be buy, sell, transfer-in or transfer-out, not "${record.typeText ?? ""}".`);
+    if (!type) return skip(t("Type must be buy, sell, transfer-in or transfer-out, not \"{type}\".", { type: record.typeText ?? "" }));
     const { amount } = record;
-    if (!(amount > 0) || amount >= MAX_AMOUNT) return skip("Amount must be a number greater than 0.");
+    if (!(amount > 0) || amount >= MAX_AMOUNT) return skip(t("Amount must be a number greater than 0."));
     const price = record.price ?? 0;
-    if (!(price >= 0) || price >= MAX_AMOUNT) return skip("Price must be 0 or more.");
+    if (!(price >= 0) || price >= MAX_AMOUNT) return skip(t("Price must be 0 or more."));
     const fee = record.fee ?? 0;
-    if (!(fee >= 0) || fee >= MAX_FEE) return skip("Fee can't be negative.");
+    if (!(fee >= 0) || fee >= MAX_FEE) return skip(t("Fee can't be negative."));
     const time = record.date;
-    if (Number.isNaN(time)) return skip(`Date "${record.dateText}" isn't a date. Use a format like 2026-10-17T14:30:00Z.`);
-    if (time > now + 60_000) return skip("The date is in the future.");
+    if (Number.isNaN(time)) return skip(t("Date \"{date}\" isn't a date. Use a format like 2026-10-17T14:30:00Z.", { date: record.dateText }));
+    if (time > now + 60_000) return skip(t("The date is in the future."));
 
     const tx = { coinId: coin.id, type, amount, price, fee: Math.round(fee * 100) / 100, date: new Date(time).toISOString(), note: String(record.note ?? "").slice(0, MAX_NOTE) };
     const key = fingerprint(tx);
-    if (seen.has(key)) return skip("Already in your portfolio.");
+    if (seen.has(key)) return skip(t("Already in your portfolio."));
     inFile?.add(key);
     parsed.push({ line, tx });
   });
@@ -199,7 +200,7 @@ export function readTransactionsCsv(text, coins, existing = [], now = Date.now()
       // null, not undefined: amountHeld skips rows whose id equals excludeId, and new rows have none.
       const held = amountHeld(ledger.filter((item) => new Date(item.date) <= new Date(tx.date)), tx.coinId, null);
       if (tx.amount > held + 1e-12) {
-        skipped.push({ line, reason: `More ${byId.get(tx.coinId).symbol} than held on that date.` });
+        skipped.push({ line, reason: t("More {symbol} than held on that date.", { symbol: byId.get(tx.coinId).symbol }) });
         return;
       }
     }

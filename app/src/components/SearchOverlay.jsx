@@ -7,6 +7,7 @@ import { fundById } from "../data/research.js";
 import { resultPath, searchAll } from "../data/directory.js";
 import { formatCompact, formatDate } from "../lib/format.js";
 import { TRENDING, useDebounced } from "../lib/hooks.js";
+import { t, tn } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -20,18 +21,18 @@ export function ResultLabel({ hit }) {
         <span className="result-main">
           <strong>
             {hit.coin.name} <span className="ticker">{hit.coin.symbol}</span>{" "}
-            {hit.coin.formerSymbols?.length > 0 && <span className="ticker">formerly {hit.coin.formerSymbols.join(", ")}</span>}{" "}
+            {hit.coin.formerSymbols?.length > 0 && <span className="ticker">{t("formerly {symbols}", { symbols: hit.coin.formerSymbols.join(", ") })}</span>}{" "}
             {hit.verified ? (
-              <span className="verified-mark" title="Verified">
+              <span className="verified-mark" title={t("Verified")}>
                 <Icon name="check" />
-                <span className="visually-hidden">Verified</span>
+                <span className="visually-hidden">{t("Verified")}</span>
               </span>
             ) : (
-              <span className="unverified">⚠ Unverified</span>
+              <span className="unverified">⚠ {t("Unverified")}</span>
             )}
           </strong>
           <span className="num">
-            MCap {formatCompact(hit.coin.marketCap)}
+            {t("MCap")} {formatCompact(hit.coin.marketCap)}
             {hit.contract ? ` · ${shortAddress(hit.contract)}` : ""}
           </span>
         </span>
@@ -40,9 +41,9 @@ export function ResultLabel({ hit }) {
   }
   const [initial, name, meta] =
     hit.kind === "fund"
-      ? [hit.fund.name[0], hit.fund.name, `${fundById(hit.id)?.deals ?? 0} deals`]
+      ? [hit.fund.name[0], hit.fund.name, tn(fundById(hit.id)?.deals ?? 0, "{count} deal", "{count} deals")]
       : hit.kind === "exchange"
-        ? [hit.exchange.name[0], hit.exchange.name, `Vol ${formatCompact(hit.exchange.volume24h)}`]
+        ? [hit.exchange.name[0], hit.exchange.name, t("Vol {value}", { value: formatCompact(hit.exchange.volume24h) })]
         : [hit.sale.name[0], `${hit.sale.name} · ${hit.sale.type}`, formatDate(hit.sale.start)];
   return (
     <>
@@ -117,7 +118,7 @@ export default function SearchOverlay() {
   const optionId = (hit) => `search-opt-${hit.kind}-${hit.id}`;
 
   return (
-    <Sheet open={search.open} onClose={close} title="Search" side="top" initialFocus="#search-input" hideHeader>
+    <Sheet open={search.open} onClose={close} title={t("Search")} side="top" initialFocus="#search-input" hideHeader>
       <div className="search-box">
         <Icon name="search" />
         <input
@@ -128,8 +129,8 @@ export default function SearchOverlay() {
           aria-controls="search-listbox"
           aria-activedescendant={showResults && flat[activeIndex] ? optionId(flat[activeIndex]) : undefined}
           aria-autocomplete="list"
-          aria-label={search.scope === "coins" ? "Search coins" : "Search coins, funds, exchanges and token sales"}
-          placeholder={search.scope === "coins" ? "Search coins…" : "Search coins, funds…"}
+          aria-label={search.scope === "coins" ? t("Search coins") : t("Search coins, funds, exchanges and token sales")}
+          placeholder={search.scope === "coins" ? t("Search coins…") : t("Search coins, funds…")}
           autoComplete="off"
           value={query}
           onChange={(event) => {
@@ -138,7 +139,7 @@ export default function SearchOverlay() {
           }}
           onKeyDown={onKeyDown}
         />
-        <button className="kbd-button" onClick={close} aria-label="Close search">Esc</button>
+        <button className="kbd-button" onClick={close} aria-label={t("Close search")}>Esc</button>
       </div>
 
       {!showResults && (
@@ -146,8 +147,8 @@ export default function SearchOverlay() {
           {recentSearches.length > 0 && (
             <section aria-labelledby="recent-title">
               <div className="search-group-head">
-                <h3 id="recent-title">Recent</h3>
-                <button className="link-button" onClick={clearRecentSearches}>Clear</button>
+                <h3 id="recent-title">{t("Recent")}</h3>
+                <button className="link-button" onClick={clearRecentSearches}>{t("Clear")}</button>
               </div>
               <ul className="recent-list">
                 {recentSearches.map((item) => (
@@ -155,7 +156,7 @@ export default function SearchOverlay() {
                     <button className="recent-item" onClick={() => setQuery(item)}>
                       <Icon name="clock" /> {item}
                     </button>
-                    <button className="icon-button small" onClick={() => removeRecentSearch(item)} aria-label={`Remove ${item} from recent searches`}>
+                    <button className="icon-button small" onClick={() => removeRecentSearch(item)} aria-label={t("Remove {item} from recent searches", { item })}>
                       <Icon name="close" />
                     </button>
                   </li>
@@ -164,24 +165,24 @@ export default function SearchOverlay() {
             </section>
           )}
           <section aria-labelledby="trending-title">
-            <h3 id="trending-title">Trending</h3>
+            <h3 id="trending-title">{t("Trending")}</h3>
             <div className="chip-row">
               {TRENDING.map((ticker) => (
                 <button key={ticker} className="chip" onClick={() => setQuery(ticker)}>{ticker}</button>
               ))}
             </div>
           </section>
-          <p className="hint">Type at least 2 characters.</p>
+          <p className="hint">{t("Type at least 2 characters.")}</p>
         </div>
       )}
 
       {showResults && (
         <>
           {flat.length ? (
-            <div id="search-listbox" role="listbox" aria-label="Search results" className="search-results">
+            <div id="search-listbox" role="listbox" aria-label={t("Search results")} className="search-results">
               {groups.map((group) => (
                 <div key={group.key} role="group" aria-labelledby={`group-${group.key}`}>
-                  <h3 id={`group-${group.key}`} className="search-group-title" role="presentation">{groupTitles[group.key]}</h3>
+                  <h3 id={`group-${group.key}`} className="search-group-title" role="presentation">{t(groupTitles[group.key])}</h3>
                   {group.hits.map((hit) => {
                     const index = flat.indexOf(hit);
                     return (
@@ -203,11 +204,11 @@ export default function SearchOverlay() {
               ))}
             </div>
           ) : (
-            <p className="search-none">No matches for “{debounced}”. Check the spelling or try a ticker.</p>
+            <p className="search-none">{t("No matches for “{query}”. Check the spelling or try a ticker.", { query: debounced })}</p>
           )}
           <div className="search-footer">
-            <span className="hint">↑↓ move · ↵ open · ⇧↵ all results</span>
-            <button className="link-button" onClick={seeAll}>See all results</button>
+            <span className="hint">{t("↑↓ move · ↵ open · ⇧↵ all results")}</span>
+            <button className="link-button" onClick={seeAll}>{t("See all results")}</button>
           </div>
         </>
       )}

@@ -1,6 +1,7 @@
 // Share cards (US-8.2): a branded 1200×630 PNG with source and timestamp,
 // sent through the Web Share API when available, otherwise downloaded.
 // Returns "shared" | "cancelled" | "downloaded" | "failed"; never throws.
+import { locale, t } from "./i18n.js";
 
 const tones = { up: "#55d6a7", down: "#f1727f", neutral: "#b4b0d0" };
 
@@ -32,7 +33,7 @@ async function drawCard({ title, headline, detail, detailTone = "neutral" }) {
   ctx.fillText(detail, 72, 460);
   ctx.fillStyle = "#8a909c";
   ctx.font = "400 26px Inter, sans-serif";
-  ctx.fillText(`Source: CPA sample data · ${new Date().toLocaleString("en-US")} · Not financial advice`, 72, 560);
+  ctx.fillText(t("Source: CPA sample data · {time} · Not financial advice", { time: new Date().toLocaleString(locale()) }), 72, 560);
   ctx.fillText(window.location.href, 72, 596);
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Couldn't create the image");
@@ -49,7 +50,7 @@ export async function shareCard({ fileName, ...content }) {
   const file = new File([blob], `${fileName}.png`, { type: "image/png" });
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: `${content.title} on CPA`, url: window.location.href });
+      await navigator.share({ files: [file], title: t("{title} on CPA", { title: content.title }), url: window.location.href });
       return "shared";
     } catch {
       return "cancelled";

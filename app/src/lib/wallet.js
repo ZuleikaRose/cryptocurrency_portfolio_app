@@ -1,6 +1,7 @@
 // Read-only wallet import (US-6.4, 11-portfolio.md). Public Bitcoin and Ethereum addresses are
 // looked up by the wallet-lookup Edge Function, which holds the explorer key and rate-limits calls.
 // The browser never sends anything that looks like a recovery phrase or a private key.
+import { t } from "./i18n.js";
 import { amountHeld, priceAt } from "./portfolio.js";
 import { supabase } from "./supabase.js";
 
@@ -19,16 +20,16 @@ export function secretWarning(input) {
   const text = input.trim();
   const words = text.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length >= 12 && words.every((word) => /^[a-z]{3,8}$/.test(word))) {
-    return "That looks like a recovery phrase. Never share it, with CPA or anyone. Clear it and paste the wallet's public address.";
+    return t("That looks like a recovery phrase. Never share it, with CPA or anyone. Clear it and paste the wallet's public address.");
   }
   if (/^(0x)?[0-9a-fA-F]{64}$/.test(text)) {
-    return "That looks like a private key. Never share it. An Ethereum address is 0x followed by 40 characters.";
+    return t("That looks like a private key. Never share it. An Ethereum address is 0x followed by 40 characters.");
   }
   if (/^[5KLc9][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(text)) {
-    return "That looks like a Bitcoin private key. Never share it. Paste the public address that starts with 1, 3 or bc1.";
+    return t("That looks like a Bitcoin private key. Never share it. Paste the public address that starts with 1, 3 or bc1.");
   }
   if (/^[xyztuv]prv[1-9A-HJ-NP-Za-km-z]{100,}$/.test(text)) {
-    return "That's an extended private key. Never share it. Paste one public address instead.";
+    return t("That's an extended private key. Never share it. Paste one public address instead.");
   }
   return null;
 }
@@ -51,6 +52,7 @@ export function normaliseAddress(input) {
 
 // bc1qar0s…zwf5mdq: enough to tell addresses apart in a note or list.
 export const shortAddress = (address) => (address.length > 16 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address);
+// Stored on rows and matched on re-import, so it stays English.
 export const walletNote = (address) => `Wallet import ${shortAddress(address)}`;
 
 // Fixed wallets for the demo account, which has no Supabase session to call the function with:
@@ -77,12 +79,12 @@ function demoWallet(chain, now) {
 // plain message.
 export async function lookupWallet(chain, address, { demo = false } = {}) {
   if (demo) return demoWallet(chain, Date.now());
-  if (!supabase) throw new Error("Wallet import needs CPA's Supabase connection, which isn't set up in this build.");
+  if (!supabase) throw new Error(t("Wallet import needs CPA's Supabase connection, which isn't set up in this build."));
   let response;
   try {
     response = await supabase.functions.invoke("wallet-lookup", { body: { chain, address: normaliseAddress(address) } });
   } catch {
-    throw new Error("Wallet import is unavailable right now. Try again later.");
+    throw new Error(t("Wallet import is unavailable right now. Try again later."));
   }
   const { data, error } = response;
   if (error) {
@@ -96,13 +98,13 @@ export async function lookupWallet(chain, address, { demo = false } = {}) {
     // A fetch error is offline, or the service refusing the request (e.g. not deployed yet).
     if (!message && error.name === "FunctionsFetchError") {
       message = navigator.onLine === false
-        ? "You're offline. Connect and try again."
-        : "Wallet import is unavailable right now. Try again later.";
+        ? t("You're offline. Connect and try again.")
+        : t("Wallet import is unavailable right now. Try again later.");
     }
-    if (!message && error.context?.status === 404) message = "Wallet import isn't available yet. The wallet service hasn't been deployed.";
-    throw new Error(message ?? "We couldn't read that wallet. Try again in a minute.");
+    if (!message && error.context?.status === 404) message = t("Wallet import isn't available yet. The wallet service hasn't been deployed.");
+    throw new Error(message ?? t("We couldn't read that wallet. Try again in a minute."));
   }
-  if (!data || !Array.isArray(data.balances)) throw new Error("We couldn't read that wallet. Try again in a minute.");
+  if (!data || !Array.isArray(data.balances)) throw new Error(t("We couldn't read that wallet. Try again in a minute."));
   // An older deploy returns balances only; the plan then falls back to today's price.
   const entries = Array.isArray(data.history?.entries) ? data.history.entries : [];
   return { balances: data.balances, history: { entries, complete: data.history?.complete === true }, asOf: data.asOf, demo: false };
@@ -182,13 +184,13 @@ export function walletImportPlan(wallet, address, transactions, coins, now = Dat
       add("transfer-in", rest, coin.price, today);
     } else if (rest <= -DUST) {
       if (amountHeld(transactions, coinId, null) + recorded + DUST < -rest) {
-        row.reason = `The wallet holds ${coin.symbol} less than before, but your portfolio holds less than that. Check your transactions.`;
+        row.reason = t("The wallet holds {symbol} less than before, but your portfolio holds less than that. Check your transactions.", { symbol: coin.symbol });
       } else {
         row.adjustment = rest;
         add("transfer-out", -rest, coin.price, today);
       }
     }
-    if (!row.txs.length && !row.reason) row.reason = before ? "Already up to date." : "No balance.";
+    if (!row.txs.length && !row.reason) row.reason = before ? t("Already up to date.") : t("No balance.");
     rows.push(row);
   });
   rows.sort((a, b) => b.balance * b.coin.price - a.balance * a.coin.price || a.coin.name.localeCompare(b.coin.name));

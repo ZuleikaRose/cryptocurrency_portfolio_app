@@ -1,6 +1,8 @@
 import { formatPercent, formatPrice } from "./format.js";
+import { t } from "./i18n.js";
 
 // Price alerts (12-alerts.md, US-7.1). Values are stored in USD; % alerts store a percentage.
+// Labels stay English here and are translated where they're shown (t(type.label)).
 export const alertTypes = [
   { id: "above", label: "Price above", short: "Price above" },
   { id: "below", label: "Price below", short: "Price below" },
@@ -14,9 +16,9 @@ export const MAX_NOTIFICATIONS = 200;
 export const isPercentAlert = (type) => type === "pct1h" || type === "pct24h";
 
 export function describeAlert(alert, currency = "USD", rate = 1) {
-  if (alert.type === "above") return `Price above ${formatPrice(alert.value, currency, rate)}`;
-  if (alert.type === "below") return `Price below ${formatPrice(alert.value, currency, rate)}`;
-  return `Moves ±${alert.value}% in ${alert.type === "pct1h" ? "1h" : "24h"}`;
+  if (alert.type === "above") return t("Price above {price}", { price: formatPrice(alert.value, currency, rate) });
+  if (alert.type === "below") return t("Price below {price}", { price: formatPrice(alert.value, currency, rate) });
+  return t("Moves ±{value}% in {window}", { value: alert.value, window: alert.type === "pct1h" ? "1h" : "24h" });
 }
 
 // Condition-based (not crossing-based), so an alert set on the wrong side of the
@@ -33,13 +35,17 @@ export function alertTriggered(alert, coin, now) {
 export function alertNotification(alert, coin) {
   const arrow = coin.change24h >= 0 ? "▲" : "▼";
   const title = isPercentAlert(alert.type)
-    ? `${coin.symbol} moved ${formatPercent(alert.type === "pct1h" ? coin.change1h : coin.change24h)} in ${alert.type === "pct1h" ? "1h" : "24h"}`
-    : `${coin.symbol} ${alert.type} ${formatPrice(alert.value)}`;
+    ? t("{symbol} moved {change} in {window}", {
+      symbol: coin.symbol,
+      change: formatPercent(alert.type === "pct1h" ? coin.change1h : coin.change24h),
+      window: alert.type === "pct1h" ? "1h" : "24h",
+    })
+    : t(alert.type === "above" ? "{symbol} above {price}" : "{symbol} below {price}", { symbol: coin.symbol, price: formatPrice(alert.value) });
   return {
     kind: "price",
     coinId: coin.id,
     title,
-    detail: `Now ${formatPrice(coin.price)} · ${arrow} ${formatPercent(coin.change24h)} 24h`,
+    detail: t("Now {price} · {arrow} {change} 24h", { price: formatPrice(coin.price), arrow, change: formatPercent(coin.change24h) }),
     path: `/coins/${coin.id}`,
   };
 }

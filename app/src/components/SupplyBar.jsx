@@ -1,5 +1,8 @@
 import InfoTip from "./InfoTip.jsx";
 import { formatTokens } from "../lib/format.js";
+import { locale, t } from "../lib/i18n.js";
+
+const fixed1 = (value) => value.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 
 // Supply at a glance (US-3.3): circulating / unlocked-not-circulating / locked.
@@ -16,9 +19,9 @@ export default function SupplyBar({ supply, symbol }) {
   return (
     <section className="supply" aria-labelledby="supply-title">
       <h2 id="supply-title" className="subsection-title">
-        Supply at a glance <InfoTip term="supply" label="supply at a glance" />
+        {t("Supply at a glance")} <InfoTip term="supply" label={t("supply at a glance")} />
       </h2>
-      <div className="supply-bar" role="img" aria-label={segments.map((segment) => `${segment.label} ${pct(segment.value).toFixed(1)} percent`).join(", ")}>
+      <div className="supply-bar" role="img" aria-label={segments.map((segment) => t("{label} {value} percent", { label: t(segment.label), value: fixed1(pct(segment.value)) })).join(", ")}>
         {segments.map((segment) => (
           <span key={segment.id} className={`supply-seg seg-${segment.id}`} style={{ flexGrow: segment.value }} />
         ))}
@@ -27,10 +30,10 @@ export default function SupplyBar({ supply, symbol }) {
         {segments.map((segment) => (
           <li key={segment.id}>
             <span className={`legend-swatch seg-${segment.id}`} aria-hidden="true" />
-            <span>{segment.label}</span>
-            {segment.id !== "other" && <InfoTip term={segment.id} label={segment.label.toLowerCase()} />}
+            <span>{t(segment.label)}</span>
+            {segment.id !== "other" && <InfoTip term={segment.id} label={t(segment.label).toLowerCase()} />}
             <span className="num legend-value">
-              {pct(segment.value).toFixed(1)}% · {formatTokens(segment.value)} {symbol}
+              {fixed1(pct(segment.value))}% · {formatTokens(segment.value)} {symbol}
             </span>
           </li>
         ))}

@@ -3,6 +3,7 @@
 // price-history-sync Edge Function writes Coinbase 1h change and the 7d sparkline every 15
 // minutes (clarification 26). Coins and figures they don't cover keep the bundled sample data.
 import { supabase } from "./supabase.js";
+import { t } from "./i18n.js";
 
 // Returns { rows, updatedAt } (rows empty before the first sync), null when Supabase isn't
 // configured, or throws when the request fails.
@@ -75,16 +76,16 @@ export function marketCapChange24h(coins) {
 
 // Coin detail's source line (journey rule 4: name the source of each figure).
 export function coinSource(coin) {
-  if (coin.source !== "cryptorank") return "CPA sample data";
+  if (coin.source !== "cryptorank") return t("CPA sample data");
   const history = Boolean(coin.historyUpdatedAt);
   const cryptorank = [
-    "price",
-    "24h change",
-    ...(coin.detailsUpdatedAt && !history ? ["7d change"] : []),
-    "market cap",
-    "volume",
+    t("price"),
+    t("24h change"),
+    ...(coin.detailsUpdatedAt && !history ? [t("7d change")] : []),
+    t("market cap"),
+    t("volume"),
     ...(coin.detailsUpdatedAt ? ["FDV"] : []),
   ];
-  const coinbase = history ? "; Coinbase (chart, 1h and 7d change, all-time high and low, in USD, UTC)" : "";
-  return `CryptoRank (${cryptorank.join(", ")})${coinbase}; other figures CPA sample data`;
+  const coinbase = history ? t("; Coinbase (chart, 1h and 7d change, all-time high and low, in USD, UTC)") : "";
+  return t("CryptoRank ({fields}){coinbase}; other figures CPA sample data", { fields: cryptorank.join(", "), coinbase });
 }

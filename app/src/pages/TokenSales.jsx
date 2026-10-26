@@ -6,6 +6,7 @@ import Sheet from "../components/Sheet.jsx";
 import { saleCurrentPrice, saleStatus, tokenSales } from "../data/directory.js";
 import { formatCompact, formatDate, formatPrice, rateFor } from "../lib/format.js";
 import { useNow } from "../lib/hooks.js";
+import { t } from "../lib/i18n.js";
 import { useApp, useMarket } from "../state/context.js";
 
 const statuses = [
@@ -18,8 +19,8 @@ const DAY_MS = 86_400_000;
 
 function relativeDays(target, now) {
   const days = Math.round((target - now) / DAY_MS);
-  if (days === 0) return "today";
-  return days > 0 ? `in ${days}d` : `${-days}d ago`;
+  if (days === 0) return t("today");
+  return days > 0 ? t("in {time}", { time: `${days}d` }) : t("{n}d ago", { n: -days });
 }
 
 const roiText = (value) => `${value >= 1 ? "▲" : "▼"} ${value.toFixed(2)}x`;
@@ -27,7 +28,7 @@ const roiText = (value) => `${value >= 1 ? "▲" : "▼"} ${value.toFixed(2)}x`;
 function Disclaimer() {
   return (
     <p className="card info-card" role="note">
-      <Icon name="info" /> Past ROI doesn't predict future results. Not financial advice.
+      <Icon name="info" /> {t("Past ROI doesn't predict future results. Not financial advice.")}
     </p>
   );
 }
@@ -61,7 +62,7 @@ export default function TokenSales() {
   const status = statuses.some((item) => item.id === params.get("status")) ? params.get("status") : "upcoming";
 
   useEffect(() => {
-    document.title = "Token sales · CPA";
+    document.title = `${t("Token sales")} · CPA`;
   }, []);
 
   const counts = Object.fromEntries(statuses.map((item) => [item.id, tokenSales.filter((sale) => saleStatus(sale, now) === item.id).length]));
@@ -82,11 +83,11 @@ export default function TokenSales() {
   return (
     <div className="token-sales">
       <Link to="/explore" className="link-button back">
-        <Icon name="chevron" className="icon flip" /> Explore
+        <Icon name="chevron" className="icon flip" /> {t("Explore")}
       </Link>
-      <h1>Token sales</h1>
+      <h1>{t("Token sales")}</h1>
 
-      <div className="filters" role="tablist" aria-label="Sale status">
+      <div className="filters" role="tablist" aria-label={t("Sale status")}>
         {statuses.map((item) => (
           <button
             key={item.id}
@@ -96,24 +97,24 @@ export default function TokenSales() {
             className={status === item.id ? "filter active" : "filter"}
             onClick={() => setStatus(item.id)}
           >
-            {item.label} <span className="num">{counts[item.id]}</span>
+            {t(item.label)} <span className="num">{counts[item.id]}</span>
           </button>
         ))}
       </div>
 
       <div className="list-controls">
-        <div className="segmented" role="group" aria-label="Sale type">
+        <div className="segmented" role="group" aria-label={t("Sale type")}>
           {types.map((item) => (
             <button key={item} className={type === item ? "segment active" : "segment"} aria-pressed={type === item} onClick={() => setType(item)}>
-              {item}
+              {item === "All" ? t("All") : item}
             </button>
           ))}
         </div>
         <label className="inline-select">
-          <span className="visually-hidden">Launchpad</span>
+          <span className="visually-hidden">{t("Launchpad")}</span>
           <select className="select" value={launchpad} onChange={(event) => setLaunchpad(event.target.value)}>
             {launchpads.map((item) => (
-              <option key={item} value={item}>{item === "All" ? "All launchpads" : item}</option>
+              <option key={item} value={item}>{item === "All" ? t("All launchpads") : item}</option>
             ))}
           </select>
         </label>
@@ -123,7 +124,7 @@ export default function TokenSales() {
         {status === "past" && <Disclaimer />}
         {sales.length === 0 ? (
           <div className="empty-state">
-            <p>{status === "active" ? "No active sales right now." : "No sales match these filters."}</p>
+            <p>{status === "active" ? t("No active sales right now.") : t("No sales match these filters.")}</p>
             <button
               className="button-secondary"
               onClick={() => {
@@ -132,7 +133,7 @@ export default function TokenSales() {
                 setStatus("upcoming");
               }}
             >
-              See upcoming
+              {t("See upcoming")}
             </button>
           </div>
         ) : (
@@ -151,31 +152,31 @@ export default function TokenSales() {
                 </div>
                 <p className="muted-line num">
                   {sale.launchpad === "Direct" ? (
-                    "Direct sale"
+                    t("Direct sale")
                   ) : (
                     <button className="link-button inline" onClick={() => setPadSheet(sale.launchpad)}>{sale.launchpad}</button>
                   )}{" "}
-                  · {status === "past" ? `Ended ${formatDate(sale.end)}` : status === "active" ? `Ends ${formatDate(sale.end)} · ${relativeDays(sale.end, now)}` : `Starts ${formatDate(sale.start)} · ${relativeDays(sale.start, now)}`}
+                  · {status === "past" ? t("Ended {date}", { date: formatDate(sale.end) }) : status === "active" ? `${t("Ends {date}", { date: formatDate(sale.end) })} · ${relativeDays(sale.end, now)}` : `${t("Starts {date}", { date: formatDate(sale.start) })} · ${relativeDays(sale.start, now)}`}
                 </p>
 
                 {status === "past" ? (
                   <p className="num">
-                    Sale {formatPrice(sale.price, settings.currency, rate)} → {current ? formatPrice(current, settings.currency, rate) : "—"}{" "}
-                    {roi && <span className={roi >= 1 ? "up" : "down"}>ROI {roiText(roi)}</span>}
+                    {t("Sale")} {formatPrice(sale.price, settings.currency, rate)} → {current ? formatPrice(current, settings.currency, rate) : "—"}{" "}
+                    {roi && <span className={roi >= 1 ? "up" : "down"}>{t("ROI")} {roiText(roi)}</span>}
                     {sale.athRoi && <span className="muted-inline"> · ATH {sale.athRoi.toFixed(2)}x</span>}
                   </p>
                 ) : (
                   <p className="num">
-                    Raise {formatCompact(sale.raise, settings.currency, rate)} · Price {formatPrice(sale.price, settings.currency, rate)} · FDV {formatCompact(sale.fdv, settings.currency, rate)}
+                    {t("Raise")} {formatCompact(sale.raise, settings.currency, rate)} · {t("Price")} {formatPrice(sale.price, settings.currency, rate)} · FDV {formatCompact(sale.fdv, settings.currency, rate)}
                   </p>
                 )}
 
                 {status === "active" && (
                   <>
-                    <div className="progress sales-progress" role="progressbar" aria-valuenow={Math.round((sale.sold ?? 0) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${sale.name} sale progress`}>
+                    <div className="progress sales-progress" role="progressbar" aria-valuenow={Math.round((sale.sold ?? 0) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={t("{name} sale progress", { name: sale.name })}>
                       <span style={{ width: `${(sale.sold ?? 0) * 100}%` }} />
                     </div>
-                    <p className="muted-line num">{Math.round((sale.sold ?? 0) * 100)}% sold</p>
+                    <p className="muted-line num">{t("{percent}% sold", { percent: Math.round((sale.sold ?? 0) * 100) })}</p>
                   </>
                 )}
 
@@ -183,34 +184,34 @@ export default function TokenSales() {
                   <button
                     className={reminded ? "button-secondary compact reminder-set" : "button-secondary compact"}
                     onClick={() =>
-                      requireAuth(`Sign in to set a reminder for the ${sale.symbol} sale`, () =>
+                      requireAuth(t("Sign in to set a reminder for the {symbol} sale", { symbol: sale.symbol }), () =>
                         setReminderItem({ id: sale.id, kind: "sale", symbol: sale.symbol, name: sale.name, date: sale.start }),
                       )
                     }
                   >
-                    <Icon name={reminded ? "check" : "bell"} /> {reminded ? "Reminder set" : "Remind me"}
+                    <Icon name={reminded ? "check" : "bell"} /> {reminded ? t("Reminder set") : t("Remind me")}
                   </button>
                 )}
               </article>
             );
           })
         )}
-        {status === "past" ? <Disclaimer /> : <p className="disclaimer">Not financial advice. Token sales are CPA sample data; check every sale's terms yourself.</p>}
+        {status === "past" ? <Disclaimer /> : <p className="disclaimer">{t("Not financial advice. Token sales are CPA sample data; check every sale's terms yourself.")}</p>}
       </section>
 
-      <Sheet open={Boolean(padSheet)} onClose={() => setPadSheet(null)} title={padSheet ?? "Launchpad"} side="bottom">
+      <Sheet open={Boolean(padSheet)} onClose={() => setPadSheet(null)} title={padSheet ?? t("Launchpad")} side="bottom">
         {stats ? (
           <>
             <dl className="stats">
-              <div><dt>Past sales</dt><dd className="num">{stats.count}</dd></div>
-              <div><dt>Average ROI</dt><dd className={`num ${stats.average >= 1 ? "up" : "down"}`}>{stats.average.toFixed(2)}x</dd></div>
-              <div><dt>Median ROI</dt><dd className={`num ${stats.median >= 1 ? "up" : "down"}`}>{stats.median.toFixed(2)}x</dd></div>
-              <div><dt>Best · worst</dt><dd className="num">{stats.best.sale.symbol} {stats.best.roi.toFixed(2)}x · {stats.worst.sale.symbol} {stats.worst.roi.toFixed(2)}x</dd></div>
+              <div><dt>{t("Past sales")}</dt><dd className="num">{stats.count}</dd></div>
+              <div><dt>{t("Average ROI")}</dt><dd className={`num ${stats.average >= 1 ? "up" : "down"}`}>{stats.average.toFixed(2)}x</dd></div>
+              <div><dt>{t("Median ROI")}</dt><dd className={`num ${stats.median >= 1 ? "up" : "down"}`}>{stats.median.toFixed(2)}x</dd></div>
+              <div><dt>{t("Best · worst")}</dt><dd className="num">{stats.best.sale.symbol} {stats.best.roi.toFixed(2)}x · {stats.worst.sale.symbol} {stats.worst.roi.toFixed(2)}x</dd></div>
             </dl>
-            <p className="sheet-note">Past ROI doesn't predict future results. Not financial advice.</p>
+            <p className="sheet-note">{t("Past ROI doesn't predict future results. Not financial advice.")}</p>
           </>
         ) : (
-          <p className="sheet-note">No completed sales on record for {padSheet}.</p>
+          <p className="sheet-note">{t("No completed sales on record for {launchpad}.", { launchpad: padSheet })}</p>
         )}
       </Sheet>
       <ReminderSheet key={reminderItem?.id ?? "none"} item={reminderItem} onClose={() => setReminderItem(null)} />

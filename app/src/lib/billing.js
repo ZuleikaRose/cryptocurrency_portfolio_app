@@ -1,5 +1,6 @@
 // Simulated subscription and payment methods (16-account-settings.md). No charges are made;
 // only brand, last 4 and expiry of a card are kept — never the full number or CVC.
+import { t } from "./i18n.js";
 
 export const plans = [
   { id: "free", label: "Free", price: 0, period: null },
@@ -124,16 +125,16 @@ export function luhnValid(digits) {
 export function validateCard({ number, expiry, cvc, name }, now = new Date()) {
   const digits = number.replace(/\D/g, "");
   const errors = {};
-  if (!name.trim()) errors.name = "Enter the name on the card.";
-  if (!luhnValid(digits)) errors.number = "Enter a valid card number.";
-  else if (!testCards[digits]) errors.number = "Only test cards work here, for example 4242 4242 4242 4242.";
+  if (!name.trim()) errors.name = t("Enter the name on the card.");
+  if (!luhnValid(digits)) errors.number = t("Enter a valid card number.");
+  else if (!testCards[digits]) errors.number = t("Only test cards work here, for example 4242 4242 4242 4242.");
   const match = expiry.trim().match(/^(\d{1,2})\s*\/\s*(\d{2})$/);
   const month = match ? Number(match[1]) : 0;
   const year = match ? 2000 + Number(match[2]) : 0;
-  if (!match || month < 1 || month > 12) errors.expiry = "Enter the expiry as MM/YY.";
-  else if (new Date(year, month, 1) <= now) errors.expiry = "This card has expired.";
+  if (!match || month < 1 || month > 12) errors.expiry = t("Enter the expiry as MM/YY.");
+  else if (new Date(year, month, 1) <= now) errors.expiry = t("This card has expired.");
   const cvcLength = testCards[digits] === "American Express" ? 4 : 3;
-  if (!new RegExp(`^\\d{${cvcLength}}$`).test(cvc.trim())) errors.cvc = `Enter the ${cvcLength}-digit security code.`;
+  if (!new RegExp(`^\\d{${cvcLength}}$`).test(cvc.trim())) errors.cvc = t("Enter the {digits}-digit security code.", { digits: cvcLength });
   if (Object.keys(errors).length) return { errors };
   return {
     errors,

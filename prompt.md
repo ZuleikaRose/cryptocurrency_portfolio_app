@@ -79,6 +79,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 27. **Neutral risk indicators (Oct 26, 2026).** Coin detail shows "High unlock pressure", "Low liquidity" and "Low float" when a coin crosses a fixed threshold, with its own figures and the threshold in plain words. They're facts, never a score, rating or advice.
 28. **Portfolio performance and tax-lot report (Oct 26, 2026).** The Portfolio value chart uses Coinbase closes for coins that have them (sample history for the rest) and names its source. The summary splits all-time P&L into unrealized and realized, and the chart shows P&L over the chosen range (value change less money put in, plus money taken out). "Use market price" fills the nearest Coinbase close (`cpa.price_at`). A tax-lot report matches each sell to its lots by FIFO (with short- and long-term) or average cost, and downloads as CSV in USD. It's derived from transactions, never stored, and says it isn't tax advice.
 29. **Exchange CSV import (Oct 26, 2026).** The transactions CSV import also reads Coinbase transaction history, Kraken trades and Binance spot trade history exports, in the browser. Coinbase converts become a sell and a buy, and rewards and staking income become transfers in at that day's price. Prices must be in US dollars; USD stablecoin prices count 1:1, and the preview says so. Rows in other currencies, cash deposits and moves inside an exchange are skipped with a reason. CPA never asks for exchange API keys.
+30. **Spanish translation (Oct 26, 2026).** The whole interface is available in Spanish as well as English. Guests start in the browser's language; anyone can switch in the menu, and accounts also in Settings › Preferences, where the choice is saved (`user_settings.language`). Numbers and dates follow the language (decimal comma, "mil M" for billions). Stored data (CSV formats, transaction notes, saved notifications) stays as written. Legal pages say the English version prevails.
 
 # Required material from the outline documents
 
@@ -167,7 +168,7 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 - **Accessibility:** WCAG 2.2 AA, with text up to 200%.
 - **Privacy and security:** analytics off by default; no sale of personal data; data export and delete available; no secrets in the app; read-only integrations only.
 - **Disclaimer:** "Not financial advice" on Coin detail, Token sales and Portfolio. The style guide adds Fundraising.
-- **Localization:** English at launch, with strings kept separate from logic so other languages can follow.
+- **Localization:** English and Spanish (clarification 30), with strings kept separate from logic so other languages can follow.
 
 ## Data and permissions (user_journey.md §16–17)
 

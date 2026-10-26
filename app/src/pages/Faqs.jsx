@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import Disclosure, { Highlight } from "../components/Disclosure.jsx";
 import Icon from "../components/Icon.jsx";
-import { faqSections, planTable } from "../data/help.js";
+import { faqSections, matchesHelp, planTable } from "../data/help.js";
+import { t, tn } from "../lib/i18n.js";
 
 // FAQs (18-faqs.md): four themed sections, search with highlighting, deep links.
 export default function Faqs() {
@@ -13,27 +14,27 @@ export default function Faqs() {
   const searching = term.length >= 2;
 
   useEffect(() => {
-    document.title = "FAQs · CPA";
+    document.title = `${t("FAQs")} · CPA`;
   }, []);
   useEffect(() => {
     if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
   }, [location.hash]);
 
   const sections = faqSections
-    .map((section) => ({ ...section, items: searching ? section.items.filter((item) => `${item.q} ${item.a}`.toLowerCase().includes(term)) : section.items }))
+    .map((section) => ({ ...section, items: searching ? section.items.filter((item) => matchesHelp(item, term)) : section.items }))
     .filter((section) => section.items.length);
   const matches = sections.reduce((sum, section) => sum + section.items.length, 0);
 
   return (
     <div className="info-page">
-      <h1>Frequently asked questions</h1>
+      <h1>{t("Frequently asked questions")}</h1>
       <label className="search-box page">
         <Icon name="search" />
-        <span className="visually-hidden">Search FAQs</span>
-        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search FAQs" />
+        <span className="visually-hidden">{t("Search FAQs")}</span>
+        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search FAQs")} />
       </label>
-      <p className="visually-hidden" role="status" aria-live="polite">{searching ? `${matches} ${matches === 1 ? "answer" : "answers"} found` : ""}</p>
-      <nav className="filters" aria-label="FAQ sections">
+      <p className="visually-hidden" role="status" aria-live="polite">{searching ? tn(matches, "{count} answer found", "{count} answers found") : ""}</p>
+      <nav className="filters" aria-label={t("FAQ sections")}>
         {faqSections.map((section) => (
           <a
             key={section.id}
@@ -47,33 +48,33 @@ export default function Faqs() {
               window.history.replaceState(null, "", `#${section.id}`);
             }}
           >
-            {section.title}
+            {t(section.title)}
           </a>
         ))}
       </nav>
 
       {sections.length === 0 ? (
         <div className="empty-state">
-          <p>No answers found. <Link to="/support">Contact support</Link>.</p>
+          <p>{t("No answers found.")} <Link to="/support">{t("Contact support")}</Link>.</p>
         </div>
       ) : (
         sections.map((section) => (
           <section key={section.id} aria-labelledby={section.id} className="info-section">
-            <h2 id={section.id} tabIndex={-1}>{section.title}</h2>
+            <h2 id={section.id} tabIndex={-1}>{t(section.title)}</h2>
             {section.items.map((item) => (
-              <Disclosure key={item.q} title={<Highlight text={item.q} term={query} />} forceOpen={searching}>
-                <p><Highlight text={item.a} term={query} /></p>
+              <Disclosure key={item.q} title={<Highlight text={t(item.q)} term={query} />} forceOpen={searching}>
+                <p><Highlight text={t(item.a)} term={query} /></p>
               </Disclosure>
             ))}
             {section.id === "api-plans" && !searching && (
               <table className="data-table">
-                <caption className="visually-hidden">Planned plan limits</caption>
+                <caption className="visually-hidden">{t("Planned plan limits")}</caption>
                 <thead>
-                  <tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Pro</th><th scope="col">Team</th></tr>
+                  <tr><th scope="col">{t("Feature")}</th><th scope="col">{t("Free")}</th><th scope="col">{t("Pro")}</th><th scope="col">{t("Team")}</th></tr>
                 </thead>
                 <tbody>
                   {planTable.map((row) => (
-                    <tr key={row.feature}><th scope="row">{row.feature}</th><td>{row.free}</td><td>{row.pro}</td><td>{row.team}</td></tr>
+                    <tr key={row.feature}><th scope="row">{t(row.feature)}</th><td>{t(row.free)}</td><td>{t(row.pro)}</td><td>{t(row.team)}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -83,8 +84,8 @@ export default function Faqs() {
       )}
 
       <div className="card still-stuck">
-        <span>Still stuck?</span>
-        <Link to="/support" className="button-secondary compact">Contact support</Link>
+        <span>{t("Still stuck?")}</span>
+        <Link to="/support" className="button-secondary compact">{t("Contact support")}</Link>
       </div>
     </div>
   );

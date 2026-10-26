@@ -7,6 +7,7 @@ import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds } from "../data/research.js";
 import { direction, formatCompact, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
 import { useFirstLoad } from "../lib/hooks.js";
+import { t, tn } from "../lib/i18n.js";
 import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
@@ -49,27 +50,27 @@ export default function FundProfile() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   const following = follows[fund.id];
-  const followLabel = frequencies.find((item) => item.id === following)?.short;
+  const followLabel = t(frequencies.find((item) => item.id === following)?.short ?? "");
 
   const onShare = async () => {
     const result = await shareCard({
       fileName: `cpa-${fund.id}`,
-      title: `${fund.name} · Tier ${fund.tier}`,
-      headline: `${fund.deals} deals`,
-      detail: `${formatCompact(fund.deployed)} deployed · ${fund.deals30d} deals in 30 days`,
+      title: `${fund.name} · ${t("Tier {tier}", { tier: fund.tier })}`,
+      headline: tn(fund.deals, "{count} deal", "{count} deals"),
+      detail: t("{amount} deployed · {count} deals in 30 days", { amount: formatCompact(fund.deployed), count: fund.deals30d }),
     });
-    if (result === "downloaded") showToast(`Share card for ${fund.name} downloaded`);
-    if (result === "failed") showToast("Couldn't create the share card in this browser.");
+    if (result === "downloaded") showToast(t("Share card for {name} downloaded", { name: fund.name }));
+    if (result === "failed") showToast(t("Couldn't create the share card in this browser."));
   };
 
   return (
     <div className="fund-profile">
       <div className="detail-toolbar">
         <Link to="/fundraising?view=funds" className="link-button back">
-          <Icon name="chevron" className="icon flip" /> Fundraising
+          <Icon name="chevron" className="icon flip" /> {t("Fundraising")}
         </Link>
         <button className="button-secondary compact" onClick={onShare}>
-          <Icon name="share" /> Share
+          <Icon name="share" /> {t("Share")}
         </button>
       </div>
 
@@ -78,7 +79,7 @@ export default function FundProfile() {
         <div className="detail-title">
           <h1>{fund.name}</h1>
           <p className="detail-meta">
-            Tier {fund.tier} · {fund.type} · Est. {fund.founded}
+            {t("Tier {tier}", { tier: fund.tier })} · {t(fund.type)} · {t("Est. {year}", { year: fund.founded })}
           </p>
         </div>
       </header>
@@ -86,23 +87,23 @@ export default function FundProfile() {
       <button
         className={following ? "button-primary in-watchlist" : "button-primary"}
         aria-haspopup="dialog"
-        onClick={() => requireAuth(`Sign in to follow ${fund.name}`, () => setMenuOpen(true))}
+        onClick={() => requireAuth(t("Sign in to follow {name}", { name: fund.name }), () => setMenuOpen(true))}
       >
-        {following ? `✓ Following · ${followLabel}` : "Follow"}
+        {following ? `✓ ${t("Following")} · ${followLabel}` : t("Follow")}
       </button>
 
       <dl className="stat-tiles">
-        <div><dd className="num">{fund.deals}</dd><dt>deals</dt></div>
-        <div><dd className="num">{fund.deals30d}</dd><dt>last 30d</dt></div>
-        <div><dd className="num">{formatCompact(fund.deployed, settings.currency, rate)}</dd><dt>deployed</dt></div>
+        <div><dd className="num">{fund.deals}</dd><dt>{t("deals")}</dt></div>
+        <div><dd className="num">{fund.deals30d}</dd><dt>{t("last 30d")}</dt></div>
+        <div><dd className="num">{formatCompact(fund.deployed, settings.currency, rate)}</dd><dt>{t("deployed")}</dt></div>
       </dl>
 
       <section aria-labelledby="sectors-title">
-        <h2 id="sectors-title" className="subsection-title">Top sectors</h2>
+        <h2 id="sectors-title" className="subsection-title">{t("Top sectors")}</h2>
         <ul className="bar-list">
           {fund.sectors.map(([sector, pct]) => (
             <li key={sector}>
-              <span>{sector}</span>
+              <span>{t(sector)}</span>
               <span className="bar" aria-hidden="true">
                 <span style={{ width: `${pct}%` }} />
               </span>
@@ -113,7 +114,7 @@ export default function FundProfile() {
       </section>
 
       <section aria-labelledby="deals-title">
-        <h2 id="deals-title" className="subsection-title">Recent deals</h2>
+        <h2 id="deals-title" className="subsection-title">{t("Recent deals")}</h2>
         {deals.length ? (
           <ul className="deal-list">
             {deals.slice(0, 8).map((round) => (
@@ -122,23 +123,23 @@ export default function FundProfile() {
                 <span className="deal-main">
                   {round.coinId ? <Link to={`/coins/${round.coinId}?tab=funding`}>{round.project}</Link> : <strong>{round.project}</strong>}
                   <span className="muted-inline num">
-                    {round.type} · {formatDate(round.date)}
+                    {t(round.type)} · {formatDate(round.date)}
                   </span>
                 </span>
                 <span className="deal-side">
                   <span className="num">{formatCompact(round.amount, settings.currency, rate)}</span>
-                  {round.leads.includes(fund.id) && <span className="tag lead-tag">Lead</span>}
+                  {round.leads.includes(fund.id) && <span className="tag lead-tag">{t("Lead")}</span>}
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="empty-line">No deals on record in the sample data.</p>
+          <p className="empty-line">{t("No deals on record in the sample data.")}</p>
         )}
       </section>
 
       <section aria-labelledby="portfolio-title">
-        <h2 id="portfolio-title" className="subsection-title">Portfolio tokens</h2>
+        <h2 id="portfolio-title" className="subsection-title">{t("Portfolio tokens")}</h2>
         {portfolio.length ? (
           <ul className="token-chips">
             {portfolio.map((coin) => (
@@ -155,12 +156,12 @@ export default function FundProfile() {
             ))}
           </ul>
         ) : (
-          <p className="empty-line">None of this fund's deals have a listed token yet.</p>
+          <p className="empty-line">{t("None of this fund's deals have a listed token yet.")}</p>
         )}
       </section>
 
       <section aria-labelledby="co-title">
-        <h2 id="co-title" className="subsection-title">Frequent co-investors</h2>
+        <h2 id="co-title" className="subsection-title">{t("Frequent co-investors")}</h2>
         {coInvestors.length ? (
           <ul className="result-list">
             {coInvestors.map(([id, count]) => (
@@ -169,7 +170,7 @@ export default function FundProfile() {
                   <span className="square-logo" aria-hidden="true">{fundById(id)?.name[0]}</span>
                   <span className="result-main">
                     <strong>{fundById(id)?.name}</strong>
-                    <span className="num">{count} shared {count === 1 ? "deal" : "deals"}</span>
+                    <span className="num">{tn(count, "{count} shared deal", "{count} shared deals")}</span>
                   </span>
                   <Icon name="chevron" />
                 </Link>
@@ -177,15 +178,15 @@ export default function FundProfile() {
             ))}
           </ul>
         ) : (
-          <p className="empty-line">No shared deals in the sample data.</p>
+          <p className="empty-line">{t("No shared deals in the sample data.")}</p>
         )}
       </section>
 
-      <p className="disclaimer">Not financial advice. Data provided for informational purposes. Fund data is CPA sample data.</p>
+      <p className="disclaimer">{t("Not financial advice. Data provided for informational purposes.")} {t("Fund data is CPA sample data.")}</p>
 
-      <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title={`Follow ${fund.name}`} side="bottom">
+      <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title={t("Follow {name}", { name: fund.name })} side="bottom">
         <fieldset className="field-group">
-          <legend>How often should CPA tell you about new deals?</legend>
+          <legend>{t("How often should CPA tell you about new deals?")}</legend>
           {frequencies.map((item) => (
             <label key={item.id} className="check-row">
               <input
@@ -197,7 +198,7 @@ export default function FundProfile() {
                   setMenuOpen(false);
                 }}
               />
-              {item.label}
+              {t(item.label)}
             </label>
           ))}
         </fieldset>
@@ -209,7 +210,7 @@ export default function FundProfile() {
               setMenuOpen(false);
             }}
           >
-            Unfollow
+            {t("Unfollow")}
           </button>
         )}
       </Sheet>

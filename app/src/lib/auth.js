@@ -1,6 +1,7 @@
 // Accounts (13–16 specs) on Supabase Auth: passwords, sessions, reset links and rate limits
 // are handled by the server. This file keeps the client-side rules and maps Auth errors.
 import { leakedPasswords } from "../data/leakedPasswords.js";
+import { t } from "./i18n.js";
 import { supabase } from "./supabase.js";
 
 export const LOCK_AFTER = 5;
@@ -14,21 +15,22 @@ export const isEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()
 // Password rules (13-login-signup.md); `differentFrom` adds "different from current password".
 export function passwordChecks(password, { differentFrom } = {}) {
   const checks = [
-    { id: "length", label: "At least 13 characters", ok: password.length >= 13 },
-    { id: "lower", label: "A lowercase letter", ok: /[a-z]/.test(password) },
-    { id: "upper", label: "An uppercase letter", ok: /[A-Z]/.test(password) },
-    { id: "digit", label: "A number", ok: /\d/.test(password) },
-    { id: "symbol", label: "A symbol", ok: /[^A-Za-z0-9]/.test(password) },
-    { id: "leak", label: "Not found in known data leaks", ok: password.length > 0 && !leakedPasswords.has(password.toLowerCase()) },
+    { id: "length", label: t("At least 13 characters"), ok: password.length >= 13 },
+    { id: "lower", label: t("A lowercase letter"), ok: /[a-z]/.test(password) },
+    { id: "upper", label: t("An uppercase letter"), ok: /[A-Z]/.test(password) },
+    { id: "digit", label: t("A number"), ok: /\d/.test(password) },
+    { id: "symbol", label: t("A symbol"), ok: /[^A-Za-z0-9]/.test(password) },
+    { id: "leak", label: t("Not found in known data leaks"), ok: password.length > 0 && !leakedPasswords.has(password.toLowerCase()) },
   ];
-  if (differentFrom !== undefined) checks.push({ id: "different", label: "Different from current password", ok: differentFrom });
+  if (differentFrom !== undefined) checks.push({ id: "different", label: t("Different from current password"), ok: differentFrom });
   return checks;
 }
 
 export function passwordErrors(checks) {
   const failing = checks.filter((check) => !check.ok);
-  if (failing.some((check) => check.id === "leak") && failing.length === 1) return ["This password has appeared in a data leak. Choose a different one."];
-  return failing.map((check) => (check.id === "leak" ? "This password has appeared in a data leak. Choose a different one." : `Password needs: ${check.label.toLowerCase()}.`));
+  const leaked = t("This password has appeared in a data leak. Choose a different one.");
+  if (failing.some((check) => check.id === "leak") && failing.length === 1) return [leaked];
+  return failing.map((check) => (check.id === "leak" ? leaked : t("Password needs: {rule}.", { rule: check.label.toLowerCase() })));
 }
 
 // Supabase Auth error -> the app's error kinds. Unknown errors count as "network" so the
