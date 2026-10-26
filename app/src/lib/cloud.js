@@ -47,6 +47,7 @@ function settingsRow(data) {
     fundraising_sectors: s.fundraising.sectors, fundraising_types: s.fundraising.types,
     fundraising_min_amount: s.fundraising.minAmount, fundraising_max_amount: s.fundraising.maxAmount,
     fundraising_days: s.fundraising.days, fundraising_investor: s.fundraising.investor, fundraising_sort: s.fundraising.sort,
+    portfolio_range: s.portfolio.range, portfolio_sort: s.portfolio.sort, portfolio_tax_method: s.portfolio.taxMethod,
   };
 }
 
@@ -71,6 +72,7 @@ function settingsFromRow(r) {
       maxAmount: r.fundraising_max_amount == null ? null : Number(r.fundraising_max_amount),
       days: r.fundraising_days, investor: r.fundraising_investor, sort: r.fundraising_sort,
     },
+    portfolio: { range: r.portfolio_range, sort: r.portfolio_sort, taxMethod: r.portfolio_tax_method },
   };
 }
 

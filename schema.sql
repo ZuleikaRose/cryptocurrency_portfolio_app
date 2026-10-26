@@ -422,6 +422,11 @@ CREATE TABLE user_settings (
   fundraising_investor   text NOT NULL DEFAULT '',
   fundraising_sort       text NOT NULL DEFAULT 'newest' CHECK (fundraising_sort IN ('newest', 'amount')),
 
+  -- Portfolio tab (11-portfolio.md, journey rule 2)
+  portfolio_range      text NOT NULL DEFAULT '1M' CHECK (portfolio_range IN ('24h', '7D', '1M', '3M', '1Y', 'ALL')),
+  portfolio_sort       text NOT NULL DEFAULT 'value' CHECK (portfolio_sort IN ('value', 'pnl', 'pnlPct', 'name')),
+  portfolio_tax_method text NOT NULL DEFAULT 'fifo' CHECK (portfolio_tax_method IN ('fifo', 'average')),  -- lib/taxlots.js
+
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TRIGGER user_settings_touch BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

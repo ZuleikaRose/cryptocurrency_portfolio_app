@@ -155,6 +155,7 @@ flowchart LR
 
 1. **Permission timing:** ask for notifications only when the user sets an alert, never on first launch.
 2. **Saved state:** remember filters, sort orders, and chart ranges for each tab.
+   > **CPA build (Oct 26, 2026; clarification 35):** Portfolio now keeps its chart range, holdings sort and the tax-lot report's method (FIFO or average cost) too, saved with the account like the Market, Unlocks and Fundraising choices.
 3. **Event context:** tie price moves to unlocks, funding, and listings on the chart.
 4. **Trust signals:** data source, last-updated time, and verified contract on every key screen.
    > **CPA build (Oct 18, 2026):** live prices are labelled "CryptoRank" and sample figures "CPA sample data". The last-updated time is when CryptoRank reported the price, so a delayed sync shows as stale instead of looking fresh.

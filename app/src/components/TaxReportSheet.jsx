@@ -12,9 +12,8 @@ const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString(locale()
 
 // Tax-lot report (clarification 28): realized gains by FIFO or average cost, as CSV. Amounts are
 // in USD, like the transactions they come from.
-export default function TaxReportSheet({ open, onClose, transactions, coins, hide, onToast }) {
+export default function TaxReportSheet({ open, onClose, transactions, coins, hide, onToast, method, onMethod }) {
   const yearId = useId();
-  const [method, setMethod] = useState("fifo");
   const [year, setYear] = useState("all");
   const report = useMemo(() => taxLotReport(transactions, coins, method), [transactions, coins, method]);
   const years = taxYears(report.rows);
@@ -39,7 +38,7 @@ export default function TaxReportSheet({ open, onClose, transactions, coins, hid
         </p>
         <div className="segmented" role="group" aria-label={t("Cost basis method")}>
           {TAX_METHODS.map((item) => (
-            <button key={item.id} type="button" className={method === item.id ? "segment active" : "segment"} aria-pressed={method === item.id} onClick={() => setMethod(item.id)}>
+            <button key={item.id} type="button" className={method === item.id ? "segment active" : "segment"} aria-pressed={method === item.id} onClick={() => onMethod(item.id)}>
               {t(item.label)}
             </button>
           ))}

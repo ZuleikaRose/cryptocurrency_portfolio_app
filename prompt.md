@@ -84,6 +84,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 32. **Language in the Accessibility menu (Oct 26, 2026).** The Accessibility menu (♿ or Alt+A) starts with Language: English | Español, each named in its own language with its own `lang`. It's the same setting as the main menu and Settings, and Reset leaves it alone. Switching language also updates the page title straight away.
 33. **Node 26 for development (Oct 26, 2026).** Local development uses Node 26.12.1 (`.nvmrc`). Vercel offers only Node 22 and 24, so `engines` is `>=24` and production builds on Node 24.
 34. **Portuguese (Oct 26, 2026).** Portuguese (Brazil) joins English and Spanish everywhere a language can be chosen, with Brazilian formats (`US$ 80.156,48`, `US$ 2,88 tri`, `842,5 mi`, `26 de out. de 2026`). Guests start in the first of their browser's languages that CPA has. `user_settings.language` accepts `pt` (migration `user_settings_language_pt`).
+35. **Portfolio remembers its choices (Oct 26, 2026).** Following cross-journey rule 2, Portfolio keeps its chart range (24h, 7D, 1M, 3M, 1Y, ALL), holdings sort (value, P&L, P&L %, name) and the tax-lot report's cost basis method (FIFO or average cost) between visits. Accounts save them in `user_settings` (`portfolio_range`, `portfolio_sort`, `portfolio_tax_method`, migration `user_settings_portfolio`); guests and the demo keep them until they refresh.
 
 # Required material from the outline documents
 
