@@ -163,6 +163,14 @@
 .unlock-card .button-secondary { justify-self: start; gap: 6px; margin-top: 6px; }
 .reminder-set { color: var(--up); }
 
+/* Risk indicators (clarification 27): warning-tinted chips like the change pill, text first */
+.risk-card { display: grid; gap: 10px; }
+.risk-card .subsection-title { margin: 0; }
+.risk-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.risk-list p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.risk-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--warning) 10%, transparent); color: var(--warning); font-size: 13px; font-weight: 600; }
+.chart-source { margin: 8px 0 0; font-size: 12px; }
+
 /* Sentiment */
 .sentiment { display: grid; gap: 10px; }
 .sentiment .subsection-title { margin: 0; }

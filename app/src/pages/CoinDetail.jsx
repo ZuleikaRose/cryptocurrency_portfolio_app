@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Icon from "../components/Icon.jsx";
-import { SkeletonDetail } from "../components/LoadState.jsx";
+import { ErrorBanner, SkeletonDetail } from "../components/LoadState.jsx";
 import SimilarCoins from "../components/SimilarCoins.jsx";
 import InfoTip from "../components/InfoTip.jsx";
 import PriceChart from "../components/PriceChart.jsx";
 import ReminderSheet from "../components/ReminderSheet.jsx";
+import RiskIndicators from "../components/RiskIndicators.jsx";
 import ChartSummary from "../components/ChartSummary.jsx";
 import { chartSummary } from "../lib/chart.js";
 import Sheet from "../components/Sheet.jsx";
@@ -29,6 +30,7 @@ import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 import { coinSource } from "../lib/market.js";
+import { closeDay, usePriceHistory, withLivePrice } from "../lib/history.js";
 
 const tabs = [
   { id: "overview", label: "Overview" },
@@ -46,11 +48,22 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
   const [mode, setMode] = useState("line");
   const [showMarkers, setShowMarkers] = useState(true);
   const range = ranges.find((item) => item.id === rangeId);
-  // Recomputed when the live price ticks, so the chart ends at today's price.
-  const points = useMemo(() => priceHistory(coin, rangeId), [coin, rangeId]);
-  const allPoints = useMemo(() => priceHistory(coin, "ALL"), [coin]);
-  const athPoint = allPoints.reduce((best, point) => (point.price > best.price ? point : best), allPoints[0]);
-  const atlPoint = allPoints.reduce((best, point) => (point.price < best.price ? point : best), allPoints[0]);
+  // Coinbase closes for live coins (clarification 26), sample history for the rest. Recomputed
+  // when the live price ticks, so the chart ends at today's price.
+  const history = usePriceHistory(coin, rangeId);
+  const allHistory = usePriceHistory(coin, "ALL");
+  const real = history.data?.points.length >= 2 ? history.data.points : null;
+  const waiting = history.live && !history.data;
+  const points = useMemo(() => (real ? withLivePrice(real, coin.price) : waiting ? null : priceHistory(coin, rangeId)), [real, waiting, coin, rangeId]);
+  const { athPoint, atlPoint } = useMemo(() => {
+    if (allHistory.data?.high) return { athPoint: { ...allHistory.data.high, time: closeDay(allHistory.data.high.time) }, atlPoint: { ...allHistory.data.low, time: closeDay(allHistory.data.low.time) } };
+    if (allHistory.live && !allHistory.data) return { athPoint: null, atlPoint: null };
+    const all = priceHistory(coin, "ALL");
+    return {
+      athPoint: all.reduce((best, point) => (point.price > best.price ? point : best), all[0]),
+      atlPoint: all.reduce((best, point) => (point.price < best.price ? point : best), all[0]),
+    };
+  }, [allHistory.data, allHistory.live, coin]);
 
   // Keys 1–6 switch range (00-app-shell.md shortcuts); ignored while typing.
   useEffect(() => {
@@ -90,17 +103,27 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
   return (
     <>
       <section className="card chart-card" aria-label="Price chart">
-        <PriceChart
-          points={points}
-          rangeId={rangeId}
-          mode={mode}
-          markers={markers}
-          showMarkers={showMarkers}
-          onMarker={onMarker}
-          currency={currency}
-          rate={rate}
-          label={range.label}
-        />
+        {history.error && <ErrorBanner what="the price chart" onRetry={history.retry} />}
+        {points ? (
+          <PriceChart
+            points={points}
+            rangeId={rangeId}
+            mode={mode}
+            markers={markers}
+            showMarkers={showMarkers}
+            onMarker={onMarker}
+            currency={currency}
+            rate={rate}
+            label={range.label}
+          />
+        ) : (
+          !history.error && (
+            <>
+              <p className="visually-hidden" role="status">Loading the price chart…</p>
+              <div className="skeleton skeleton-chart" aria-hidden="true" />
+            </>
+          )
+        )}
         <div className="chart-controls">
           <div className="segmented" role="group" aria-label="Chart range">
             {ranges.map((item, index) => (
@@ -141,7 +164,8 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <span className="marker-item"><span className="marker-key marker-listing">L</span> Listing</span>
           </p>
         )}
-        <ChartSummary text={chartSummary(points, range.label, currency, rate)} />
+        {points && <ChartSummary text={chartSummary(points, range.label, currency, rate)} />}
+        <p className="muted-line chart-source">Chart: {real ? "Coinbase closes, USD, UTC" : waiting ? "Coinbase" : "CPA sample data"}</p>
       </section>
 
       <dl className="stats">
@@ -164,16 +188,18 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
         <div>
           <dt>All-time high <InfoTip term="ath" label="all-time high and low" /></dt>
           <dd className="num">
-            {formatPrice(athPoint.price, currency, rate)} <small>{formatDate(athPoint.time)}</small>
+            {athPoint ? <>{formatPrice(athPoint.price, currency, rate)} <small>{formatDate(athPoint.time)}</small></> : "—"}
           </dd>
         </div>
         <div>
           <dt>All-time low</dt>
           <dd className="num">
-            {formatPrice(atlPoint.price, currency, rate)} <small>{formatDate(atlPoint.time)}</small>
+            {atlPoint ? <>{formatPrice(atlPoint.price, currency, rate)} <small>{formatDate(atlPoint.time)}</small></> : "—"}
           </dd>
         </div>
       </dl>
+
+      <RiskIndicators coin={coin} research={research} currency={currency} rate={rate} now={now} />
 
       <SupplyBar supply={supply} symbol={coin.symbol} />
 

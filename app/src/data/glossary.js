@@ -7,6 +7,7 @@ export const definitions = {
   unlocked: "Tokens already released from vesting that are not yet circulating, for example held in treasury.",
   locked: "Tokens still vesting. They are released on a schedule and can add selling pressure when they unlock.",
   supply: "How the maximum supply splits between circulating, unlocked but not circulating, and still locked.",
-  ath: "All-time high and low: the highest and lowest prices in this coin's sample history.",
+  ath: "All-time high and low: the highest and lowest daily closing prices on record. Coins with a Coinbase chart use its history; the rest use sample data.",
+  risk: "Facts that can make a price move more: large unlocks soon, thin trading, or a small share of supply circulating. Each uses a fixed threshold. They aren't a rating or advice.",
   roi: "Return on investment: current price divided by the round's token price.",
 };
