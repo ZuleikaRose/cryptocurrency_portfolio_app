@@ -27,6 +27,7 @@
   - *Alerts:* urgent only when something is time-sensitive. ("ARB unlock in 1 hour: 92.6M tokens (3.2% of supply)")
 - **Never:** give financial advice, use "guaranteed", "to the moon", or "don't miss out", or use urgency purely to drive engagement.
 - **Disclaimer:** "Not financial advice. Data provided for informational purposes." appears in the footer of the Coin Detail, Fundraising, and Portfolio screens.
+  > **CPA build (Oct 26, 2026):** the tax-lot report and its Portfolio row also say "Not tax advice", and the report adds "rules differ by country, so check them with a tax professional." Risk indicators state figures and thresholds only ("CPA flags under 30%"), never "risky", "avoid" or "safe".
 
 ### Writing rules
 - Sentence case for all UI text ("Token unlocks", not "Token Unlocks").
@@ -150,6 +151,8 @@ A persistent **search** button sits in the top app bar on every root screen.
 ### 7.2 Change pill
 - Rounded 6 pt pill, 10% opacity fill of `market/up` or `market/down`, text in the full color, arrow glyph included.
 
+> **CPA build (Oct 26, 2026): risk chip.** Risk indicators use the same shape with `status/warning`: 6 pt radius, 10% warning fill, warning-coloured label ("Low liquidity"), with the explanation as plain text below. They're never red or green, so they don't read as a market move.
+
 ### 7.3 Buttons
 | Variant | Style | Use |
 |---|---|---|
@@ -162,6 +165,8 @@ A persistent **search** button sits in the top app bar on every root screen.
 - Line chart default, candlestick toggle. Time ranges: **1D · 7D · 1M · 3M · 1Y · ALL** as a segmented control.
 - Touch and drag shows a crosshair with a value and timestamp tooltip, plus haptic feedback on each data point snap.
 - Unlock and funding events can be overlaid as small markers on the price chart.
+
+> **CPA build (Oct 26, 2026):** a secondary-text source line sits under every chart ("Chart: Coinbase closes, USD, UTC" / "Chart: CPA sample data"). While a live range loads, the chart area is a skeleton of the same size; a failed load shows the error banner with Retry and keeps any cached range. On Portfolio, "P&L over 1M ▼ −$2,522.56 (−7.93%)" sits above the chart in secondary text, with the change in market colours and an arrow.
 
 ### 7.5 Unlock card
 ```

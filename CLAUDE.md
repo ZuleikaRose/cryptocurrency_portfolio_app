@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Prices for 34 coins come live from CryptoRank through a Supabase Edge Function; other market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
+Working rules for Claude Code in this repo. CPA (Cryptocurrency Portfolio App) is a React SPA built from the brief in `prompt.md` and the documents in `app_outline/`. Prices for 34 coins come live from CryptoRank through a Supabase Edge Function, and price history for 31 of them from Coinbase through another; other market data is bundled sample data; accounts run on Supabase. Read `README.md` for the overview.
 
 ## Commands
 
@@ -91,7 +91,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
   - Dates look like `Oct 17, 2026`; under 7 days, use relative time ("in 3d 4h", "2h ago").
 - **Errors:** plain, blame-free, and they say what to do next ("We couldn't load prices." plus Retry).
 - **Empty states:** one friendly sentence and one action.
-- **Disclaimer:** "Not financial advice. Data provided for informational purposes." on Coin detail, Fundraising, Token sales and Portfolio.
+- **Disclaimer:** "Not financial advice. Data provided for informational purposes." on Coin detail, Fundraising, Token sales and Portfolio. The tax-lot report and its row also say "Not tax advice".
 
 ## Design rules
 
@@ -145,7 +145,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 6. **Guest mode:** full browsing without an account.
    - Sign-in is required only for alerts, a saved portfolio and the like. Use `requireAuth(reason, action)`.
    - The pending action completes after sign-in, and guest data merges into the new account.
-7. **Safe imports:** wallet import takes a public address only. Refuse anything that looks like a recovery phrase or private key before it leaves the device (US-6.4).
+7. **Safe imports:** wallet import takes a public address only. Refuse anything that looks like a recovery phrase or private key before it leaves the device (US-6.4). Exchanges come in as exported CSV files read on the device, never as API keys (clarification 29).
 
 ## Targets (user_journey.md §7, user_stories.md non-functional requirements)
 
