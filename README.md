@@ -59,7 +59,7 @@ Each page has a spec with its wireframe, stories and "done when" conditions in `
 
 `app_outline/` holds the source documents. `prompt.md` condenses what they require, and `CLAUDE.md` turns that into working rules.
 
-- **`user_stories.md`:** 9 epics of stories (US-1.1 to US-9.6), each with Given/When/Then criteria. The 22 P0 stories (81 points) are the MVP; P1 and P2 stories are built where a browser allows.
+- **`user_stories.md`:** 9 epics of stories (US-1.1 to US-9.8), each with Given/When/Then criteria. The 22 P0 stories (81 points) are the MVP; P1 and P2 stories are built where a browser allows.
 - **`user_journey.md`:**
 
   - The four personas and their journey maps.
@@ -97,7 +97,7 @@ The schema, migrations, the sample-data seed and the live price Edge Function ar
 
 ## Languages
 
-CPA is in English and Spanish. Guests start in the browser's language and can switch in the menu; signed-in users can also choose in Settings › Preferences, which saves it to their account. `lib/i18n.js` looks up each English string in `src/locales/es/` (one file per area) and falls back to English; numbers and dates follow the language. Run `npm run i18n:check` in `app/` to list strings without a Spanish entry.
+CPA is in English and Spanish (US-9.7). Guests start in the browser's language, and anyone can switch from the main menu or the Accessibility menu; signed-in users can also choose in Settings › Preferences, and their choice is saved to their account (`user_settings.language`). Spanish uses Spanish formats (`80.156,48 $`, `2,88 B $`, `26 oct 2026`). Exported CSV formats and saved transaction notes stay in English, and the legal pages say the English version prevails. `lib/i18n.js` looks up each English string in `src/locales/es/` (one file per area) and falls back to English; numbers and dates follow the language. Run `npm run i18n:check` in `app/` to list strings without a Spanish entry.
 
 ## Design
 
@@ -132,6 +132,9 @@ The target is WCAG 2.2 AA:
 - **Navigation:** a skip link, and route changes are announced to screen readers.
 - **Charts:** each chart has a text summary.
 - **Text size:** up to 200%; tables become stacked cards above 130%.
+- **Language:** English or Spanish at the top of the Accessibility menu; the page's `lang` follows it, and each option carries its own.
+- **Any screen:** no sideways scrolling at any width, at 200% text or in landscape; on wide screens the sidebar comes before the page in Tab order.
+- **Label in name:** links start their accessible name with the text they show ("ETH (Ethereum), …").
 - **Accessibility menu:** profiles plus settings for text, fonts, spacing, contrast, saturation, link and heading highlights, a reading guide, a big cursor, hiding images and stopping animations.
 
 To simulate an error banner on Home, Market, Explore, Fundraising or Watchlist, add `?simulate=error` to the address. To see an unlock reminder reschedule (US-4.2), open any page with `?simulate=reschedule` and start the demo: its ARB reminder is stored 2 days early, so the next check moves it to the real date and shows "ARB unlock moved to …".
@@ -256,7 +259,7 @@ CLAUDE.md             working rules for Claude Code in this repo
 
 ## Build status
 
-Phases 0 to 8 are complete: shell and Market, Coin detail, Search/Watchlist/Portfolio, research pages, Home and Alerts, accounts, support and legal pages, then polish and QA. After that, accounts moved from the browser to Supabase, the sample data was loaded into the database, prices for 34 coins went live from CryptoRank through a scheduled Edge Function, and the offline banner (US-9.5) was added. Then came named watchlists (US-6.2), CSV export and import of portfolio transactions, unlock and sale reminders that follow a date change (US-4.2), the installable app with an offline cache (US-8.1 adapted, US-9.5), Polygon's former ticker MATIC in search, tighter limits on what guests can write, and read-only Bitcoin and Ethereum wallet import (US-6.4). On Oct 26, 2026 Coin detail charts, all-time high and low, 1h and 7d change and sparklines moved to Coinbase price history for 31 live coins, and Coin detail gained neutral risk indicators (unlock pressure, liquidity, float). Portfolio then gained a value chart on Coinbase closes, unrealized and realized P&L, P&L over the chosen range, market prices from Coinbase in the transaction sheet, and a FIFO or average-cost tax-lot report as CSV (clarification 28), and the CSV import learned Coinbase, Kraken and Binance exports (clarification 29).
+Phases 0 to 8 are complete: shell and Market, Coin detail, Search/Watchlist/Portfolio, research pages, Home and Alerts, accounts, support and legal pages, then polish and QA. After that, accounts moved from the browser to Supabase, the sample data was loaded into the database, prices for 34 coins went live from CryptoRank through a scheduled Edge Function, and the offline banner (US-9.5) was added. Then came named watchlists (US-6.2), CSV export and import of portfolio transactions, unlock and sale reminders that follow a date change (US-4.2), the installable app with an offline cache (US-8.1 adapted, US-9.5), Polygon's former ticker MATIC in search, tighter limits on what guests can write, and read-only Bitcoin and Ethereum wallet import (US-6.4). On Oct 26, 2026 Coin detail charts, all-time high and low, 1h and 7d change and sparklines moved to Coinbase price history for 31 live coins, and Coin detail gained neutral risk indicators (unlock pressure, liquidity, float). Portfolio then gained a value chart on Coinbase closes, unrealized and realized P&L, P&L over the chosen range, market prices from Coinbase in the transaction sheet, and a FIFO or average-cost tax-lot report as CSV (clarification 28), and the CSV import learned Coinbase, Kraken and Binance exports (clarification 29). The same day CPA gained a full Spanish translation (clarification 30) and a responsive layout for tablets, notebooks and desktops (clarification 31), the Accessibility menu gained a Language option (clarification 32), and local development moved to Node 26 (clarification 33).
 
 **Installable app (`app/public/manifest.webmanifest`, `app/public/sw.js`, `app/src/lib/pwa.js`):** CPA installs from the browser or from Settings → Preferences → Install CPA. It opens on the Watchlist, with shortcuts to Watchlist, Unlocks and Alerts; a web app can't add a home-screen widget, so this stands in for US-8.1. In production builds a service worker caches the app shell, the build's scripts, styles and Latin fonts, and the last live prices (`/rest/v1/coins`, public data), so CPA opens offline on any route with "You're offline: showing saved data". Account data, sign-in and writes are never cached. The worker is off in `npm run dev`; test it with `npm run build && npx vite preview`. Technical requirements reports whether it's ready. Bump `VERSION` in `sw.js` when its caching rules change.
 
