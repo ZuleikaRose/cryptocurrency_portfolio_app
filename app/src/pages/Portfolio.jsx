@@ -465,8 +465,9 @@ export default function Portfolio() {
   const { session, settings, transactions, saveTransaction, importTransactions, updateSettings, requireAuth, startDemo, showToast } = useApp();
   const { coins } = useMarket();
   const navigate = useNavigate();
-  const [range, setRange] = useState("1M");
-  const [sort, setSort] = useState("value");
+  // Remembered per account (clarification 35, journey rule 2).
+  const { range, sort, taxMethod } = settings.portfolio;
+  const updatePortfolio = (patch) => updateSettings({ portfolio: { ...settings.portfolio, ...patch } });
   const [sheet, setSheet] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
@@ -562,7 +563,7 @@ export default function Portfolio() {
             {!live.loading && <p className="muted-line chart-source">{t("Chart: {source}", { source: chartSource(tradedIds.split(","), live.series, coins) })}</p>}
             <div className="segmented" role="group" aria-label={t("Chart range")}>
               {ranges.map((item) => (
-                <button key={item} className={range === item ? "segment active" : "segment"} aria-pressed={range === item} onClick={() => setRange(item)}>
+                <button key={item} className={range === item ? "segment active" : "segment"} aria-pressed={range === item} onClick={() => updatePortfolio({ range: item })}>
                   {item}
                 </button>
               ))}
@@ -579,7 +580,7 @@ export default function Portfolio() {
               <h2 id="holdings-title" className="subsection-title">{t("Holdings")}</h2>
               <label className="inline-select">
                 {t("Sort")}
-                <select className="select" value={sort} onChange={(event) => setSort(event.target.value)}>
+                <select className="select" value={sort} onChange={(event) => updatePortfolio({ sort: event.target.value })}>
                   <option value="value">{t("Value")}</option>
                   <option value="pnl">{t("P&L")}</option>
                   <option value="pnlPct">{t("P&L %")}</option>
@@ -653,7 +654,7 @@ export default function Portfolio() {
 
       <Disclaimer />
 
-      {taxOpen && <TaxReportSheet open onClose={() => setTaxOpen(false)} transactions={transactions} coins={coins} hide={hide} onToast={showToast} />}
+      {taxOpen && <TaxReportSheet open onClose={() => setTaxOpen(false)} transactions={transactions} coins={coins} hide={hide} onToast={showToast} method={taxMethod} onMethod={(value) => updatePortfolio({ taxMethod: value })} />}
       {sheet && (
         <TransactionSheet open onClose={() => setSheet(null)} initial={sheet} coins={coins} transactions={transactions} onSave={saveTransaction} />
       )}

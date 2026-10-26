@@ -37,6 +37,7 @@ export const defaultSettings = {
   market: { view: "coins", sort: "rank", dir: "asc", category: "All", density: "simple", gainersWindow: "24h" },
   unlocks: { range: "week", watchlistOnly: false, minOne: false, sort: "share", view: "list" },
   fundraising: { sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "", sort: "newest" },
+  portfolio: { range: "1M", sort: "value", taxMethod: "fifo" }, // clarification 35
 };
 
 export const AppContext = createContext(null);
@@ -66,6 +67,16 @@ export function normalizeFundraisingFilters(value) {
     days: [0, 7, 30, 90].includes(v.days) ? v.days : base.days,
     investor: typeof v.investor === "string" ? v.investor : "",
     sort: v.sort === "amount" ? "amount" : "newest",
+  };
+}
+
+// Portfolio chart range, holdings sort and tax-lot method (clarification 35, journey rule 2).
+export function normalizePortfolioPrefs(value) {
+  const v = value && typeof value === "object" ? value : {};
+  return {
+    range: ["24h", "7D", "1M", "3M", "1Y", "ALL"].includes(v.range) ? v.range : "1M",
+    sort: ["value", "pnl", "pnlPct", "name"].includes(v.sort) ? v.sort : "value",
+    taxMethod: v.taxMethod === "average" ? "average" : "fifo",
   };
 }
 
