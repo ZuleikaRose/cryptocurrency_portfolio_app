@@ -216,8 +216,9 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
     <Sheet open={open} onClose={onClose} title="Import transactions" side="bottom">
       <div className="tx-form">
         <p className="sheet-note">
-          A CSV with the columns <span className="mono">{CSV_COLUMNS.join(", ")}</span>. A CPA export works as is; other tools' headers such as
-          Timestamp, Asset, Side and Quantity are recognised. Up to {MAX_IMPORT_ROWS.toLocaleString("en-US")} rows; rows already in your portfolio are skipped.
+          A CPA export, an exchange export (Coinbase transaction history, Kraken trades or Binance spot trade history), or a CSV with the columns{" "}
+          <span className="mono">{CSV_COLUMNS.join(", ")}</span>. Up to {MAX_IMPORT_ROWS.toLocaleString("en-US")} rows; rows already in your portfolio are skipped.
+          The file is read on this device, and CPA never asks for exchange API keys.
         </p>
         <label className="form-field" htmlFor={inputId}>
           <span>CSV file</span>
@@ -237,7 +238,9 @@ function ImportSheet({ open, onClose, coins, transactions, onImport }) {
             <p className="num">
               {result.name}: {count} {count === 1 ? "transaction" : "transactions"} ready
               {result.skipped.length > 0 && `, ${result.skipped.length} skipped`}.
+              {result.format && ` Read as ${result.format}.`}
             </p>
+            {result.notes.length > 0 && <p className="sheet-note">{result.notes.join(" ")}</p>}
             {result.skipped.length > 0 && (
               <ul className="import-skipped">
                 {result.skipped.slice(0, 20).map((item) => (
@@ -605,7 +608,7 @@ export default function Portfolio() {
         <div className="import-row csv-row">
           <span>
             <strong>Transactions as CSV</strong>
-            <small>For spreadsheets and tax tools, or to bring trades in from elsewhere.</small>
+            <small>For spreadsheets and tax tools, or to bring trades in from Coinbase, Kraken, Binance and other tools.</small>
           </span>
           <span className="csv-actions">
             <button className="button-secondary compact" onClick={exportCsv} disabled={!transactions.length}>Export</button>
