@@ -38,6 +38,7 @@ export const defaultSettings = {
   unlocks: { range: "week", watchlistOnly: false, minOne: false, sort: "share", view: "list" },
   fundraising: { sectors: [], types: [], minAmount: 0, maxAmount: null, days: 90, investor: "", sort: "newest" },
   portfolio: { range: "1M", sort: "value", taxMethod: "fifo" }, // clarification 35
+  coinMarkets: { sort: "volume", dir: "desc" }, // Coin detail › Markets (clarification 37)
 };
 
 export const AppContext = createContext(null);
@@ -77,6 +78,15 @@ export function normalizePortfolioPrefs(value) {
     range: ["24h", "7D", "1M", "3M", "1Y", "ALL"].includes(v.range) ? v.range : "1M",
     sort: ["value", "pnl", "pnlPct", "name"].includes(v.sort) ? v.sort : "value",
     taxMethod: v.taxMethod === "average" ? "average" : "fifo",
+  };
+}
+
+// Coin detail Markets table sort (clarification 37, journey rule 2).
+export function normalizeCoinMarketsPrefs(value) {
+  const v = value && typeof value === "object" ? value : {};
+  return {
+    sort: ["exchange", "price", "volume", "share"].includes(v.sort) ? v.sort : "volume",
+    dir: v.dir === "asc" ? "asc" : "desc",
   };
 }
 

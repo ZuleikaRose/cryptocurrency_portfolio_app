@@ -43,8 +43,7 @@ export const market = {
   "7d change": "variação 7d",
   "market cap": "capitalização de mercado",
   volume: "volume",
-  "; Coinbase (chart, 1h and 7d change, all-time high and low, in USD, UTC)":
-    "; Coinbase (gráfico, variação 1h e 7d, máxima e mínima históricas, em USD, UTC)",
+  "; {source} (chart, 1h and 7d change, all-time high and low, in USD, UTC)": "; {source} (gráfico, variação 1h e 7d, máxima e mínima históricas, em USD, UTC)",
   "CryptoRank ({fields}){coinbase}; other figures CPA sample data": "CryptoRank ({fields}){coinbase}; os demais números são dados de exemplo do CPA",
 
   // Home

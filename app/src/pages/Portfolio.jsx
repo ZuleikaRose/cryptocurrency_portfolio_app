@@ -11,7 +11,7 @@ import { ErrorBanner } from "../components/LoadState.jsx";
 import { researchFor } from "../data/research.js";
 import { arrow, direction, formatAmount, formatDate, formatPercent, formatPrice, formatSignedPrice, isoDay, MASK, rateFor } from "../lib/format.js";
 import { amountHeld, chartRange, computeHoldings, priceAt, rangePerformance, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
-import { closeDay, fetchPriceAt, usePriceHistories } from "../lib/history.js";
+import { closeDay, fetchPriceAt, historyLabelFor, historyProvider, usePriceHistories } from "../lib/history.js";
 import { chartSummary } from "../lib/chart.js";
 import { downloadText } from "../lib/clipboard.js";
 import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
@@ -68,7 +68,7 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
 
   const set = (patch) => setForm((current) => ({ ...current, ...patch }));
   const setPrice = (value) => set({ price: value.toFixed(value >= 1 ? 2 : 6) });
-  // The nearest Coinbase close for coins with history (clarification 28), sample history otherwise.
+  // The nearest Coinbase or Kraken close for coins with history (clarifications 28 and 36), sample history otherwise.
   const applyMarketPrice = async () => {
     if (!coin || errors.date) return;
     const time = new Date(form.date).getTime();
@@ -85,11 +85,11 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
         // A close stamped at midnight UTC is that day's daily close.
         const stamp = new Date(close.time).toISOString();
         setPriceNote(stamp.slice(11, 16) === "00:00"
-          ? t("Coinbase daily close for {date} (UTC).", { date: formatDate(closeDay(close.time)) })
-          : t("Coinbase close at {time} UTC.", { time: stamp.slice(0, 16).replace("T", " ") }));
+          ? t("{source} daily close for {date} (UTC).", { source: historyProvider(coin.id), date: formatDate(closeDay(close.time)) })
+          : t("{source} close at {time} UTC.", { source: historyProvider(coin.id), time: stamp.slice(0, 16).replace("T", " ") }));
       } else {
         setPrice(priceAt(coin, time));
-        setPriceNote(t("No Coinbase close for that date, so this is CPA sample data."));
+        setPriceNote(t("No {source} close for that date, so this is CPA sample data.", { source: historyProvider(coin.id) }));
       }
     } catch (error) {
       console.error(`Market price lookup failed: ${error.message}`);
@@ -444,17 +444,18 @@ function Disclaimer() {
   return (
     <p className="disclaimer">
       {t("Not financial advice. Data provided for informational purposes.")}{" "}
-      {t("Prices: CryptoRank (live) and Coinbase closes (history) where available, CPA sample data otherwise.")}
+      {t("Prices: CryptoRank (live) and Coinbase or Kraken closes (history) where available, CPA sample data otherwise.")}
     </p>
   );
 }
 
-// Names the price source under the value chart (clarification 28).
+// Names the price source under the value chart (clarifications 28 and 36).
 function chartSource(ids, series, coins) {
+  const live = ids.filter((id) => series.has(id));
   const sample = ids.filter((id) => !series.has(id)).map((id) => coins.find((coin) => coin.id === id)?.symbol ?? id);
-  if (!sample.length) return t("Coinbase closes, USD, UTC");
-  if (sample.length === ids.length) return t("CPA sample data");
-  return t("Coinbase closes, USD, UTC; CPA sample data for {coins}", { coins: sample.join(", ") });
+  if (!live.length) return t("CPA sample data");
+  if (!sample.length) return historyLabelFor(live);
+  return t("{closes}; CPA sample data for {coins}", { closes: historyLabelFor(live), coins: sample.join(", ") });
 }
 
 export default function Portfolio() {

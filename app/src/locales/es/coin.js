@@ -41,6 +41,9 @@ export const coin = {
   Listing: "Cotización",
   "Chart: {source}": "Gráfico: {source}",
   "Coinbase closes, USD, UTC": "Cierres de Coinbase, USD, UTC",
+  "Kraken closes, USD, UTC": "Cierres de Kraken, USD, UTC",
+  "Coinbase and Kraken closes, USD, UTC": "Cierres de Coinbase y Kraken, USD, UTC",
+  "Kraken SKY closes × 24,000 (MKR converted to SKY), USD, UTC": "Cierres de SKY en Kraken × 24.000 (MKR convertido a SKY), USD, UTC",
   "CPA sample data": "Datos de muestra de CPA",
   Event: "Evento",
   "Funding round": "Ronda de financiación",
@@ -153,8 +156,8 @@ export const coin = {
     "Tokens aún en vesting. Se liberan según un calendario y pueden añadir presión vendedora al desbloquearse.",
   "How the maximum supply splits between circulating, unlocked but not circulating, and still locked.":
     "Cómo se reparte el suministro máximo entre lo que circula, lo desbloqueado sin circular y lo que sigue bloqueado.",
-  "All-time high and low: the highest and lowest daily closing prices on record. Coins with a Coinbase chart use its history; the rest use sample data.":
-    "Máximo y mínimo históricos: los precios de cierre diario más alto y más bajo registrados. Las monedas con gráfico de Coinbase usan su historial; el resto usa datos de muestra.",
+  "All-time high and low: the highest and lowest daily closing prices on record. Coins with a Coinbase or Kraken chart use its history; the rest use sample data.":
+    "Máximo y mínimo históricos: los precios de cierre diario más alto y más bajo registrados. Las monedas con gráfico de Coinbase o Kraken usan su historial; el resto usa datos de muestra.",
   "Facts that can make a price move more: large unlocks soon, thin trading, or a small share of supply circulating. Each uses a fixed threshold. They aren't a rating or advice.":
     "Hechos que pueden hacer que un precio se mueva más: grandes desbloqueos próximos, poca negociación o una parte pequeña del suministro en circulación. Cada uno usa un umbral fijo. No son una calificación ni un consejo.",
   "Return on investment: current price divided by the round's token price.":

@@ -1,18 +1,19 @@
-// Fetches Coinbase Exchange candles for the live coins and writes their closes into
-// cpa.coin_prices, and 1h change and the 7d sparkline into cpa.coins (price_history migration).
+// Fetches Coinbase Exchange candles for the live coins (Kraken for the three Coinbase lacks) and
+// writes their closes into cpa.coin_prices, and 1h change and the 7d sparkline into cpa.coins
+// (price_history migration).
 // Called by pg_cron every 15 minutes. The app reads chart ranges through cpa.price_history().
 //
 // The function is public: pg_cron calls it without a secret. cpa.claim_price_history_sync() lets a
 // run start at most once every 10 minutes, so extra calls can't multiply requests to Coinbase.
 // It reads nothing from the request, rejects bodies over 1 KB, answers browsers only from the
 // origins in ALLOWED_ORIGINS (CORS), and never returns error details: those go to the function
-// logs and the server-only cpa.price_history_sync row. Coinbase's candles need no key.
+// logs and the server-only cpa.price_history_sync row. Coinbase's and Kraken's candles need no key.
 import { createClient } from "@supabase/supabase-js";
 
 const CANDLES_URL = "https://api.exchange.coinbase.com/products";
 // Coinbase products per CPA coin. The later ones cover days before a ticker change (POL and
-// RENDER replaced MATIC and RNDR), so only backfill reads them. TRON and USDC have no USD
-// product and Maker's was delisted, so they keep sample charts.
+// RENDER replaced MATIC and RNDR), so only backfill reads them. TRON, USDC and Maker come from
+// KRAKEN below.
 const PRODUCTS: Record<string, string[]> = {
   bitcoin: ["BTC-USD"], ethereum: ["ETH-USD"], tether: ["USDT-USD"], bnb: ["BNB-USD"],
   solana: ["SOL-USD"], xrp: ["XRP-USD"], dogecoin: ["DOGE-USD"], zcash: ["ZEC-USD"],
@@ -24,6 +25,17 @@ const PRODUCTS: Record<string, string[]> = {
   arbitrum: ["ARB-USD"], injective: ["INJ-USD"], celestia: ["TIA-USD"], ondo: ["ONDO-USD"],
   aave: ["AAVE-USD"],
 };
+// Kraken pairs for the coins Coinbase lacks (clarification 36). Maker became SKY at a fixed
+// 24,000 SKY per MKR, so Maker's closes are SKY's times 24,000; the app names this under its chart.
+// Keep in step with HISTORY_SOURCES in app/src/lib/history.js.
+const KRAKEN: Record<string, { pair: string; scale: number }> = {
+  tron: { pair: "TRXUSD", scale: 1 },
+  "usd-coin": { pair: "USDCUSD", scale: 1 },
+  maker: { pair: "SKYUSD", scale: 24_000 },
+};
+const KRAKEN_URL = "https://api.kraken.com/0/public/OHLC";
+// Kraken has no 6-hour candles: the 6-hour slot reads hourly ones and keeps every sixth.
+const KRAKEN_MINUTES: Record<number, number> = { 900: 15, 3600: 60, 21600: 60, 86400: 1440 };
 
 // Candle sizes in seconds and how long their closes are useful (the migration prunes the rest).
 const GRANULARITIES = [
@@ -36,6 +48,8 @@ const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
 // Coinbase allows 10 public requests a second and returns at most 300 candles a request.
 const REQUEST_GAP_MS = 125;
+// Kraken's public limit is about one request a second; it returns the latest 720 candles.
+const KRAKEN_GAP_MS = 1100;
 const REQUEST_TIMEOUT_MS = 10_000;
 const BACKFILL_PER_RUN = 31;
 const BACKFILL_DAYS = 299;
@@ -98,12 +112,39 @@ async function candles(product: string, seconds: number, window?: { start: numbe
   return closes.sort((a, b) => a.at - b.at);
 }
 
-// Runs the requests about 8 a second, concurrently. Each result is the closes or an Error.
-async function throttled<T>(tasks: (() => Promise<T>)[]): Promise<(T | Error)[]> {
-  return await Promise.all(tasks.map(async (task, index) => {
-    await sleep(index * REQUEST_GAP_MS);
+// Kraken closes for a coin in KRAKEN, scaled, stamped at each candle's close, oldest first.
+// Kraken returns only its latest 720 candles, so there is no earlier page to backfill.
+async function krakenCandles(coin: string, seconds: number): Promise<{ at: number; price: number }[]> {
+  const { pair, scale } = KRAKEN[coin];
+  const minutes = KRAKEN_MINUTES[seconds];
+  const response = await fetch(`${KRAKEN_URL}?${new URLSearchParams({ pair, interval: String(minutes) })}`, {
+    headers: { Accept: "application/json", "User-Agent": "cpa-price-history" },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`${pair} ${seconds}s returned ${response.status}`);
+  const body = await response.json();
+  const rows = body?.result?.[pair];
+  if (!Array.isArray(rows) || (Array.isArray(body.error) && body.error.length)) throw new Error(`${pair} ${seconds}s returned an unexpected format`);
+  const now = Date.now();
+  const closes: { at: number; price: number }[] = [];
+  // Each candle is [time, open, high, low, close, vwap, volume, count], oldest first; the last is still open.
+  for (const candle of rows) {
+    if (!Array.isArray(candle)) continue;
+    const at = (Number(candle[0]) + minutes * 60) * 1000;
+    const price = Number(candle[4]) * scale;
+    if (!Number.isFinite(at) || at > now || !Number.isFinite(price) || price <= 0) continue;
+    if (seconds === 21600 && at % (seconds * 1000) !== 0) continue;
+    closes.push({ at, price });
+  }
+  return closes;
+}
+
+// Runs each task after its delay, concurrently. Each result is the closes or an Error.
+async function throttled<T>(tasks: { delay: number; run: () => Promise<T> }[]): Promise<(T | Error)[]> {
+  return await Promise.all(tasks.map(async ({ delay, run }) => {
+    await sleep(delay);
     try {
-      return await task();
+      return await run();
     } catch (error) {
       return error instanceof Error ? error : new Error(String(error));
     }
@@ -150,9 +191,11 @@ Deno.serve(async (req) => {
   try {
     const claim = claimed as Claim;
     const now = Date.now();
-    const coins = claim.coins.filter((coin) => PRODUCTS[coin.id]);
-    const skipped = new Set(claim.coins.filter((coin) => !PRODUCTS[coin.id]).map((coin) => coin.id));
-    const backfilled = new Set(claim.backfilled);
+    const sourced = (id: string) => Boolean(PRODUCTS[id] || KRAKEN[id]);
+    const coins = claim.coins.filter((coin) => sourced(coin.id));
+    const skipped = new Set(claim.coins.filter((coin) => !sourced(coin.id)).map((coin) => coin.id));
+    // Kraken's daily request already returns all it has.
+    const backfilled = new Set([...claim.backfilled, ...coins.filter((coin) => KRAKEN[coin.id]).map((coin) => coin.id)]);
 
     // A size is due when its last fetch is older than its candle (hourly at most).
     const due = GRANULARITIES.filter(({ seconds }) => {
@@ -170,7 +213,11 @@ Deno.serve(async (req) => {
       jobs.push({ coin: coin.id, seconds: 86400, backfill: { products: PRODUCTS[coin.id], end: coin.oldest - DAY_MS } });
     }
 
-    const results = await throttled(jobs.map((job) => async () => {
+    const run = async (job: Job) => {
+      if (KRAKEN[job.coin]) {
+        requests += 1;
+        return await krakenCandles(job.coin, job.seconds);
+      }
       if (!job.backfill) {
         requests += 1;
         return await candles(PRODUCTS[job.coin][0], job.seconds);
@@ -183,6 +230,13 @@ Deno.serve(async (req) => {
       }
       backfilled.add(job.coin);
       return [];
+    };
+    // Coinbase and Kraken requests are paced separately and run side by side.
+    let coinbaseIndex = 0;
+    let krakenIndex = 0;
+    const results = await throttled(jobs.map((job) => {
+      const kraken = Boolean(KRAKEN[job.coin]);
+      return { delay: kraken ? krakenIndex++ * KRAKEN_GAP_MS : coinbaseIndex++ * REQUEST_GAP_MS, run: () => run(job) };
     }));
 
     // Closes per coin and size; a size counts as fetched only when every coin's request worked.
@@ -206,12 +260,12 @@ Deno.serve(async (req) => {
     for (const coin of coins) {
       const sizes = byCoin.get(coin.id);
       if (!sizes) continue;
-      // Check the product is the same asset CryptoRank prices (e.g. a rebranded ticker).
+      // Check the product is the same asset CryptoRank prices (e.g. a rebranded ticker, or SKY's scale).
       const latest = [900, 3600, 21600, 86400].map((seconds) => sizes.get(seconds)?.at(-1)).find(Boolean);
       const live = Number(coin.price);
       if (latest && live > 0 && Math.abs(latest.price / live - 1) > MAX_PRICE_GAP) {
         skipped.add(coin.id);
-        console.error(`price-history-sync: ${coin.id} Coinbase ${latest.price} vs CryptoRank ${live}; skipped`);
+        console.error(`price-history-sync: ${coin.id} history ${latest.price} vs CryptoRank ${live}; skipped`);
         continue;
       }
       for (const [seconds, closes] of sizes) {

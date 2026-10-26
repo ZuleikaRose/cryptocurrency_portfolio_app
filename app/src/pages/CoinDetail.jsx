@@ -20,7 +20,7 @@ import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 import { coinSource } from "../lib/market.js";
-import { closeDay, usePriceHistory, withLivePrice } from "../lib/history.js";
+import { closeDay, historyLabel, historyProvider, usePriceHistory, withLivePrice } from "../lib/history.js";
 import { locale, t, tn } from "../lib/i18n.js";
 import { copyText } from "../lib/clipboard.js";
 
@@ -156,7 +156,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
           </p>
         )}
         {points && <ChartSummary text={chartSummary(points, range.label, currency, rate)} />}
-        <p className="muted-line chart-source">{t("Chart: {source}", { source: real ? t("Coinbase closes, USD, UTC") : waiting ? "Coinbase" : t("CPA sample data") })}</p>
+        <p className="muted-line chart-source">{t("Chart: {source}", { source: real ? historyLabel(coin.id) : waiting ? historyProvider(coin.id) : t("CPA sample data") })}</p>
       </section>
 
       <dl className="stats">
@@ -367,7 +367,9 @@ function Funding({ coin, research, currency, rate }) {
 }
 
 function Markets({ coin, research, currency, rate }) {
-  const [sort, setSort] = useState({ key: "volume", dir: "desc" });
+  // Remembered per account (clarification 37, journey rule 2).
+  const { settings, updateSettings } = useApp();
+  const sort = { key: settings.coinMarkets.sort, dir: settings.coinMarkets.dir };
   const rows = research.markets
     .map((market) => ({ ...market, price: coin.price * market.priceOffset, volume: coin.volume24h * market.share }))
     .sort((a, b) => {
@@ -381,7 +383,7 @@ function Markets({ coin, research, currency, rate }) {
     ["volume", t("24h volume")],
     ["share", t("Share")],
   ];
-  const onSort = (key) => setSort((current) => ({ key, dir: current.key === key && current.dir === "desc" ? "asc" : "desc" }));
+  const onSort = (key) => updateSettings({ coinMarkets: { sort: key, dir: sort.key === key && sort.dir === "desc" ? "asc" : "desc" } });
 
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label={t("Markets for {name}", { name: coin.name })}>

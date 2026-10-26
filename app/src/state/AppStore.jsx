@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi, normalizeFundraisingFilters, normalizePortfolioPrefs, normalizeUnlockPrefs, useMarket } from "./context.js";
+import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi, normalizeCoinMarketsPrefs, normalizeFundraisingFilters, normalizePortfolioPrefs, normalizeUnlockPrefs, useMarket } from "./context.js";
 import { prefersMoreContrast, prefersReducedMotion, summarySizes } from "../lib/a11y.js";
 import { initialCoins } from "../data/coins.js";
 import { researchFor } from "../data/research.js";
@@ -246,6 +246,7 @@ function normalizeStored(rawStored) {
       unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
       fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
       portfolio: normalizePortfolioPrefs(stored.settings?.portfolio),
+      coinMarkets: normalizeCoinMarketsPrefs(stored.settings?.coinMarkets),
       a11y: normalizeA11y(stored.settings?.a11y),
       ai: normalizeAi(stored.settings?.ai),
       quietHours: { ...defaultSettings.quietHours, ...(stored.settings?.quietHours && typeof stored.settings.quietHours === "object" ? stored.settings.quietHours : {}) },

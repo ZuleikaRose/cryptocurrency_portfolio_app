@@ -427,6 +427,10 @@ CREATE TABLE user_settings (
   portfolio_sort       text NOT NULL DEFAULT 'value' CHECK (portfolio_sort IN ('value', 'pnl', 'pnlPct', 'name')),
   portfolio_tax_method text NOT NULL DEFAULT 'fifo' CHECK (portfolio_tax_method IN ('fifo', 'average')),  -- lib/taxlots.js
 
+  -- Coin detail › Markets table (03-coin-detail.md, journey rule 2)
+  coin_markets_sort text NOT NULL DEFAULT 'volume' CHECK (coin_markets_sort IN ('exchange', 'price', 'volume', 'share')),
+  coin_markets_dir  text NOT NULL DEFAULT 'desc' CHECK (coin_markets_dir IN ('asc', 'desc')),
+
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TRIGGER user_settings_touch BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
