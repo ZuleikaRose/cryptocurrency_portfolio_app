@@ -33,7 +33,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 ## Fixed decisions
 
 - **Name:** "CPA", not CryptoRank. The style guide and stories say CryptoRank; adapt that text to CPA.
-- **Bottom nav:** 7 tabs: Home, Market, Explore, Funding, Unlocks, Watchlist, Portfolio. No "More" tab. (The style guide's 5-tab bar is superseded.)
+- **Bottom nav:** 7 tabs: Home, Market, Explore, Funding, Unlocks, Watchlist, Portfolio. No "More" tab. (The style guide's 5-tab bar is superseded.) From 1024px the same nav is a sidebar.
 - **Data:**
   - Market data (coins, funds, rounds, unlocks, sales) is sample data in `src/data/`. `supabase/seed` loads the same data into the `cpa` reference tables.
   - **Live prices** (user's decision, Oct 18, 2026; `prompt.md` clarification 14):
@@ -55,7 +55,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
   - Simulated billing lives in `user_state.simulated_billing`. `subscriptions` and `billing_history` stay server-only. Account deletion and data removal go through `cpa.delete_my_account()` and `cpa.erase_my_data()`.
   - The browser keeps only the Auth session (`cpa:v1:auth`). Other `localStorage` access goes through `lib/storage.js` (`readJson`, `writeJson`, `removeKey`); check the boolean result of every write.
 - **Streaming wording:** some source text talks about streaming (autoplay, captions, "episodes"). Adapt it to crypto equivalents such as auto-refresh and chart summaries.
-- **Layout:** a phone-width shell (`--shell-width: 440px`) that's also usable on desktop, where it sits in a centred frame.
+- **Layout** (`prompt.md` clarification 31): phone layout below 700px (`--shell-width: 440px`); full width from 700px with pages up to `--page-width`; a sidebar nav from 1024px. Breakpoints live in `styles/responsive.css`. Check new pages at 390, 768, 1024 and 1440px, and in landscape at 844×390.
 - **Stack:** React 19, Vite 8, react-router-dom 7 with `BrowserRouter`. Navigations run in `startTransition`.
 
 ## Data model rules

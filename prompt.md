@@ -46,7 +46,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 7. `lookup.py` uses the CryptoRank API and returns the rank as an integer. Since Oct 25, 2026 (clarification 22) it gets the data through the `cryptorank-lookup` Edge Function, which holds the key, instead of reading the key from `.env`.
 8. **Never commit the API key to the repository or share it publicly. Use environment variables to keep it secure.**
 9. All the support and info pages are built.
-10. The layout is a phone-width app shell that's also usable on desktop.
+10. The layout is a phone-width app shell that's also usable on desktop. Clarification 31 makes it responsive.
 11. **Accounts moved to Supabase (Oct 17, 2026).** This replaces "Real accounts persist in the browser's `localStorage`" in clarification 5.
     - Sign-in uses Supabase Auth with email and password.
     - Account data is stored in the `cpa` schema through the Supabase REST API, with row-level security on every table.
@@ -80,6 +80,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 28. **Portfolio performance and tax-lot report (Oct 26, 2026).** The Portfolio value chart uses Coinbase closes for coins that have them (sample history for the rest) and names its source. The summary splits all-time P&L into unrealized and realized, and the chart shows P&L over the chosen range (value change less money put in, plus money taken out). "Use market price" fills the nearest Coinbase close (`cpa.price_at`). A tax-lot report matches each sell to its lots by FIFO (with short- and long-term) or average cost, and downloads as CSV in USD. It's derived from transactions, never stored, and says it isn't tax advice.
 29. **Exchange CSV import (Oct 26, 2026).** The transactions CSV import also reads Coinbase transaction history, Kraken trades and Binance spot trade history exports, in the browser. Coinbase converts become a sell and a buy, and rewards and staking income become transfers in at that day's price. Prices must be in US dollars; USD stablecoin prices count 1:1, and the preview says so. Rows in other currencies, cash deposits and moves inside an exchange are skipped with a reason. CPA never asks for exchange API keys.
 30. **Spanish translation (Oct 26, 2026).** The whole interface is available in Spanish as well as English. Guests start in the browser's language; anyone can switch in the menu, and accounts also in Settings › Preferences, where the choice is saved (`user_settings.language`). Numbers and dates follow the language (decimal comma, "mil M" for billions). Stored data (CSV formats, transaction notes, saved notifications) stays as written. Legal pages say the English version prevails.
+31. **Responsive layout (Oct 26, 2026).** CPA adapts to phones, tablets, notebooks and desktops (Windows, macOS, Linux and ChromeOS, in current Chrome, Edge, Firefox and Safari). Below 700px it keeps the phone layout. From 700px it fills the width with pages up to 760px wide. From 1024px the seven tabs become a sidebar and pages grow to 1,120px (1,200px from 1440px). Phones in landscape get a shorter top bar and nav. This replaces the centred phone frame on desktop.
 
 # Required material from the outline documents
 
