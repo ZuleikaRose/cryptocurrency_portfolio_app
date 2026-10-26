@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import Sheet from "./Sheet.jsx";
 import { profiles, resetPatch, toggleProfile } from "../lib/a11y.js";
-import { t } from "../lib/i18n.js";
+import { languages, t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
 
 function Stepper({ label, value, display, min, max, step, onChange }) {
@@ -87,6 +87,25 @@ export default function AccessibilityMenu({ open, onClose, onShowShortcuts }) {
           </button>
         </div>
         <p className="visually-hidden" role="status" aria-live="polite">{status}</p>
+
+        {/* Language (clarification 30): names in their own language, so either is findable. */}
+        <section aria-labelledby="a11y-language">
+          <h3 id="a11y-language">{t("Language")}</h3>
+          <div className="segmented wrap" role="group" aria-labelledby="a11y-language">
+            {languages.map((language) => (
+              <button
+                key={language.id}
+                type="button"
+                lang={language.id}
+                className={settings.language === language.id ? "segment active" : "segment"}
+                aria-pressed={settings.language === language.id}
+                onClick={() => setApp({ language: language.id }, language.label)}
+              >
+                {language.label}
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section aria-labelledby="a11y-profiles">
           <h3 id="a11y-profiles">{t("Profiles")}</h3>
