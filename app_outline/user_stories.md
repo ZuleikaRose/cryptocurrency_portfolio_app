@@ -292,6 +292,24 @@
 ### US-9.6 Account deletion · P0 · 2 pts
 **As a** user, **I want** to delete my account and data from inside the app **so that** I control my privacy (App Store and Google Play requirement).
 
+### US-9.7 Spanish interface · P1 · 5 pts
+**As a** Spanish speaker, **I want** to use the whole app in Spanish **so that** I understand every figure, warning and setting.
+
+- Every screen, message, alert and screen-reader label is available in Spanish; prices, percentages and dates use Spanish formats.
+- The language follows the browser on first visit, can be changed at any time, and is saved to the account.
+- Each language is named in its own language ("English", "Español"), so a user can find theirs whichever language is showing.
+
+> **CPA build (Oct 26, 2026):** English and Spanish (clarification 30). Language is in the main menu, the Accessibility menu and Settings › Preferences, and is saved in `user_settings.language`. Spanish shows `80.156,48 $`, `2,88 B $` and `26 oct 2026`. Exported CSV formats and saved transaction notes stay in English so imports keep working, and the legal pages say the English version prevails.
+
+### US-9.8 Any screen size · P1 · 5 pts
+**As** Priya at her desk or Leo on a tablet, **I want** CPA to use the whole screen **so that** I can read more at once without a phone-sized column.
+
+- Phones keep the bottom nav; tablets fill the width; notebooks and desktops show the tabs as a sidebar.
+- Nothing scrolls sideways at any width or at 200% text, in portrait or landscape.
+- Works in current Chrome, Edge, Firefox and Safari on Windows, macOS, Linux, ChromeOS, iOS and Android.
+
+> **CPA build (Oct 26, 2026):** phone layout below 700px, full width from 700px, and a sidebar from 1024px with pages up to 1,120px (clarification 31). Checked at 390, 768, 1024, 1366, 1440 and 1920px and in landscape at 844×390, in Chrome and Firefox. Safari is still to be checked.
+
 ---
 
 ## Non-Functional Requirements
@@ -305,7 +323,8 @@
 | Privacy | Analytics opt-out; no sale of personal data; GDPR/CCPA-compliant data export and delete |
 | Accessibility | WCAG 2.2 AA equivalent; Dynamic Type up to 200% |
 | Compliance | "Not financial advice" disclaimer on Coin Detail, Token Sales, and Portfolio |
-| Localization | String externalization from day 1; launch in EN, with RU/UK/ES/ZH/KO/TR as follow-ups |
+| Localization | String externalization from day 1; launch in EN, with RU/UK/ES/ZH/KO/TR as follow-ups. CPA build: EN and ES (US-9.7) |
+| Devices | Phones, tablets, notebooks and desktops in current browsers (US-9.8) |
 
 ---
 

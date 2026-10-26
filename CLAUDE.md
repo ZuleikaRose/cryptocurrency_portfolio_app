@@ -133,7 +133,8 @@ Before changing a page, read its spec and the stories it cites. Before storing a
   - Sheets trap focus, close on Escape and return focus to the trigger.
   - Route changes announce the title and move focus to `<main>` (AppShell).
 - **Text size:** works to 200% without truncating prices. Above 130%, `data-text-large="on"` stacks tables and grids, and nothing scrolls sideways.
-- **Pages:** each page sets `document.title` to `"<Page> · CPA"` and has exactly one `h1`.
+- **Pages:** each page sets `document.title` to `"<Page> · CPA"` (translated with `t()`) and has exactly one `h1`.
+- **Label in name:** a control's accessible name starts with its visible text (WCAG 2.5.3).
 
 ## Journey rules (user_journey.md §8)
 
@@ -146,6 +147,8 @@ Before changing a page, read its spec and the stories it cites. Before storing a
    - Sign-in is required only for alerts, a saved portfolio and the like. Use `requireAuth(reason, action)`.
    - The pending action completes after sign-in, and guest data merges into the new account.
 7. **Safe imports:** wallet import takes a public address only. Refuse anything that looks like a recovery phrase or private key before it leaves the device (US-6.4). Exchanges come in as exported CSV files read on the device, never as API keys (clarification 29).
+8. **Language:** English or Spanish from the main menu, the Accessibility menu and Settings, for guests too (US-9.7, clarifications 30 and 32). Name each language in its own language with its own `lang`.
+9. **Any screen:** phone, tablet and desktop layouts (US-9.8, clarification 31).
 
 ## Targets (user_journey.md §7, user_stories.md non-functional requirements)
 
