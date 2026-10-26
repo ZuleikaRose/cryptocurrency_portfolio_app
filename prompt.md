@@ -74,7 +74,7 @@ The prompts behind them, with their commits, are in `prompt_records.md`.
 22. **`lookup.py` uses the stored CryptoRank key (Oct 25, 2026).** `CRYPTORANK_API_KEY`, `API_V3_URL`, `ALLOWED_ORIGINS` and `ETHERSCAN_API_KEY` are Edge Function secrets. Supabase never returns a secret, so `lookup.py` calls the `cryptorank-lookup` Edge Function, which does the lookup with the key, within a 60-credit daily budget (`cryptorank_lookup_usage`).
 23. **Hosting on Vercel (Oct 25, 2026).** CPA is live at https://cpa-black.vercel.app. The Vercel project `cpa` (root directory `app`) is connected to GitHub: merging to `main` deploys production, and branches and PRs get previews. Vercel holds only the two `VITE_` variables. `ALLOWED_ORIGINS` includes the hosted origin, and Supabase Auth redirects allow it.
 24. **Wallet import cost basis (Oct 25, 2026).** Imported transfers are dated and priced per UTC day from the address's history (Coinbase daily closes), with an opening balance for partial history and adjustments at today's price; "Rebuild from history" replaces earlier rows (US-6.4).
-25. **Sparkline direction (Oct 25, 2026).** The 7-day sparkline stays sample data, but its direction must match the live 7d change and its colour.
+25. **Sparkline direction (Oct 25, 2026).** The 7-day sparkline stays sample data, but its direction must match the live 7d change and its colour. Clarification 26 replaces it with Coinbase closes for the 31 coins Coinbase lists; this still applies to the other three.
 26. **Real price history (Oct 26, 2026).** Coin detail charts, all-time high and low, 1h and 7d change and the list sparklines use Coinbase Exchange closes for the 31 live coins Coinbase lists (all but TRON, USDC and Maker). The `price-history-sync` Edge Function fills `coin_prices` every 15 minutes; the other coins keep sample charts, and every chart names its source. This supersedes clarification 25 for those coins.
 27. **Neutral risk indicators (Oct 26, 2026).** Coin detail shows "High unlock pressure", "Low liquidity" and "Low float" when a coin crosses a fixed threshold, with its own figures and the threshold in plain words. They're facts, never a score, rating or advice.
 28. **Portfolio performance and tax-lot report (Oct 26, 2026).** The Portfolio value chart uses Coinbase closes for coins that have them (sample history for the rest) and names its source. The summary splits all-time P&L into unrealized and realized, and the chart shows P&L over the chosen range (value change less money put in, plus money taken out). "Use market price" fills the nearest Coinbase close (`cpa.price_at`). A tax-lot report matches each sell to its lots by FIFO (with short- and long-term) or average cost, and downloads as CSV in USD. It's derived from transactions, never stored, and says it isn't tax advice.
@@ -187,12 +187,12 @@ P1 and P2 stories (gainers/losers, Simple/Pro density, event markers, saved filt
 
 ## Data model (schema.sql, drawsql.png)
 
-`schema.sql` models every feature and setting as 52 PostgreSQL tables (55 foreign keys, 3 views) in the `cpa` schema. `drawsql.png` draws them in eight groups:
+`schema.sql` models every feature and setting as 53 PostgreSQL tables (55 foreign keys, 3 views) in the `cpa` schema. `drawsql.png` draws them in eight groups:
 
 | Group | Tables |
 |---|---|
 | Reference | categories, plans, promotions, faq_sections, faq_items, learn_articles, glossary_terms |
-| Market | coins, coin_prices, exchanges, coin_markets, market_sync, cryptorank_lookup_usage |
+| Market | coins, coin_prices, exchanges, coin_markets, market_sync, price_history_sync, cryptorank_lookup_usage |
 | Research | vesting_schedules, vesting_allocations, unlock_events, funds, fund_sectors, funding_rounds, round_investors, token_sales |
 | Watchlist & portfolio | watchlist_items, watchlists, watchlist_list_coins, recent_coins, recent_searches, sentiment_votes, transactions, wallet_lookup_quota, user_interest_coins, user_interest_sectors, fund_follows, project_follows |
 | Accounts | users, sessions, login_attempts, password_reset_tokens, password_reset_requests, user_state, affiliates |

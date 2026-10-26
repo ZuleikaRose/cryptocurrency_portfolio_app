@@ -96,6 +96,8 @@
 - A stacked bar shows circulating, unlocked-not-circulating, and locked supply.
 - Each metric has an ⓘ tooltip with a plain-language definition.
 
+> **CPA build (Oct 26, 2026; clarification 27):** below the stats, a "Risk indicators (not advice)" card flags high unlock pressure, low liquidity and low float against fixed thresholds, stating the coin's figures and the threshold, never a score or advice.
+
 ### US-3.4 Vesting schedule · P0 · 5 pts
 **As** Daniel, **I want** the vesting schedule broken down by allocation (team, investors, ecosystem) **so that** I know who can sell and when.
 
@@ -275,6 +277,8 @@
 - "Last updated" is shown on every data screen. Data more than 5 minutes old is visibly marked as stale.
 
 > **CPA build (Oct 18, 2026):** "Last updated" uses the time CryptoRank reported the figures (`coins.price_updated_at`), not the time of the last poll. Coin detail names the source of each figure: CryptoRank for price, 24h change, market cap and volume on synced coins, CPA sample data for the rest.
+
+> **CPA build (Oct 26, 2026):** price charts name their source underneath ("Coinbase closes, USD, UTC" or "CPA sample data"); Portfolio names any coins on sample data; "Use market price" says which close it used; and the Portfolio disclaimer names CryptoRank, Coinbase and sample data.
 
 ### US-9.5 Offline mode · P1 · 3 pts
 **As a** commuter, **I want** to see my last-loaded data offline **so that** the app still works on the subway.

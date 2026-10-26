@@ -47,6 +47,8 @@
 | **Pain points**   | Copycat tokens with the same ticker                               | Vesting info is buried                                               | Can't compare side by side on a phone                                        | Manual entry is tedious                             | No context for why the price moved                      |
 | **Opportunities** | Verified badge, contract address, and market cap shown in results | "Supply at a glance" bar: circulating / locked / unlocked            | Swipeable compare cards (up to 3)                                            | Show "Your entry vs. seed / private / public price" | Link price moves to events (unlocks, listings, funding) |
 
+> **CPA build (Oct 26, 2026):** *Decide* is less tedious: "Use market price" fills the nearest Coinbase close for the chosen time, and trades can come in from Coinbase, Kraken or Binance CSV exports instead of being typed. *Monitor* answers "is this still a good bet?" with facts: a value chart on Coinbase closes, P&L over the chosen range, all-time P&L split into unrealized and realized, and a FIFO or average-cost tax-lot report. None of it is advice.
+
 ---
 
 ## 4. Journey Map: Priya, the VC / Fund Analyst
@@ -78,6 +80,8 @@
 | **Feeling**       | 😰 Overwhelmed                          | 🙂 Relieved                                     | 😀                                                   | 😀                                              | 😄 Confident                                                                                  |
 | **Pain points**   | Dense table on the first screen         | Jargon everywhere                               | —                                                   | Widget needs setup                              | Doesn't know what's risky                                                                     |
 | **Opportunities** | "Simple view" toggle with fewer columns | Tap-to-explain ⓘ on every metric               | Pre-filled watchlist from interests                  | Prompt to add the widget after 3 sessions       | Neutral risk indicators (high unlock pressure, low liquidity) with explanations, never advice |
+
+> **CPA build (Oct 26, 2026):** Coin detail has a "Risk indicators (not advice)" card. It flags high unlock pressure (2% or more of circulating supply in 30 days), low liquidity (under $5M or 0.1% of market cap traded in 24h) and low float (under 30% of maximum supply circulating), each with the coin's own figures and the threshold. With none, it says so. There's no score and no suggestion to act.
 
 ---
 
@@ -154,11 +158,13 @@ flowchart LR
 3. **Event context:** tie price moves to unlocks, funding, and listings on the chart.
 4. **Trust signals:** data source, last-updated time, and verified contract on every key screen.
    > **CPA build (Oct 18, 2026):** live prices are labelled "CryptoRank" and sample figures "CPA sample data". The last-updated time is when CryptoRank reported the price, so a delayed sync shows as stale instead of looking fresh.
+   > **CPA build (Oct 26, 2026):** every price chart has a source line under it: "Chart: Coinbase closes, USD, UTC" or "Chart: CPA sample data", and on Portfolio the coins on sample data are named. A live coin's chart shows a skeleton while it loads, never sample data in its place.
 5. **Progressive disclosure:** "Simple" vs "Pro" density setting to serve both Leo and Maya.
 6. **Guest mode:** let users browse fully without an account. Require sign-in only for sync, alerts, and portfolio.
    > **CPA build (Oct 25, 2026):** CSV import and export and wallet import need sign-in, since they change a saved portfolio. What guests can send (support tickets, bug reports, feedback) is limited to fixed columns with length checks in the database.
 7. **Safe imports:** never ask for a recovery phrase or private key. Wallet import takes a public address only, and the app refuses anything that looks like a secret before it leaves the device (US-6.4).
    > **CPA build (Oct 25, 2026):** imports are also honest about cost: each transfer is priced on the day it happened, and the preview says when a price is missing or history was partial. For Daniel, that makes the portfolio's P&L a real one rather than "everything bought today".
+   > **CPA build (Oct 26, 2026):** exchanges come in as exported CSV files (Coinbase, Kraken, Binance), read on the device, never as API keys. The preview names the export it read, notes when USD stablecoin prices are counted as dollars, and gives a reason for every skipped row.
 
 
 

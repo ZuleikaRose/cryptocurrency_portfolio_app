@@ -53,7 +53,7 @@ CREATE TABLE coins (
   category         text NOT NULL REFERENCES categories (name),
   logo_tint        text,                                      -- fallback logo colour
   price_usd        numeric(30, 12) NOT NULL CHECK (price_usd >= 0),
-  change_1h        numeric(10, 4) NOT NULL DEFAULT 0,         -- percent
+  change_1h        numeric(10, 4) NOT NULL DEFAULT 0,         -- percent; from Coinbase 15-minute closes when history_updated_at is set
   change_24h       numeric(10, 4) NOT NULL DEFAULT 0,
   change_7d        numeric(10, 4) NOT NULL DEFAULT 0,
   market_cap_usd   numeric(24, 2) NOT NULL CHECK (market_cap_usd >= 0),
@@ -86,7 +86,7 @@ CREATE TRIGGER coins_touch BEFORE UPDATE ON coins FOR EACH ROW EXECUTE FUNCTION 
 -- returns the nearest close to a moment (the transaction sheet's "Use market price").
 CREATE TABLE coin_prices (
   coin_id   text NOT NULL REFERENCES coins (id) ON DELETE CASCADE,
-  at        timestamptz NOT NULL,
+  at        timestamptz NOT NULL,                               -- candle close (UTC); midnight = the previous day's daily close
   price_usd numeric(30, 12) NOT NULL CHECK (price_usd >= 0),
   volume_usd numeric(24, 2),
   PRIMARY KEY (coin_id, at)
