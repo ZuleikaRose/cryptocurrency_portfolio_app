@@ -166,7 +166,7 @@ flowchart LR
    > **CPA build (Oct 25, 2026):** imports are also honest about cost: each transfer is priced on the day it happened, and the preview says when a price is missing or history was partial. For Daniel, that makes the portfolio's P&L a real one rather than "everything bought today".
    > **CPA build (Oct 26, 2026):** exchanges come in as exported CSV files (Coinbase, Kraken, Binance), read on the device, never as API keys. The preview names the export it read, notes when USD stablecoin prices are counted as dollars, and gives a reason for every skipped row.
 8. **Their language:** open in the browser's language and let anyone switch, signed in or not (US-9.7). Leo shouldn't have to learn the app in a second language on top of the jargon.
-   > **CPA build (Oct 26, 2026):** English and Spanish. Language is in the main menu, the Accessibility menu and Settings, each option named in its own language, and an account remembers it.
+   > **CPA build (Oct 26, 2026):** English, Spanish and Portuguese (Brazil). Language is in the main menu, the Accessibility menu and Settings, each option named in its own language, and an account remembers it.
 9. **Any screen:** the same journeys work on a phone, a tablet and a desktop (US-9.8). Priya researches rounds at a desk, so a wide screen should show more at once, not a phone-sized column.
    > **CPA build (Oct 26, 2026):** bottom nav on phones, full-width pages on tablets, and a sidebar from 1024px wide.
 

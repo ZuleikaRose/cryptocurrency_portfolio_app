@@ -51,7 +51,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 - **Case and numbers:** sentence case; tickers uppercase; official project casing (dYdX). `$1.24B` / `$842.5M` / `$12.3K`, full precision on detail screens; signed 2-decimal percentages with a true minus (`−0.48%`); dates `Oct 17, 2026`, relative under 7 days ("in 3d 4h", "2h ago").
 - **Errors** are plain, blame-free and say what to do next ("We couldn't load prices." plus Retry). **Empty states:** one sentence, one action.
 - **Disclaimer** "Not financial advice. Data provided for informational purposes." on Coin detail, Fundraising, Token sales and Portfolio; the tax-lot report and row also say "Not tax advice".
-- **Localization** (clarifications 30 and 32): English and Spanish. Wrap every visible string in `t()` / `tn()` / `tc()` from `lib/i18n.js` (English text is the key) and add its Spanish to the area file in `src/locales/es/`. Format numbers and dates with `lib/format.js` or `locale()`, never `"en-US"` or `toFixed` for display. Keep stored data (CSV formats, transaction notes) in English. Name each language in its own language with its own `lang`.
+- **Localization** (clarifications 30, 32 and 34): English, Spanish and Portuguese (Brazil). Wrap every visible string in `t()` / `tn()` / `tc()` from `lib/i18n.js` (English text is the key) and add it to the area file in both `src/locales/es/` and `src/locales/pt/`; `npm run i18n:check` checks both, plus placeholders. Per-language number styles are in `lib/format.js` (`styles`). Format numbers and dates with `lib/format.js` or `locale()`, never `"en-US"` or `toFixed` for display. Keep stored data (CSV formats, transaction notes) in English. Name each language in its own language with its own `lang`.
 
 ## Design rules
 
@@ -69,7 +69,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 
 ## Journey rules (user_journey.md §8)
 
-1. Ask for notification permission only at the first alert or reminder, after an explanation. 2. Remember filters, sorts and chart ranges per tab in `settings`. 3. Unlock, funding and listing markers on price charts. 4. Source, last-updated time and verified contract on key screens. 5. Simple vs Pro density. 6. Full guest browsing; `requireAuth(reason, action)` only for alerts, saved portfolios and the like, finishing the action after sign-in and merging guest data. 7. Public addresses and exported CSV files only: refuse anything like a recovery phrase or private key before it leaves the device, never API keys. 8. English or Spanish from the menu, Accessibility menu or Settings, guests included (US-9.7). 9. Phone, tablet and desktop layouts (US-9.8).
+1. Ask for notification permission only at the first alert or reminder, after an explanation. 2. Remember filters, sorts and chart ranges per tab in `settings`. 3. Unlock, funding and listing markers on price charts. 4. Source, last-updated time and verified contract on key screens. 5. Simple vs Pro density. 6. Full guest browsing; `requireAuth(reason, action)` only for alerts, saved portfolios and the like, finishing the action after sign-in and merging guest data. 7. Public addresses and exported CSV files only: refuse anything like a recovery phrase or private key before it leaves the device, never API keys. 8. English, Spanish or Portuguese from the menu, Accessibility menu or Settings, guests included (US-9.7). 9. Phone, tablet and desktop layouts (US-9.8).
 
 ## Targets
 

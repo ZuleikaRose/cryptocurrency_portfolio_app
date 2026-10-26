@@ -292,7 +292,7 @@
 ### US-9.6 Account deletion · P0 · 2 pts
 **As a** user, **I want** to delete my account and data from inside the app **so that** I control my privacy (App Store and Google Play requirement).
 
-### US-9.7 Spanish interface · P1 · 5 pts
+### US-9.7 Spanish (and Portuguese) interface · P1 · 5 pts
 **As a** Spanish speaker, **I want** to use the whole app in Spanish **so that** I understand every figure, warning and setting.
 
 - Every screen, message, alert and screen-reader label is available in Spanish; prices, percentages and dates use Spanish formats.
@@ -300,6 +300,8 @@
 - Each language is named in its own language ("English", "Español"), so a user can find theirs whichever language is showing.
 
 > **CPA build (Oct 26, 2026):** English and Spanish (clarification 30). Language is in the main menu, the Accessibility menu and Settings › Preferences, and is saved in `user_settings.language`. Spanish shows `80.156,48 $`, `2,88 B $` and `26 oct 2026`. Exported CSV formats and saved transaction notes stay in English so imports keep working, and the legal pages say the English version prevails.
+
+> **CPA build (Oct 26, 2026):** Portuguese (Brazil) added the same way (clarification 34): `US$ 80.156,48`, `US$ 2,88 tri`, `26 de out. de 2026`.
 
 ### US-9.8 Any screen size · P1 · 5 pts
 **As** Priya at her desk or Leo on a tablet, **I want** CPA to use the whole screen **so that** I can read more at once without a phone-sized column.
@@ -323,7 +325,7 @@
 | Privacy | Analytics opt-out; no sale of personal data; GDPR/CCPA-compliant data export and delete |
 | Accessibility | WCAG 2.2 AA equivalent; Dynamic Type up to 200% |
 | Compliance | "Not financial advice" disclaimer on Coin Detail, Token Sales, and Portfolio |
-| Localization | String externalization from day 1; launch in EN, with RU/UK/ES/ZH/KO/TR as follow-ups. CPA build: EN and ES (US-9.7) |
+| Localization | String externalization from day 1; launch in EN, with RU/UK/ES/ZH/KO/TR as follow-ups. CPA build: EN, ES and PT-BR (US-9.7) |
 | Devices | Phones, tablets, notebooks and desktops in current browsers (US-9.8) |
 
 ---
