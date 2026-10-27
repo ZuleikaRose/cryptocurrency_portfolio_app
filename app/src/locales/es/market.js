@@ -40,6 +40,7 @@ export const market = {
   "Coinbase closes, USD, UTC": "Cierres de Coinbase, USD, UTC",
   price: "precio",
   "24h change": "cambio 24h",
+  "price and 24h change as SKY × 24,000": "precio y cambio 24h como SKY × 24.000",
   "7d change": "cambio 7d",
   "market cap": "capitalización de mercado",
   volume: "volumen",

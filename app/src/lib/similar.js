@@ -9,7 +9,8 @@ export function similarCoins(coin, coins, recentCoins = [], count = 4) {
     .filter((item) => item.id !== coin.id && item.category === coin.category && item.category !== "Stablecoin")
     .map((item) => ({
       item,
-      score: Math.abs(Math.log10(item.marketCap / coin.marketCap)) - (viewed.has(item.id) ? 0.5 : 0),
+      // A coin without a market cap (Maker) ranks after the sized ones.
+      score: (item.marketCap && coin.marketCap ? Math.abs(Math.log10(item.marketCap / coin.marketCap)) : 99) - (viewed.has(item.id) ? 0.5 : 0),
     }))
     .sort((a, b) => a.score - b.score)
     .slice(0, count)

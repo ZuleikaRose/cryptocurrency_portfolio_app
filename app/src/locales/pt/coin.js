@@ -173,6 +173,8 @@ export const coin = {
   "Low liquidity": "Baixa liquidez",
   "{volume} traded in 24h, {pct}% of market cap. CPA flags under {threshold}% or under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.":
     "{volume} negociados em 24 h, {pct}% da capitalização de mercado. O CPA sinaliza abaixo de {threshold}% ou abaixo de {minimum}. Pouca negociação pode significar spreads maiores e oscilações maiores de preço em ordens grandes.",
+  "{volume} traded in 24h. CPA flags under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.":
+    "{volume} negociados em 24 h. O CPA sinaliza abaixo de {minimum}. Pouca negociação pode significar spreads maiores e oscilações maiores de preço em ordens grandes.",
   "Low float": "Baixa circulação",
   "{pct}% of the maximum supply circulates today. CPA flags under {threshold}%. The rest can reach the market as it unlocks.":
     "Hoje circulam {pct}% da oferta máxima. O CPA sinaliza abaixo de {threshold}%. O restante pode chegar ao mercado à medida que for desbloqueado.",

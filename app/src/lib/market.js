@@ -35,7 +35,7 @@ export function mergeLivePrices(coins, rows) {
     return {
       ...coin,
       source: "cryptorank",
-      // Per coin, so a detail screen shows its own data's age (US-9.4); Maker refreshes every ~2 days.
+      // Per coin, so a detail screen shows its own data's age (US-9.4).
       priceUpdatedAt: Date.parse(row.price_updated_at) || null,
       detailsUpdatedAt: details ? Date.parse(row.details_updated_at) : null,
       ...(details && row.change_7d != null ? { change7d: Number(row.change_7d) } : {}),
@@ -45,7 +45,8 @@ export function mergeLivePrices(coins, rows) {
       ...(history && row.change_1h != null ? { change1h: Number(row.change_1h) } : {}),
       price,
       change24h: Number(row.change_24h),
-      marketCap: Number(row.market_cap_usd),
+      // Null when CryptoRank gives none (Maker, clarification 39): shown as "—", counted as 0.
+      marketCap: row.market_cap_usd == null ? null : Number(row.market_cap_usd),
       volume24h: row.volume_24h_usd == null ? coin.volume24h : Number(row.volume_24h_usd),
       spark: history ?? (details && row.change_7d != null ? sparkFacing(coin.spark, Number(row.change_7d)) : coin.spark),
     };
@@ -80,10 +81,10 @@ export function coinSource(coin) {
   if (coin.source !== "cryptorank") return t("CPA sample data");
   const history = Boolean(coin.historyUpdatedAt);
   const cryptorank = [
-    t("price"),
-    t("24h change"),
+    // Maker is priced from Sky's row (clarification 39).
+    ...(coin.id === "maker" ? [t("price and 24h change as SKY × 24,000")] : [t("price"), t("24h change")]),
     ...(coin.detailsUpdatedAt && !history ? [t("7d change")] : []),
-    t("market cap"),
+    ...(coin.marketCap != null ? [t("market cap")] : []),
     t("volume"),
     ...(coin.detailsUpdatedAt ? ["FDV"] : []),
   ];

@@ -36,15 +36,21 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
     });
   }
 
-  const turnover = coin.marketCap ? (coin.volume24h / coin.marketCap) * 100 : 0;
-  if (coin.volume24h < RISK_RULES.lowVolumeUsd || turnover < RISK_RULES.lowTurnoverPct) {
+  // Without a market cap (Maker, clarification 39) only the volume floor applies.
+  const turnover = coin.marketCap ? (coin.volume24h / coin.marketCap) * 100 : null;
+  if (coin.volume24h < RISK_RULES.lowVolumeUsd || (turnover != null && turnover < RISK_RULES.lowTurnoverPct)) {
     items.push({
       id: "liquidity",
       label: t("Low liquidity"),
-      detail: t(
-        "{volume} traded in 24h, {pct}% of market cap. CPA flags under {threshold}% or under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.",
-        { volume: money(coin.volume24h), pct: formatNumber(turnover, 2), threshold: formatNumber(RISK_RULES.lowTurnoverPct, 1), minimum: money(RISK_RULES.lowVolumeUsd) },
-      ),
+      detail: turnover == null
+        ? t("{volume} traded in 24h. CPA flags under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.", {
+          volume: money(coin.volume24h),
+          minimum: money(RISK_RULES.lowVolumeUsd),
+        })
+        : t(
+          "{volume} traded in 24h, {pct}% of market cap. CPA flags under {threshold}% or under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.",
+          { volume: money(coin.volume24h), pct: formatNumber(turnover, 2), threshold: formatNumber(RISK_RULES.lowTurnoverPct, 1), minimum: money(RISK_RULES.lowVolumeUsd) },
+        ),
     });
   }
 

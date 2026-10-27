@@ -18,10 +18,15 @@ const PAGES = 2;
 // every 2 days: roughly 17 credits a day on top of the pages' 288 (cryptorank_more_live_data).
 const DETAILS_PER_RUN = 6;
 const DETAILS_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+// Maker is unranked since it became Sky at a fixed 24,000 SKY per MKR, so its price and 24h
+// change come from Sky's ranked row (matched by ticker, best rank first) at no extra credit,
+// as its chart does (clarification 39). CryptoRank gives no Maker market cap, so none is stored.
+const DERIVED: Record<string, { symbol: string; scale: number }> = { maker: { symbol: "SKY", scale: 24_000 } };
 
 type Currency = {
   id?: number;
   slug?: string;
+  symbol?: string;
   price?: string | number | null;
   priceChangePercent24h?: number | null;
   marketCap?: string | number | null;
@@ -126,11 +131,15 @@ Deno.serve(async (req) => {
     const wanted = new Set(mapped.map((row) => row.cryptorank_slug));
 
     const found = new Map<string, Currency>();
+    const sources = new Map<string, Currency>();
+    const sourceSymbols = new Set(Object.values(DERIVED).map((derived) => derived.symbol));
     for (let page = 1; page <= PAGES; page += 1) {
       const currencies = await fetchPage(apiKey, page);
       credits += 1;
       for (const currency of currencies) {
         if (currency?.slug && wanted.has(currency.slug) && !found.has(currency.slug)) found.set(currency.slug, currency);
+        const symbol = currency?.symbol?.toUpperCase();
+        if (symbol && sourceSymbols.has(symbol) && !sources.has(symbol)) sources.set(symbol, currency);
       }
     }
 
@@ -148,12 +157,18 @@ Deno.serve(async (req) => {
         volume24h: toNumber(c.volume24h),
       });
     }
+    for (const [slug, derived] of Object.entries(DERIVED)) {
+      const source = sources.get(derived.symbol);
+      const price = toNumber(source?.price);
+      if (!wanted.has(slug) || found.has(slug) || price === null) continue;
+      rows.set(slug, { slug, price: price * derived.scale, change24h: toNumber(source?.priceChangePercent24h) });
+    }
 
     const now = Date.now();
-    // Coins outside the pages (Maker) get their only price from the details, so they go first;
-    // then the oldest details.
+    // Coins without a price from the pages get it from the details, so they go first; then the
+    // oldest details.
     const due = mapped
-      .map((coin) => ({ slug: coin.cryptorank_slug, id: found.get(coin.cryptorank_slug)?.id ?? coin.cryptorank_id, at: Date.parse(coin.details_updated_at ?? "") || 0, paged: found.has(coin.cryptorank_slug) }))
+      .map((coin) => ({ slug: coin.cryptorank_slug, id: found.get(coin.cryptorank_slug)?.id ?? coin.cryptorank_id, at: Date.parse(coin.details_updated_at ?? "") || 0, paged: rows.has(coin.cryptorank_slug) }))
       .filter((coin) => coin.id != null && now - coin.at > DETAILS_MAX_AGE_MS)
       .sort((a, b) => Number(a.paged) - Number(b.paged) || a.at - b.at)
       .slice(0, DETAILS_PER_RUN);
@@ -166,12 +181,15 @@ Deno.serve(async (req) => {
         row.details = true;
         row.change7d = toNumber(d.pricePercentChange?.d7);
         row.fdv = toNumber(d.fullyDilutedValuation);
-        // Coins outside the pages (Maker) take their price figures from the details.
-        if (!found.has(coin.slug) && toNumber(d.price) !== null) {
-          row.price = toNumber(d.price);
-          row.change24h = toNumber(d.pricePercentChange?.h24);
-          row.marketCap = toNumber(d.marketCap);
+        // Coins outside the pages take their volume from the details, and their price figures
+        // too when Sky's row didn't give Maker one.
+        if (!found.has(coin.slug)) {
           row.volume24h = toNumber(d.volume24h);
+          if (row.price == null && toNumber(d.price) !== null) {
+            row.price = toNumber(d.price);
+            row.change24h = toNumber(d.pricePercentChange?.h24);
+            if (!DERIVED[coin.slug]) row.marketCap = toNumber(d.marketCap);
+          }
         }
         rows.set(coin.slug, row);
       } catch (error) {
