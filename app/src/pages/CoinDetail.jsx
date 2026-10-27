@@ -166,7 +166,8 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <InfoTip
               term="marketCap"
               label={t("market cap")}
-              detail={t("{symbol}: {price} × {tokens} tokens circulating ≈ {cap}.", {
+              // No market cap from CryptoRank (Maker, clarification 39): no worked example.
+              detail={coin.marketCap != null && t("{symbol}: {price} × {tokens} tokens circulating ≈ {cap}.", {
                 symbol: coin.symbol,
                 price: formatPrice(coin.price, currency, rate),
                 tokens: formatTokens(coin.marketCap / coin.price),
@@ -182,7 +183,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <InfoTip
               term="fdv"
               label="FDV"
-              detail={t("{symbol}'s FDV is {multiple}× its market cap: {pct}% of all tokens are circulating today.", {
+              detail={coin.marketCap != null && t("{symbol}'s FDV is {multiple}× its market cap: {pct}% of all tokens are circulating today.", {
                 symbol: coin.symbol,
                 multiple: formatNumber(coin.fdv / coin.marketCap, 1),
                 pct: Math.round((coin.marketCap / coin.fdv) * 100),
@@ -197,7 +198,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
             <InfoTip
               term="volume"
               label={t("24h volume")}
-              detail={t("{volume} traded in 24h, {pct}% of {symbol}'s market cap.", {
+              detail={coin.marketCap != null && t("{volume} traded in 24h, {pct}% of {symbol}'s market cap.", {
                 volume: formatCompact(coin.volume24h, currency, rate),
                 pct: formatNumber((coin.volume24h / coin.marketCap) * 100, 1),
                 symbol: coin.symbol,

@@ -291,7 +291,7 @@ function MarketProvider({ autoRefresh, children }) {
       const price = coin.price * (1 + move);
       const change24h = ((1 + coin.change24h / 100) * (1 + move) - 1) * 100;
       const spark = [...coin.spark.slice(0, -1), coin.spark[coin.spark.length - 1] * (1 + move)];
-      return { ...coin, price, change24h, change1h: coin.change1h + move * 100, marketCap: coin.marketCap * (1 + move), spark };
+      return { ...coin, price, change24h, change1h: coin.change1h + move * 100, marketCap: coin.marketCap == null ? null : coin.marketCap * (1 + move), spark };
     });
     coinsRef.current = next;
     setCoins(next);

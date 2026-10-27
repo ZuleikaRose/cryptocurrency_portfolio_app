@@ -56,7 +56,7 @@ CREATE TABLE coins (
   change_1h        numeric(10, 4) NOT NULL DEFAULT 0,         -- percent; from Coinbase 15-minute closes when history_updated_at is set
   change_24h       numeric(10, 4) NOT NULL DEFAULT 0,
   change_7d        numeric(10, 4) NOT NULL DEFAULT 0,
-  market_cap_usd   numeric(24, 2) NOT NULL CHECK (market_cap_usd >= 0),
+  market_cap_usd   numeric(24, 2) CHECK (market_cap_usd >= 0),   -- null when CryptoRank gives none (Maker)
   fdv_usd          numeric(24, 2) CHECK (fdv_usd >= 0),
   volume_24h_usd   numeric(24, 2) CHECK (volume_24h_usd >= 0),
   sparkline_7d     numeric[] NOT NULL DEFAULT '{}',           -- 24 points: Coinbase hourly closes over 7 days, or a sample shape
