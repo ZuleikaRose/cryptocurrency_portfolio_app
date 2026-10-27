@@ -48,6 +48,7 @@ function settingsRow(data) {
     fundraising_min_amount: s.fundraising.minAmount, fundraising_max_amount: s.fundraising.maxAmount,
     fundraising_days: s.fundraising.days, fundraising_investor: s.fundraising.investor, fundraising_sort: s.fundraising.sort,
     portfolio_range: s.portfolio.range, portfolio_sort: s.portfolio.sort, portfolio_tax_method: s.portfolio.taxMethod,
+    coin_markets_sort: s.coinMarkets.sort, coin_markets_dir: s.coinMarkets.dir,
   };
 }
 
@@ -73,6 +74,7 @@ function settingsFromRow(r) {
       days: r.fundraising_days, investor: r.fundraising_investor, sort: r.fundraising_sort,
     },
     portfolio: { range: r.portfolio_range, sort: r.portfolio_sort, taxMethod: r.portfolio_tax_method },
+    coinMarkets: { sort: r.coin_markets_sort, dir: r.coin_markets_dir },
   };
 }
 
@@ -190,8 +192,7 @@ export async function saveAccountData(userId, previous, data) {
   const result = { ...previous };
   let firstError = null;
 
-  const singles = [["user_settings", "user_id"], ["user_state", "user_id"]];
-  for (const [table] of singles) {
+  for (const table of ["user_settings", "user_state"]) {
     const row = next[table].get("me");
     if (same(row, previous[table]?.get("me"))) continue;
     try {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Disclosure, { Highlight } from "../components/Disclosure.jsx";
 import Icon from "../components/Icon.jsx";
@@ -7,6 +7,7 @@ import { isEmail } from "../lib/auth.js";
 import { formatDate } from "../lib/format.js";
 import { locale, t, tn } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const topics = [
   ["account", "Account"],
@@ -38,9 +39,7 @@ export default function Support() {
   const removal = form.topic === "data-removal";
   const results = searchHelp(query);
 
-  useEffect(() => {
-    document.title = `${t("Customer support")} · CPA`;
-  }, []);
+  usePageTitle(t("Customer support"));
 
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 

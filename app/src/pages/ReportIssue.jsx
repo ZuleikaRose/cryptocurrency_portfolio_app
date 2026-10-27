@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { safeNext } from "../lib/auth.js";
 import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const types = [
   ["bug", "Bug"],
@@ -55,9 +56,7 @@ export default function ReportIssue() {
   const [busy, setBusy] = useState(false);
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
-  useEffect(() => {
-    document.title = `${t("Report an issue")} · CPA`;
-  }, []);
+  usePageTitle(t("Report an issue"));
 
   const { browser, os } = describeBrowser();
   const technical = `${browser} · ${os} · ${window.innerWidth}×${window.innerHeight} · ${document.documentElement.dataset.theme} · app v${APP_VERSION} · text ${settings.a11y.textSize}% · last error: ${getLastError() ?? "none"}`;

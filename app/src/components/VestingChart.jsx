@@ -1,9 +1,8 @@
 import { allocationColors, TODAY } from "../data/research.js";
-import { formatTokens } from "../lib/format.js";
+import { formatNumber, formatTokens } from "../lib/format.js";
 import { locale, t } from "../lib/i18n.js";
 
 const WIDTH = 400;
-const fixed1 = (value) => value.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const HEIGHT = 170;
 
 // Stacked area of cumulative unlocked tokens by allocation, with a "Today" line (US-3.4).
@@ -50,7 +49,7 @@ export default function VestingChart({ vesting, events, symbol }) {
         aria-label={t("Vesting schedule from {start} to {end}. {pct} percent of the {total} {symbol} supply is unlocked today.", {
           start: fmt(start),
           end: fmt(end),
-          pct: fixed1((unlockedToday / vesting.total) * 100),
+          pct: formatNumber((unlockedToday / vesting.total) * 100, 1),
           total: formatTokens(vesting.total),
           symbol,
         })}
@@ -71,7 +70,7 @@ export default function VestingChart({ vesting, events, symbol }) {
         {vesting.allocations.map((allocation) => (
           <li key={allocation.name}>
             <span className="legend-swatch" style={{ background: allocationColors[allocation.name] }} aria-hidden="true" />
-            {t(allocation.name)} <span className="num">{fixed1(allocation.share * 100)}%</span>
+            {t(allocation.name)} <span className="num">{formatNumber(allocation.share * 100, 1)}%</span>
           </li>
         ))}
       </ul>

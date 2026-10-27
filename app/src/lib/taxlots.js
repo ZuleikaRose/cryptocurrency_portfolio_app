@@ -2,6 +2,7 @@
 // in it came from, by FIFO or average cost. Derived from transactions, never stored, and not tax
 // advice: rules differ by country.
 import { numberCell, textCell } from "./csv.js";
+import { isoDay } from "./format.js";
 
 export const TAX_METHODS = [
   { id: "fifo", label: "FIFO" },
@@ -120,7 +121,6 @@ export function taxTotals(rows) {
   };
 }
 
-const isoDay = (time) => new Date(time).toISOString().slice(0, 10);
 
 export function taxLotsToCsv(rows, method) {
   const lines = rows.map((row) => [

@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { ErrorBanner, SkeletonCards } from "../components/LoadState.jsx";
 import InvestorStack from "../components/InvestorStack.jsx";
 import Sheet from "../components/Sheet.jsx";
 import { fundById, fundingRounds, funds, roundSectors, roundTypeList, TODAY } from "../data/research.js";
-import { direction, formatCompact, formatDate, formatPercent, relativeTime } from "../lib/format.js";
-import { useFirstLoad, useSimulatedError } from "../lib/hooks.js";
+import { arrow, direction, formatCompact, formatDate, formatPercent, relativeTime } from "../lib/format.js";
+import { useFirstLoad, usePageTitle, useSimulatedError } from "../lib/hooks.js";
 import { t, tn } from "../lib/i18n.js";
 import { shareCard } from "../lib/share.js";
 import { normalizeFundraisingFilters, useApp } from "../state/context.js";
@@ -141,11 +141,9 @@ export default function Fundraising() {
   const filters = settings.fundraising;
   const loading = useFirstLoad("fundraising");
   const [failed, retry] = useSimulatedError();
-  const setFilters = (patch) => updateSettings({ fundraising: { ...filters, ...patch } });
+  const setFilters = (patch) => updateSettings({ fundraising: patch });
 
-  useEffect(() => {
-    document.title = `${t("Fundraising")} · CPA`;
-  }, []);
+  usePageTitle(t("Fundraising"));
 
   const rounds = applyFilters(fundingRounds, filters, now).sort((a, b) => (filters.sort === "amount" ? b.amount - a.amount : b.date - a.date));
   const windowDays = filters.days || 90;
@@ -183,7 +181,7 @@ export default function Fundraising() {
         {change != null && (
           <span className={direction(change)}>
             {" "}
-            {direction(change) === "up" ? "▲" : "▼"} {formatPercent(change)}
+            {arrow(change)} {formatPercent(change)}
           </span>
         )}
       </p>

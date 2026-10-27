@@ -4,6 +4,7 @@
 // minutes (clarification 26). Coins and figures they don't cover keep the bundled sample data.
 import { supabase } from "./supabase.js";
 import { t } from "./i18n.js";
+import { historyProvider } from "./history.js";
 
 // Returns { rows, updatedAt } (rows empty before the first sync), null when Supabase isn't
 // configured, or throws when the request fails.
@@ -86,6 +87,7 @@ export function coinSource(coin) {
     t("volume"),
     ...(coin.detailsUpdatedAt ? ["FDV"] : []),
   ];
-  const coinbase = history ? t("; Coinbase (chart, 1h and 7d change, all-time high and low, in USD, UTC)") : "";
+  const source = coin.id === "maker" ? "Kraken (SKY × 24,000)" : historyProvider(coin.id);
+  const coinbase = history ? t("; {source} (chart, 1h and 7d change, all-time high and low, in USD, UTC)", { source }) : "";
   return t("CryptoRank ({fields}){coinbase}; other figures CPA sample data", { fields: cryptorank.join(", "), coinbase });
 }

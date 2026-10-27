@@ -5,7 +5,7 @@ import ReminderSheet from "../components/ReminderSheet.jsx";
 import UnlockCard from "../components/UnlockCard.jsx";
 import { unlockEvents } from "../data/research.js";
 import { formatCompact, formatDate, rateFor } from "../lib/format.js";
-import { useFirstLoad, useNow } from "../lib/hooks.js";
+import { useFirstLoad, useNow, usePageTitle } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { locale, t, tn } from "../lib/i18n.js";
 
@@ -139,30 +139,28 @@ export default function Unlocks() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [reminderItem, setReminderItem] = useState(null);
   const prefs = settings.unlocks;
-  const update = (patch) => updateSettings({ unlocks: { ...prefs, ...patch } });
+  const update = (patch) => updateSettings({ unlocks: patch });
 
-  useEffect(() => {
-    document.title = `${t("Token unlocks")} · CPA`;
-  }, []);
+  usePageTitle(t("Token unlocks"));
 
   const allEvents = useMemo(() => unlockEvents(coins), [coins]);
 
   // One-second clock: countdowns show seconds inside the last hour (08-unlocks.md).
   const now = useNow(1000);
   const loading = useFirstLoad("unlocks");
-  const [from, to] = rangeBounds(prefs.range, custom, now);
+  // Ranges move by the minute; only the countdowns need the second.
+  const minute = Math.floor(now / 60_000) * 60_000;
   const rate = rateFor(settings.currency, coins);
 
-  const inRange = allEvents.filter((event) => {
-    const time = event.date.getTime();
-    if (selectedDay) return dayKey(event.date) === dayKey(selectedDay);
-    return time >= from && time <= to;
-  });
-  const events = inRange
-    .filter((event) => !prefs.watchlistOnly || watchlist.includes(event.coin.id))
-    .filter((event) => !prefs.minOne || event.share > 1)
-    .sort((a, b) => (prefs.sort === "date" ? a.date - b.date : b[prefs.sort] - a[prefs.sort]));
-  const totalUsd = events.reduce((sum, event) => sum + event.usd, 0);
+  const events = useMemo(() => {
+    const [from, to] = rangeBounds(prefs.range, custom, minute);
+    return allEvents
+      .filter((event) => (selectedDay ? dayKey(event.date) === dayKey(selectedDay) : event.date.getTime() >= from && event.date.getTime() <= to))
+      .filter((event) => !prefs.watchlistOnly || watchlist.includes(event.coin.id))
+      .filter((event) => !prefs.minOne || event.share > 1)
+      .sort((a, b) => (prefs.sort === "date" ? a.date - b.date : b[prefs.sort] - a[prefs.sort]));
+  }, [allEvents, prefs, custom, minute, selectedDay, watchlist]);
+  const totalUsd = useMemo(() => events.reduce((sum, event) => sum + event.usd, 0), [events]);
   const rangeLabel = selectedDay ? t("on {date}", { date: formatDate(selectedDay) }) : t({ today: "today", week: "this week", month: "this month", custom: "in this range" }[prefs.range]);
 
   const remind = (event) =>

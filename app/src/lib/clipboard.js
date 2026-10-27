@@ -9,9 +9,12 @@ export async function copyText(text) {
 }
 
 // Download a text file (marketing materials, exports). Returns false if the browser refuses.
-export function downloadText(fileName, text, type = "text/plain") {
+export const downloadText = (fileName, text, type = "text/plain") => downloadBlob(fileName, new Blob([text], { type }));
+
+// Download a Blob (exports, share images). The URL is revoked after the download has started.
+export function downloadBlob(fileName, blob) {
   try {
-    const url = URL.createObjectURL(new Blob([text], { type }));
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = fileName;

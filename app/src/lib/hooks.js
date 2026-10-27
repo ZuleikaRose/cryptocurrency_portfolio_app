@@ -28,14 +28,37 @@ export function useOnline() {
   return online;
 }
 
-// Current time, refreshed every `intervalMs` (countdowns, "Updated 2m ago").
+// Current time, refreshed every `intervalMs` (countdowns, "Updated 2m ago"); null pauses it.
 export function useNow(intervalMs) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    if (intervalMs == null) return undefined;
+    // Catch up straight away when a paused clock starts.
+    const first = window.setTimeout(() => setNow(Date.now()), 0);
     const id = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
   }, [intervalMs]);
   return now;
+}
+
+// Page title: "<label> · CPA" (or the label alone with suffix false). AppShell listens, and
+// announces the label when it arrives for a new path (route changes are otherwise silent).
+let titleListener = null;
+export const listenForPageTitles = (listener) => {
+  titleListener = listener;
+  return () => {
+    if (titleListener === listener) titleListener = null;
+  };
+};
+export function usePageTitle(label, suffix = true) {
+  useEffect(() => {
+    if (!label) return;
+    document.title = suffix ? `${label} · CPA` : label;
+    titleListener?.(label);
+  }, [label, suffix]);
 }
 
 // Sample data is in memory, so each page shows its loading state once per visit,

@@ -73,6 +73,24 @@ export function formatPercent(value, digits = 2) {
   return `${rounded > 0 ? "+" : MINUS}${decimal(Math.abs(rounded), digits)}%`;
 }
 
+// Masked balances (hide-balances, US-6.3).
+export const MASK = "••••";
+
+// ▲ / ▼ for a change, nothing when flat (direction never by colour alone).
+export const arrow = (value) => ({ up: "▲", down: "▼" })[direction(value)] ?? "";
+
+// Signed full price: +$1,234.56 / −$12.00.
+export const formatSignedPrice = (usd, currency = "USD", rate = 1) => `${usd >= 0 ? "+" : MINUS}${formatPrice(Math.abs(usd), currency, rate)}`;
+
+// Token amounts to 8 decimals, trailing zeros dropped (transactions, tax lots).
+export const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString(locale(), { maximumFractionDigits: 8 });
+
+// Contract addresses in lists and headers: 0x1f98…F984.
+export const shortContract = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
+
+// UTC calendar day for file names and CSV cells: 2026-10-26.
+export const isoDay = (time = Date.now()) => new Date(time).toISOString().slice(0, 10);
+
 export function direction(value) {
   const rounded = Number((value ?? 0).toFixed(2));
   if (rounded > 0) return "up";

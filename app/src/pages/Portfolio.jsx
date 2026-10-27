@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import Donut from "../components/Donut.jsx";
@@ -9,22 +9,19 @@ import Sheet from "../components/Sheet.jsx";
 import TaxReportSheet from "../components/TaxReportSheet.jsx";
 import { ErrorBanner } from "../components/LoadState.jsx";
 import { researchFor } from "../data/research.js";
-import { direction, formatDate, formatPercent, formatPrice, rateFor } from "../lib/format.js";
+import { arrow, direction, formatAmount, formatDate, formatPercent, formatPrice, formatSignedPrice, isoDay, MASK, rateFor } from "../lib/format.js";
 import { amountHeld, chartRange, computeHoldings, priceAt, rangePerformance, summarize, transactionTypes, valueHistory } from "../lib/portfolio.js";
-import { closeDay, fetchPriceAt, usePriceHistories } from "../lib/history.js";
+import { closeDay, fetchPriceAt, historyLabelFor, historyProvider, usePriceHistories } from "../lib/history.js";
 import { chartSummary } from "../lib/chart.js";
 import { downloadText } from "../lib/clipboard.js";
 import { CSV_COLUMNS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, readTransactionsCsv, transactionsToCsv } from "../lib/csv.js";
-import { useNow } from "../lib/hooks.js";
+import { useNow, usePageTitle } from "../lib/hooks.js";
 import { chainFor, lookupWallet, normaliseAddress, secretWarning, shortAddress, WALLET_CHAINS, walletImportPlan, walletNote } from "../lib/wallet.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 import { locale, t, tn } from "../lib/i18n.js";
 
 const ranges = ["24h", "7D", "1M", "3M", "1Y", "ALL"];
-const MASK = "••••";
-const arrow = (value) => (direction(value) === "up" ? "▲" : direction(value) === "down" ? "▼" : "");
-const formatAmount = (value) => Number(value.toFixed(8)).toLocaleString(locale(), { maximumFractionDigits: 8 });
 // Import tags stay English in stored rows (wallet re-imports match on them); show them translated.
 const IMPORT_NOTES = new Set(["Coinbase import", "Coinbase convert", "Kraken import", "Binance import"]);
 const noteText = (note) => {
@@ -32,7 +29,6 @@ const noteText = (note) => {
   return IMPORT_NOTES.has(note) ? t(note) : note;
 };
 // Signed money: +$809.71 / −$12.00 (true minus sign).
-const signedMoney = (value, currency, rate) => `${value >= 0 ? "+" : "−"}${formatPrice(Math.abs(value), currency, rate)}`;
 
 // `<input type="datetime-local">` wants local time without seconds.
 const toLocalInput = (date) => {
@@ -72,7 +68,7 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
 
   const set = (patch) => setForm((current) => ({ ...current, ...patch }));
   const setPrice = (value) => set({ price: value.toFixed(value >= 1 ? 2 : 6) });
-  // The nearest Coinbase close for coins with history (clarification 28), sample history otherwise.
+  // The nearest Coinbase or Kraken close for coins with history (clarifications 28 and 36), sample history otherwise.
   const applyMarketPrice = async () => {
     if (!coin || errors.date) return;
     const time = new Date(form.date).getTime();
@@ -89,11 +85,11 @@ function TransactionSheet({ open, onClose, initial, coins, transactions, onSave 
         // A close stamped at midnight UTC is that day's daily close.
         const stamp = new Date(close.time).toISOString();
         setPriceNote(stamp.slice(11, 16) === "00:00"
-          ? t("Coinbase daily close for {date} (UTC).", { date: formatDate(closeDay(close.time)) })
-          : t("Coinbase close at {time} UTC.", { time: stamp.slice(0, 16).replace("T", " ") }));
+          ? t("{source} daily close for {date} (UTC).", { source: historyProvider(coin.id), date: formatDate(closeDay(close.time)) })
+          : t("{source} close at {time} UTC.", { source: historyProvider(coin.id), time: stamp.slice(0, 16).replace("T", " ") }));
       } else {
         setPrice(priceAt(coin, time));
-        setPriceNote(t("No Coinbase close for that date, so this is CPA sample data."));
+        setPriceNote(t("No {source} close for that date, so this is CPA sample data.", { source: historyProvider(coin.id) }));
       }
     } catch (error) {
       console.error(`Market price lookup failed: ${error.message}`);
@@ -448,17 +444,18 @@ function Disclaimer() {
   return (
     <p className="disclaimer">
       {t("Not financial advice. Data provided for informational purposes.")}{" "}
-      {t("Prices: CryptoRank (live) and Coinbase closes (history) where available, CPA sample data otherwise.")}
+      {t("Prices: CryptoRank (live) and Coinbase or Kraken closes (history) where available, CPA sample data otherwise.")}
     </p>
   );
 }
 
-// Names the price source under the value chart (clarification 28).
+// Names the price source under the value chart (clarifications 28 and 36).
 function chartSource(ids, series, coins) {
+  const live = ids.filter((id) => series.has(id));
   const sample = ids.filter((id) => !series.has(id)).map((id) => coins.find((coin) => coin.id === id)?.symbol ?? id);
-  if (!sample.length) return t("Coinbase closes, USD, UTC");
-  if (sample.length === ids.length) return t("CPA sample data");
-  return t("Coinbase closes, USD, UTC; CPA sample data for {coins}", { coins: sample.join(", ") });
+  if (!live.length) return t("CPA sample data");
+  if (!sample.length) return historyLabelFor(live);
+  return t("{closes}; CPA sample data for {coins}", { closes: historyLabelFor(live), coins: sample.join(", ") });
 }
 
 export default function Portfolio() {
@@ -467,15 +464,13 @@ export default function Portfolio() {
   const navigate = useNavigate();
   // Remembered per account (clarification 35, journey rule 2).
   const { range, sort, taxMethod } = settings.portfolio;
-  const updatePortfolio = (patch) => updateSettings({ portfolio: { ...settings.portfolio, ...patch } });
+  const updatePortfolio = (patch) => updateSettings({ portfolio: patch });
   const [sheet, setSheet] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [taxOpen, setTaxOpen] = useState(false);
 
-  useEffect(() => {
-    document.title = `${t("Portfolio")} · CPA`;
-  }, []);
+  usePageTitle(t("Portfolio"));
 
   const currency = settings.currency;
   const rate = rateFor(currency, coins);
@@ -495,7 +490,7 @@ export default function Portfolio() {
 
   const openAdd = () => requireAuth(t("Sign in to track a portfolio"), () => setSheet({}));
   const exportCsv = () => {
-    const ok = downloadText(`cpa-transactions-${new Date().toISOString().slice(0, 10)}.csv`, transactionsToCsv(transactions, coins), "text/csv");
+    const ok = downloadText(`cpa-transactions-${isoDay()}.csv`, transactionsToCsv(transactions, coins), "text/csv");
     showToast(ok ? tn(transactions.length, "Exported {count} transaction", "Exported {count} transactions") : t("Couldn't start the download in this browser."));
   };
 
@@ -524,19 +519,19 @@ export default function Portfolio() {
             <p className="muted-line">{t("Total value")}</p>
             <p className="display-value num">{money(summary.value)}</p>
             <p className={`num ${direction(summary.change24h)}`}>
-              {arrow(summary.change24h)} {hide ? MASK : signedMoney(summary.change24h, currency, rate)} ({formatPercent(summary.change24hPct)}) {t("24h")}
+              {arrow(summary.change24h)} {hide ? MASK : formatSignedPrice(summary.change24h, currency, rate)} ({formatPercent(summary.change24hPct)}) {t("24h")}
             </p>
             <p className="num muted-line">
               {t("All-time P&L")}{" "}
               <span className={direction(summary.pnl)}>
-                {arrow(summary.pnl)} {hide ? MASK : signedMoney(summary.pnl, currency, rate)} ({formatPercent(summary.pnlPct)})
+                {arrow(summary.pnl)} {hide ? MASK : formatSignedPrice(summary.pnl, currency, rate)} ({formatPercent(summary.pnlPct)})
               </span>
             </p>
             <p className="num muted-line">
               {t("Unrealized")}{" "}
-              <span className={direction(summary.unrealized)}>{arrow(summary.unrealized)} {hide ? MASK : signedMoney(summary.unrealized, currency, rate)}</span>
+              <span className={direction(summary.unrealized)}>{arrow(summary.unrealized)} {hide ? MASK : formatSignedPrice(summary.unrealized, currency, rate)}</span>
               {" · "}{t("Realized")}{" "}
-              <span className={direction(summary.realized)}>{arrow(summary.realized)} {hide ? MASK : signedMoney(summary.realized, currency, rate)}</span>
+              <span className={direction(summary.realized)}>{arrow(summary.realized)} {hide ? MASK : formatSignedPrice(summary.realized, currency, rate)}</span>
             </p>
           </section>
 
@@ -552,7 +547,7 @@ export default function Portfolio() {
               <p className="num muted-line">
                 {t("P&L over {range}", { range })}{" "}
                 <span className={direction(performance.pnl)}>
-                  {arrow(performance.pnl)} {hide ? MASK : signedMoney(performance.pnl, currency, rate)} ({formatPercent(performance.pct)})
+                  {arrow(performance.pnl)} {hide ? MASK : formatSignedPrice(performance.pnl, currency, rate)} ({formatPercent(performance.pct)})
                 </span>
               </p>
             )}
@@ -602,7 +597,7 @@ export default function Portfolio() {
                     <span className="holding-value num">
                       <strong>{money(item.value)}</strong>
                       <span className={direction(item.pnl)}>
-                        {arrow(item.pnl)} {hide ? MASK : signedMoney(item.pnl, currency, rate)} ({formatPercent(item.pnlPct)})
+                        {arrow(item.pnl)} {hide ? MASK : formatSignedPrice(item.pnl, currency, rate)} ({formatPercent(item.pnlPct)})
                       </span>
                     </span>
                   </Link>
@@ -684,9 +679,7 @@ export function Holding() {
   const [confirm, setConfirm] = useState(null);
   const coin = coins.find((item) => item.id === slug);
 
-  useEffect(() => {
-    if (coin) document.title = `${t("{symbol} holding", { symbol: coin.symbol })} · CPA`;
-  }, [coin]);
+  usePageTitle(coin ? t("{symbol} holding", { symbol: coin.symbol }) : null);
 
   if (!coin) return <NotFound />;
   if (session.kind === "guest") {
@@ -729,16 +722,16 @@ export function Holding() {
           <div><dt>{t("Average buy price")}</dt><dd className="num">{money(holding.avgPrice)}</dd></div>
           <div>
             <dt>{t("Unrealized P&L")}</dt>
-            <dd className={`num ${direction(holding.unrealized)}`}>{hide ? MASK : signedMoney(holding.unrealized, currency, rate)}</dd>
+            <dd className={`num ${direction(holding.unrealized)}`}>{hide ? MASK : formatSignedPrice(holding.unrealized, currency, rate)}</dd>
           </div>
           <div>
             <dt>{t("Realized P&L")}</dt>
-            <dd className={`num ${direction(holding.realized)}`}>{hide ? MASK : signedMoney(holding.realized, currency, rate)}</dd>
+            <dd className={`num ${direction(holding.realized)}`}>{hide ? MASK : formatSignedPrice(holding.realized, currency, rate)}</dd>
           </div>
           <div>
             <dt>{t("All-time P&L")}</dt>
             <dd className={`num ${direction(holding.pnl)}`}>
-              {hide ? MASK : signedMoney(holding.pnl, currency, rate)} ({formatPercent(holding.pnlPct)})
+              {hide ? MASK : formatSignedPrice(holding.pnl, currency, rate)} ({formatPercent(holding.pnlPct)})
             </dd>
           </div>
         </dl>

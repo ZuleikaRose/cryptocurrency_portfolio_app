@@ -1,8 +1,28 @@
-// Real price history (clarification 26): Coinbase Exchange closes that the price-history-sync
-// Edge Function writes into cpa.coin_prices, read one chart range at a time through
-// cpa.price_history(). Coins without it (history_updated_at null) keep the sample chart.
+// Real price history (clarifications 26 and 36): Coinbase Exchange closes, or Kraken's for the
+// three coins Coinbase lacks, that the price-history-sync Edge Function writes into
+// cpa.coin_prices, read one chart range at a time through cpa.price_history(). Coins without it
+// (history_updated_at null) keep the sample chart.
 import { useCallback, useEffect, useState } from "react";
+import { t } from "./i18n.js";
 import { supabase } from "./supabase.js";
+
+// Coins whose closes come from Kraken; keep in step with KRAKEN in price-history-sync.
+// Maker became SKY at 24,000 SKY per MKR, so its closes are SKY's times 24,000.
+const KRAKEN_COINS = new Set(["tron", "usd-coin", "maker"]);
+export const historyProvider = (coinId) => (KRAKEN_COINS.has(coinId) ? "Kraken" : "Coinbase");
+
+// The source line under a coin's chart.
+export function historyLabel(coinId) {
+  if (coinId === "maker") return t("Kraken SKY closes × 24,000 (MKR converted to SKY), USD, UTC");
+  return historyProvider(coinId) === "Kraken" ? t("Kraken closes, USD, UTC") : t("Coinbase closes, USD, UTC");
+}
+
+// The source line for several coins' closes (Portfolio's value chart).
+export function historyLabelFor(coinIds) {
+  const providers = new Set(coinIds.map(historyProvider));
+  if (providers.size > 1) return t("Coinbase and Kraken closes, USD, UTC");
+  return providers.has("Kraken") ? t("Kraken closes, USD, UTC") : t("Coinbase closes, USD, UTC");
+}
 
 // The sync runs every 15 minutes, so a range is re-read at most every 5.
 const TTL_MS = 5 * 60_000;
@@ -17,6 +37,13 @@ export async function fetchPriceHistory(coinId, rangeId) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
   if (!supabase) throw new Error("Supabase isn't configured.");
+  if (!inflight.has(key)) inflight.set(key, readHistory(coinId, rangeId, key).finally(() => inflight.delete(key)));
+  return inflight.get(key);
+}
+
+const inflight = new Map();
+
+async function readHistory(coinId, rangeId, key) {
   const { data, error } = await supabase.rpc("price_history", { coin_id: coinId, range_id: rangeId });
   if (error) throw new Error(error.message);
   const value = {

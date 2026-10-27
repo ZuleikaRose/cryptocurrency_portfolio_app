@@ -61,7 +61,7 @@ export default function AccessibilityMenu({ open, onClose, onShowShortcuts }) {
   const a11y = settings.a11y;
 
   const setA11y = (patch, message) => {
-    updateSettings({ a11y: { ...a11y, ...patch } });
+    updateSettings({ a11y: patch });
     setStatus(message);
   };
   const setApp = (patch, message) => {

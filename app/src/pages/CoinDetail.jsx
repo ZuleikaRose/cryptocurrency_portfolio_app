@@ -14,24 +14,15 @@ import Sheet from "../components/Sheet.jsx";
 import SupplyBar from "../components/SupplyBar.jsx";
 import VestingChart from "../components/VestingChart.jsx";
 import { fundById, priceHistory, ranges, researchFor, TODAY } from "../data/research.js";
-import {
-  direction,
-  formatCompact,
-  formatCountdown,
-  formatDate,
-  formatPercent,
-  formatPrice,
-  formatTokens,
-  rateFor,
-  relativeTime,
-} from "../lib/format.js";
-import { useFirstLoad, useNow } from "../lib/hooks.js";
+import { arrow, direction, formatCompact, formatCountdown, formatDate, formatNumber, formatPercent, formatPrice, formatTokens, rateFor, relativeTime, shortContract } from "../lib/format.js";
+import { useFirstLoad, useNow, usePageTitle } from "../lib/hooks.js";
 import { shareCard } from "../lib/share.js";
 import { useApp, useMarket } from "../state/context.js";
 import NotFound from "./NotFound.jsx";
 import { coinSource } from "../lib/market.js";
-import { closeDay, usePriceHistory, withLivePrice } from "../lib/history.js";
+import { closeDay, historyLabel, historyProvider, usePriceHistory, withLivePrice } from "../lib/history.js";
 import { locale, t, tn } from "../lib/i18n.js";
+import { copyText } from "../lib/clipboard.js";
 
 const tabs = [
   { id: "overview", label: "Overview" },
@@ -40,8 +31,6 @@ const tabs = [
   { id: "markets", label: "Markets" },
 ];
 
-const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
-const fixed = (value, digits) => value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 
 function Overview({ coin, research, currency, rate, onMarker, onRemind, reminders, vote, onVote, now }) {
@@ -167,7 +156,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
           </p>
         )}
         {points && <ChartSummary text={chartSummary(points, range.label, currency, rate)} />}
-        <p className="muted-line chart-source">{t("Chart: {source}", { source: real ? t("Coinbase closes, USD, UTC") : waiting ? "Coinbase" : t("CPA sample data") })}</p>
+        <p className="muted-line chart-source">{t("Chart: {source}", { source: real ? historyLabel(coin.id) : waiting ? historyProvider(coin.id) : t("CPA sample data") })}</p>
       </section>
 
       <dl className="stats">
@@ -195,7 +184,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
               label="FDV"
               detail={t("{symbol}'s FDV is {multiple}× its market cap: {pct}% of all tokens are circulating today.", {
                 symbol: coin.symbol,
-                multiple: fixed(coin.fdv / coin.marketCap, 1),
+                multiple: formatNumber(coin.fdv / coin.marketCap, 1),
                 pct: Math.round((coin.marketCap / coin.fdv) * 100),
               })}
             />
@@ -210,7 +199,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
               label={t("24h volume")}
               detail={t("{volume} traded in 24h, {pct}% of {symbol}'s market cap.", {
                 volume: formatCompact(coin.volume24h, currency, rate),
-                pct: fixed((coin.volume24h / coin.marketCap) * 100, 1),
+                pct: formatNumber((coin.volume24h / coin.marketCap) * 100, 1),
                 symbol: coin.symbol,
               })}
             />
@@ -235,7 +224,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
         </div>
       </dl>
 
-      <RiskIndicators coin={coin} research={research} currency={currency} rate={rate} now={now} />
+      <RiskIndicators coin={coin} research={research} currency={currency} rate={rate} now={Math.floor(now / 60_000) * 60_000} />
 
       <SupplyBar supply={supply} symbol={coin.symbol} />
 
@@ -247,7 +236,7 @@ function Overview({ coin, research, currency, rate, onMarker, onRemind, reminder
           </div>
           <p className="num">
             {formatTokens(nextUnlock.amount)} {coin.symbol} · {formatCompact(nextUnlock.amount * coin.price, currency, rate)} ·{" "}
-            {t("{pct}% of circ. supply", { pct: fixed((nextUnlock.amount / supply.circulating) * 100, 2) })}
+            {t("{pct}% of circ. supply", { pct: formatNumber((nextUnlock.amount / supply.circulating) * 100, 2) })}
           </p>
           <p className="muted-line">
             {formatDate(nextUnlock.date)} · {nextUnlock.allocations.map((name) => t(name)).join(", ")}
@@ -319,7 +308,7 @@ function Tokenomics({ coin, research, currency, rate }) {
                   <div className="num">
                     <strong>{formatTokens(unlock.amount)} {coin.symbol}</strong>
                     <span>
-                      {formatCompact(unlock.amount * coin.price, currency, rate)} · {fixed(share, 2)}%
+                      {formatCompact(unlock.amount * coin.price, currency, rate)} · {formatNumber(share, 2)}%
                     </span>
                   </div>
                 </li>
@@ -357,7 +346,7 @@ function Funding({ coin, research, currency, rate }) {
               {roi && (
                 <p className="num">
                   {t("Token price {then} → {now}", { then: formatPrice(round.tokenPrice, currency, rate), now: formatPrice(coin.price, currency, rate) })}{" "}
-                  <span className={direction(roi - 1)}>ROI {fixed(roi, 1)}x</span> <InfoTip term="roi" label="ROI" />
+                  <span className={direction(roi - 1)}>ROI {formatNumber(roi, 1)}x</span> <InfoTip term="roi" label="ROI" />
                 </p>
               )}
               <p className="investors">
@@ -378,7 +367,9 @@ function Funding({ coin, research, currency, rate }) {
 }
 
 function Markets({ coin, research, currency, rate }) {
-  const [sort, setSort] = useState({ key: "volume", dir: "desc" });
+  // Remembered per account (clarification 37, journey rule 2).
+  const { settings, updateSettings } = useApp();
+  const sort = { key: settings.coinMarkets.sort, dir: settings.coinMarkets.dir };
   const rows = research.markets
     .map((market) => ({ ...market, price: coin.price * market.priceOffset, volume: coin.volume24h * market.share }))
     .sort((a, b) => {
@@ -392,7 +383,7 @@ function Markets({ coin, research, currency, rate }) {
     ["volume", t("24h volume")],
     ["share", t("Share")],
   ];
-  const onSort = (key) => setSort((current) => ({ key, dir: current.key === key && current.dir === "desc" ? "asc" : "desc" }));
+  const onSort = (key) => updateSettings({ coinMarkets: { sort: key, dir: sort.key === key && sort.dir === "desc" ? "asc" : "desc" } });
 
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label={t("Markets for {name}", { name: coin.name })}>
@@ -418,7 +409,7 @@ function Markets({ coin, research, currency, rate }) {
               </th>
               <td className="num">{formatPrice(row.price, currency, rate)}</td>
               <td className="num">{formatCompact(row.volume, currency, rate)}</td>
-              <td className="num">{fixed(row.share * 100, 1)}%</td>
+              <td className="num">{formatNumber(row.share * 100, 1)}%</td>
             </tr>
           ))}
         </tbody>
@@ -445,9 +436,9 @@ export default function CoinDetail() {
   const research = coin ? researchFor(coin) : null;
   const tab = tabs.some((item) => item.id === params.get("tab")) ? params.get("tab") : "overview";
 
+  usePageTitle(coin ? `${coin.name} (${coin.symbol})` : null);
   useEffect(() => {
     if (!coin) return;
-    document.title = `${coin.name} (${coin.symbol}) · CPA`;
     addRecentCoin(coin.id);
     // Only when the coin changes, not on every price tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -478,13 +469,12 @@ export default function CoinDetail() {
   };
 
   const copyContract = async () => {
-    try {
-      await navigator.clipboard.writeText(research.contract);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
+    if (!(await copyText(research.contract))) {
       showToast(t("Couldn't copy. Select the address and copy it manually."));
+      return;
     }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
   };
 
   const onShare = async () => {
@@ -533,14 +523,14 @@ export default function CoinDetail() {
       <p className="detail-price num">
         <strong>{formatPrice(coin.price, currency, rate)}</strong>
         <span className={`change-pill ${dir}`}>
-          {dir === "up" ? "▲" : dir === "down" ? "▼" : ""} {formatPercent(coin.change24h)} <span className="visually-hidden">{t("in")}</span>24h
+          {arrow(coin.change24h)} {formatPercent(coin.change24h)} <span className="visually-hidden">{t("in")}</span>24h
         </span>
       </p>
 
       <div className="detail-tags">
         {research.contract ? (
           <span className="contract">
-            <span className="mono" title={research.contract}>{shortAddress(research.contract)}</span>
+            <span className="mono" title={research.contract}>{shortContract(research.contract)}</span>
             <button className="link-button" onClick={copyContract} aria-label={t("Copy contract address")}>
               {copied ? t("Copied") : t("Copy")}
             </button>
@@ -616,7 +606,7 @@ export default function CoinDetail() {
           <p className="sheet-note num">
             {t("Unlock")} · {formatDate(eventSheet.time)} · {formatTokens(eventSheet.amount)} {coin.symbol} ·{" "}
             {t("{value} at today's price", { value: formatCompact(eventSheet.amount * coin.price, currency, rate) })} ·{" "}
-            {t("{pct}% of circ. supply", { pct: fixed((eventSheet.amount / research.supply.circulating) * 100, 2) })}
+            {t("{pct}% of circ. supply", { pct: formatNumber((eventSheet.amount / research.supply.circulating) * 100, 2) })}
           </p>
         )}
         {eventSheet?.kind === "funding" && (

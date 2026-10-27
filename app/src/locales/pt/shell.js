@@ -93,4 +93,8 @@ export const shell = {
 
   // Language setting
   Language: "Idioma",
+  "We couldn't load that language. Check your connection and try again.": "Não conseguimos carregar esse idioma. Verifique sua conexão e tente de novo.",
+
+  // Page loading (lazy pages)
+  "Loading page": "Carregando a página",
 };

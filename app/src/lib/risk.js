@@ -1,10 +1,9 @@
 // Neutral risk indicators for Coin detail (user_journey.md, Leo: "high unlock pressure, low
 // liquidity, with explanations, never advice"; clarification 27). Each one states the fixed
 // threshold it uses and the coin's own figures, and none of them says what to do.
-import { formatTokens } from "./format.js";
-import { locale, t } from "./i18n.js";
+import { formatNumber, formatTokens } from "./format.js";
+import { t } from "./i18n.js";
 
-const fixed = (value, digits) => value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 const DAY_MS = 86_400_000;
 export const RISK_RULES = {
@@ -32,7 +31,7 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
       label: t("High unlock pressure"),
       detail: t(
         "{amount} {symbol} ({pct}% of circulating supply, {value}) unlock in the next {days} days. CPA flags {threshold}% or more. New supply can add selling pressure.",
-        { amount: formatTokens(unlocking), symbol: coin.symbol, pct: fixed(unlockPct, 2), value: money(unlocking * coin.price), days: RISK_RULES.unlockWindowDays, threshold: RISK_RULES.unlockPressurePct },
+        { amount: formatTokens(unlocking), symbol: coin.symbol, pct: formatNumber(unlockPct, 2), value: money(unlocking * coin.price), days: RISK_RULES.unlockWindowDays, threshold: RISK_RULES.unlockPressurePct },
       ),
     });
   }
@@ -44,7 +43,7 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
       label: t("Low liquidity"),
       detail: t(
         "{volume} traded in 24h, {pct}% of market cap. CPA flags under {threshold}% or under {minimum}. Thin trading can mean wider spreads and bigger price moves on large orders.",
-        { volume: money(coin.volume24h), pct: fixed(turnover, 2), threshold: fixed(RISK_RULES.lowTurnoverPct, 1), minimum: money(RISK_RULES.lowVolumeUsd) },
+        { volume: money(coin.volume24h), pct: formatNumber(turnover, 2), threshold: formatNumber(RISK_RULES.lowTurnoverPct, 1), minimum: money(RISK_RULES.lowVolumeUsd) },
       ),
     });
   }
@@ -55,7 +54,7 @@ export function riskIndicators(coin, research, { now = Date.now(), money }) {
       id: "float",
       label: t("Low float"),
       detail: t("{pct}% of the maximum supply circulates today. CPA flags under {threshold}%. The rest can reach the market as it unlocks.", {
-        pct: fixed(floatPct, 1),
+        pct: formatNumber(floatPct, 1),
         threshold: RISK_RULES.lowFloatPct,
       }),
     });

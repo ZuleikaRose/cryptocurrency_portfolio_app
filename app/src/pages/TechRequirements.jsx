@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { notificationPermission } from "../lib/notify.js";
 import { prefersReducedMotion } from "../lib/a11y.js";
-import { keys } from "../lib/storage.js";
+import { keys, readJson, removeKey, writeJson } from "../lib/storage.js";
 import { isInstalled, offlineStatus } from "../lib/pwa.js";
 import { t } from "../lib/i18n.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 const SUPPORTED = { Chrome: 120, Edge: 120, Firefox: 120, Safari: 17 };
 
@@ -19,14 +20,9 @@ function detectBrowser() {
 
 // Writes and deletes cpa:v1:probe (22-technical-requirements.md).
 function storageWorks() {
-  try {
-    window.localStorage.setItem(keys.probe, "1");
-    const ok = window.localStorage.getItem(keys.probe) === "1";
-    window.localStorage.removeItem(keys.probe);
-    return ok;
-  } catch {
-    return false;
-  }
+  const ok = writeJson(keys.probe, 1) && readJson(keys.probe) === 1;
+  removeKey(keys.probe);
+  return ok;
 }
 
 function runChecks() {
@@ -78,8 +74,8 @@ export default function TechRequirements() {
     }, 300);
   }, []);
 
+  usePageTitle(t("Technical requirements"));
   useEffect(() => {
-    document.title = `${t("Technical requirements")} · CPA`;
     const id = window.setTimeout(() => setChecks(runChecks()), 0);
     window.addEventListener("online", rerun);
     window.addEventListener("offline", rerun);

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Disclosure from "./Disclosure.jsx";
 import { formatDate } from "../lib/format.js";
 import { t } from "../lib/i18n.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 // Long-form document layout (legal and policy pages): date line, optional draft note,
 // contents with anchors that move focus to the heading, sections, Back to top.
@@ -10,9 +11,7 @@ import { t } from "../lib/i18n.js";
 export default function DocPage({ title, dateLabel = "Last updated", date = formatDate("2026-10-17T12:00:00"), draft = false, intro, sections }) {
   const location = useLocation();
 
-  useEffect(() => {
-    document.title = `${t(title)} · CPA`;
-  }, [title]);
+  usePageTitle(t(title));
   useEffect(() => {
     if (!location.hash) return;
     const heading = document.getElementById(location.hash.slice(1));

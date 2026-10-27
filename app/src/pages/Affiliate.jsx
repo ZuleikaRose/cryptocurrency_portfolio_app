@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Disclosure from "../components/Disclosure.jsx";
 import { seeded } from "../data/research.js";
 import { copyText, downloadText } from "../lib/clipboard.js";
 import { formatDate, formatPrice } from "../lib/format.js";
 import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 // Approved copy blocks: no hype, always with the disclaimer.
 const copyBlocks = [
@@ -32,9 +33,7 @@ export default function Affiliate() {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState("");
 
-  useEffect(() => {
-    document.title = `${t("Affiliate program")} · CPA`;
-  }, []);
+  usePageTitle(t("Affiliate program"));
 
   const link = affiliate ? `cpa.app/r/${affiliate.code}` : "";
   const stats = affiliate ? statsFor(affiliate.code) : null;

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi, normalizeFundraisingFilters, normalizePortfolioPrefs, normalizeUnlockPrefs, useMarket } from "./context.js";
+import { AppContext, MarketContext, defaultSettings, normalizeA11y, normalizeAi, normalizeCoinMarketsPrefs, normalizeFundraisingFilters, normalizePortfolioPrefs, normalizeUnlockPrefs, useMarket } from "./context.js";
 import { prefersMoreContrast, prefersReducedMotion, summarySizes } from "../lib/a11y.js";
 import { initialCoins } from "../data/coins.js";
 import { researchFor } from "../data/research.js";
 import { MAX_NOTIFICATIONS, alertNotification, alertTriggered, alertTypes, digestTime, reminderOffsets, rescheduleReminders } from "../lib/alerts.js";
 import { tokenSales } from "../data/directory.js";
-import { formatDate } from "../lib/format.js";
-import { detectLanguage, isLanguage, setLanguage, t, tc, tn } from "../lib/i18n.js";
+import { formatDate, formatPercent } from "../lib/format.js";
+import { detectLanguage, getLanguage, hasDictionary, isLanguage, loadDictionary, setLanguage, t, tc, tn } from "../lib/i18n.js";
 import { inQuietHours, showBrowserNotification } from "../lib/notify.js";
 import { authErrorKind, clearFailures, lockState, normalizeEmail, recordFailure } from "../lib/auth.js";
 import { emptyBilling, normalizeBilling, settleBilling } from "../lib/billing.js";
@@ -121,6 +121,19 @@ let idCounter = 0;
 const newId = (prefix) => globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now().toString(36)}-${(idCounter += 1)}`;
 
 const today = () => new Date().toISOString().slice(0, 10);
+// A list's coin ids ("main" is the classic watchlist), and a copy of the data with them changed.
+const listIds = (data, listId) => (listId === "main" ? data.watchlist : data.lists.find((list) => list.id === listId)?.coinIds ?? []);
+const withListIds = (data, listId, change) =>
+  listId === "main"
+    ? { ...data, watchlist: change(data.watchlist) }
+    : { ...data, lists: data.lists.map((list) => (list.id === listId ? { ...list, coinIds: change(list.coinIds) } : list)) };
+// Cloud save state for one signed-in account (or none).
+const freshSync = (userId = null, snapshot = null) => ({ userId, snapshot, running: null, again: false, warned: false, retry: 0 });
+// Settings keys whose value is a group of fields (market, unlocks, a11y…), not one value.
+const isSettingsGroup = (key) => {
+  const value = defaultSettings[key];
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+};
 
 const TRANSACTION_TYPES = new Set(["buy", "sell", "transfer-in", "transfer-out"]);
 function isValidTransaction(tx) {
@@ -209,9 +222,11 @@ function normalizeStored(rawStored) {
       .slice(0, MAX_LISTS - 1)
       .map((list) => ({ id: list.id, name: list.name.slice(0, 30), coinIds: [...new Set(list.coinIds.filter((id) => typeof id === "string"))] }));
   }
-  if (stored.savedFilters) stored.savedFilters = stored.savedFilters.filter((item) => item && typeof item.name === "string" && item.filters && typeof item.filters === "object");
   if (stored.savedFilters) {
-    stored.savedFilters = stored.savedFilters.slice(0, 10).map((item) => ({
+    stored.savedFilters = stored.savedFilters
+      .filter((item) => item && typeof item.name === "string" && item.filters && typeof item.filters === "object")
+      .slice(0, 10)
+      .map((item) => ({
       id: typeof item.id === "string" ? item.id : newId("filter"),
       name: item.name.slice(0, 30),
       filters: normalizeFundraisingFilters(item.filters),
@@ -231,6 +246,7 @@ function normalizeStored(rawStored) {
       unlocks: normalizeUnlockPrefs(stored.settings?.unlocks),
       fundraising: normalizeFundraisingFilters(stored.settings?.fundraising),
       portfolio: normalizePortfolioPrefs(stored.settings?.portfolio),
+      coinMarkets: normalizeCoinMarketsPrefs(stored.settings?.coinMarkets),
       a11y: normalizeA11y(stored.settings?.a11y),
       ai: normalizeAi(stored.settings?.ai),
       quietHours: { ...defaultSettings.quietHours, ...(stored.settings?.quietHours && typeof stored.settings.quietHours === "object" ? stored.settings.quietHours : {}) },
@@ -375,7 +391,7 @@ function digestRecap(watchlist, coins) {
   if (!held.length) return t("Your watchlist is empty this week.");
   const sorted = [...held].sort((a, b) => b.change24h - a.change24h);
   const up = held.filter((coin) => coin.change24h > 0).length;
-  const fmt = (value) => `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
+  const fmt = formatPercent;
   return t("{up} of {total} watchlist coins are up in 24h. Biggest move: {top}; weakest: {bottom}.", {
     up, total: held.length, top: `${sorted[0].symbol} ${fmt(sorted[0].change24h)}`, bottom: `${sorted.at(-1).symbol} ${fmt(sorted.at(-1).change24h)}`,
   });
@@ -412,7 +428,7 @@ export function AppProvider({ children }) {
   // Save signed-up accounts to Supabase: after a short pause, one save at a time, changed rows
   // only. A failed save says so once, keeps the changes in memory and retries.
   const notifyRef = useRef(null);
-  const sync = useRef({ userId: null, snapshot: null, running: null, again: false, warned: false, retry: 0 });
+  const sync = useRef(freshSync());
   const flush = useCallback(function flushNow() {
     const state = sync.current;
     if (!state.userId || !state.snapshot) return Promise.resolve();
@@ -459,10 +475,14 @@ export function AppProvider({ children }) {
   }, [flush]);
 
   // t() reads this module-level language while the tree renders below; <html lang> follows it.
-  setLanguage(data.settings.language);
+  // A newly chosen language shows once its dictionary has loaded (the current one stays till then).
+  const wantedLanguage = data.settings.language;
+  setLanguage(wantedLanguage);
+  const language = getLanguage();
+  const [, setDictionariesLoaded] = useState(0);
   useEffect(() => {
-    document.documentElement.lang = data.settings.language;
-  }, [data.settings.language]);
+    document.documentElement.lang = language;
+  }, [language]);
 
   // Reflect display and accessibility settings on <html> so CSS can respond (27-accessibility-menu.md).
   const { a11y } = data.settings;
@@ -504,6 +524,15 @@ export function AppProvider({ children }) {
   useEffect(() => {
     notifyRef.current = showToast;
   }, [showToast]);
+
+  // Fetch a newly chosen language's dictionary; the page switches when it arrives.
+  useEffect(() => {
+    if (hasDictionary(wantedLanguage)) return;
+    loadDictionary(wantedLanguage).then(
+      () => setDictionariesLoaded((count) => count + 1),
+      () => showToast(t("We couldn't load that language. Check your connection and try again.")),
+    );
+  }, [wantedLanguage, showToast]);
 
   const dismissToast = useCallback((id) => setToasts((current) => current.filter((toast) => toast.id !== id)), []);
 
@@ -601,22 +630,16 @@ export function AppProvider({ children }) {
         list.splice(Math.max(0, Math.min(toIndex, list.length)), 0, coinId);
         return list;
       };
-      if (listId === "main") return { ...current, watchlist: place(current.watchlist) };
-      return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: place(list.coinIds) } : list)) };
+      return withListIds(current, listId, place);
     });
   }, []);
 
   // Remove with a 5 s Undo that restores the coin to its old position (US-P10.2).
   const removeWatch = useCallback(
     (coin, listId = "main") => {
-      const ids = listId === "main" ? dataRef.current.watchlist : dataRef.current.lists.find((list) => list.id === listId)?.coinIds ?? [];
-      const index = ids.indexOf(coin.id);
+      const index = listIds(dataRef.current, listId).indexOf(coin.id);
       if (index < 0) return;
-      setData((current) =>
-        listId === "main"
-          ? { ...current, watchlist: current.watchlist.filter((id) => id !== coin.id) }
-          : { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: list.coinIds.filter((id) => id !== coin.id) } : list)) },
-      );
+      setData((current) => withListIds(current, listId, (ids) => ids.filter((id) => id !== coin.id)));
       showToast(t("{coin} removed", { coin: coin.name }), { label: t("Undo"), run: () => moveWatch(coin.id, index, listId) });
     },
     [moveWatch, showToast],
@@ -667,9 +690,7 @@ export function AppProvider({ children }) {
     (coin, listId, member) => {
       requireAuth(t("Sign in to save {coin} to a watchlist", { coin: coin.name }), () => {
         setData((current) => {
-          const apply = (ids) => (member ? [...new Set([...ids, coin.id])] : ids.filter((id) => id !== coin.id));
-          if (listId === "main") return { ...current, watchlist: apply(current.watchlist) };
-          return { ...current, lists: current.lists.map((list) => (list.id === listId ? { ...list, coinIds: apply(list.coinIds) } : list)) };
+          return withListIds(current, listId, (ids) => (member ? [...new Set([...ids, coin.id])] : ids.filter((id) => id !== coin.id)));
         });
         const name = listId === "main" ? t("Main") : dataRef.current.lists.find((list) => list.id === listId)?.name ?? t("watchlist");
         showToast(t(member ? "{coin} added to {list}" : "{coin} removed from {list}", { coin: coin.name, list: name }));
@@ -967,7 +988,7 @@ export function AppProvider({ children }) {
 
   const enterAccount = useCallback((loaded) => {
     window.clearTimeout(sync.current.retry);
-    sync.current = { userId: loaded.session.userId, snapshot: loaded.snapshot, running: null, again: false, warned: false, retry: 0 };
+    sync.current = freshSync(loaded.session.userId, loaded.snapshot);
     dataRef.current = loaded.data;
     setData(loaded.data);
     setSession(loaded.session);
@@ -976,7 +997,7 @@ export function AppProvider({ children }) {
 
   const resetToGuest = useCallback(() => {
     window.clearTimeout(sync.current.retry);
-    sync.current = { userId: null, snapshot: null, running: null, again: false, warned: false, retry: 0 };
+    sync.current = freshSync();
     pendingAction.current = null;
     setAuthPrompt(null);
     setSearch({ open: false, scope: "all" });
@@ -1327,20 +1348,23 @@ export function AppProvider({ children }) {
     setData((current) => (current.affiliate ? { ...current, affiliate: { ...current.affiliate, payoutMethod } } : current));
   }, []);
 
+  // A patch to a settings group ({ unlocks: { sort } }) merges into that group; other keys replace.
   const updateSettings = useCallback((patch) => {
-    setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
+    setData((current) => {
+      const settings = { ...current.settings };
+      for (const [key, value] of Object.entries(patch)) {
+        settings[key] = isSettingsGroup(key) && value && typeof value === "object" ? { ...current.settings[key], ...value } : value;
+      }
+      return { ...current, settings };
+    });
   }, []);
 
-  const updateMarketSettings = useCallback((patch) => {
-    setData((current) => ({
-      ...current,
-      settings: { ...current.settings, market: { ...current.settings.market, ...patch } },
-    }));
-  }, []);
+  const updateMarketSettings = useCallback((patch) => updateSettings({ market: patch }), [updateSettings]);
 
   const value = useMemo(
     () => ({
       session,
+      language,
       watchlist: data.watchlist,
       settings: data.settings,
       recentCoins: data.recentCoins,
@@ -1434,7 +1458,7 @@ export function AppProvider({ children }) {
       joinAffiliate,
       setAffiliatePayout,
     }),
-    [session, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, createList, renameList, deleteList, setListMembership, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, importTransactions, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
+    [session, language, data, authPrompt, search, requireAuth, startDemo, endDemo, toggleWatch, moveWatch, removeWatch, createList, renameList, deleteList, setListMembership, addRecentCoin, castVote, voteFor, setReminder, setFollow, toggleFollowProject, saveFilter, renameFilter, deleteFilter, openSearch, closeSearch, addRecentSearch, removeRecentSearch, clearRecentSearches, saveTransaction, importTransactions, deleteTransaction, updateSettings, updateMarketSettings, toasts, showToast, dismissToast, saveAlert, toggleAlert, deleteAlert, toggleReminder, deleteReminder, markRead, markAllRead, markAsked, completeOnboarding, setBilling, signUp, logIn, removeDeletedAccountData, leaveDeletedAccount, logOut, updateProfile, changePassword, deleteAccount, clearRecentCoins, accessibilityOpen, getLastError, addTicket, addFeedback, dismissFeedbackPrompt, applyPromo, redeemPoints, joinAffiliate, setAffiliatePayout],
   );
 
   return (

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import CoinLogo from "../components/CoinLogo.jsx";
 import CoinRow, { SkeletonRows } from "../components/CoinRow.jsx";
 import Icon from "../components/Icon.jsx";
@@ -12,8 +12,8 @@ import { initialCoins, marketPulse } from "../data/coins.js";
 import { saleStatus, tokenSales } from "../data/directory.js";
 import { definitions } from "../data/glossary.js";
 import { fundingRounds, unlockEvents } from "../data/research.js";
-import { direction, formatCompact, formatDate, formatPercent, relativeTime, rateFor, spokenPercent } from "../lib/format.js";
-import { TRENDING, useNow } from "../lib/hooks.js";
+import { arrow, direction, formatCompact, formatDate, formatPercent, rateFor, relativeTime, spokenPercent } from "../lib/format.js";
+import { TRENDING, useFirstLoad, useNow, usePageTitle, useSimulatedError } from "../lib/hooks.js";
 import { useApp, useMarket } from "../state/context.js";
 import { marketCapChange24h } from "../lib/market.js";
 import { locale, t } from "../lib/i18n.js";
@@ -26,7 +26,8 @@ const tips = [
   { title: "What are locked tokens?", body: definitions.locked },
   { title: "What is 24h volume?", body: definitions.volume },
 ];
-let hasLoadedOnce = false;
+// Sample rounds don't change while the app runs.
+const roundsNewestFirst = [...fundingRounds].sort((a, b) => b.date - a.date);
 
 function greeting(session, date) {
   const hour = date.getHours();
@@ -59,30 +60,21 @@ export default function Home() {
   const { session, settings, watchlist, toggleWatch, reminders, recentCoins, interests, requireAuth, updateMarketSettings, openSearch } = app;
   const { coins, lastUpdated, tick, flashes } = useMarket();
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
   const [movers, setMovers] = useState("gainers");
   const [tip, setTip] = useState(() => new Date().getDate() % tips.length);
   const [reminderItem, setReminderItem] = useState(null);
-  const [loading, setLoading] = useState(!hasLoadedOnce);
+  const loading = useFirstLoad("home", 500);
   const now = useNow(1000);
   const rate = rateFor(settings.currency, coins);
   const currency = settings.currency;
-  const unlocksFailed = params.get("simulate") === "error";
+  const [unlocksFailed, retryUnlocks] = useSimulatedError();
   // After the 5th visit, at most once per 30 days, accounts only (20-feedback.md).
   const feedbackDue = session.kind === "user" && app.visits >= 5 && now - app.feedbackPromptDismissed > 30 * 86_400_000;
 
-  useEffect(() => {
-    document.title = `CPA · ${t("Cryptocurrency Portfolio App")}`;
-    if (hasLoadedOnce) return undefined;
-    const id = window.setTimeout(() => {
-      hasLoadedOnce = true;
-      setLoading(false);
-    }, 500);
-    return () => window.clearTimeout(id);
-  }, []);
+  usePageTitle(`CPA · ${t("Cryptocurrency Portfolio App")}`, false);
 
-  const totalCap = marketPulse.totalMarketCap * (coins.reduce((sum, coin) => sum + coin.marketCap, 0) / initialCapTotal);
-  const totalChange = marketCapChange24h(coins);
+  const totalCap = useMemo(() => marketPulse.totalMarketCap * (coins.reduce((sum, coin) => sum + coin.marketCap, 0) / initialCapTotal), [coins]);
+  const totalChange = useMemo(() => marketCapChange24h(coins), [coins]);
   const capDir = direction(totalChange);
 
   // Guests see Trending until they pick coins in onboarding (US-1.3).
@@ -91,17 +83,20 @@ export default function Home() {
     ? TRENDING.map((symbol) => coins.find((coin) => coin.symbol === symbol)).filter(Boolean)
     : watchlist.map((id) => coins.find((coin) => coin.id === id)).filter(Boolean).slice(0, 5);
 
-  const moverList = coins
-    .filter((coin) => coin.volume24h >= MOVERS_MIN_VOLUME && (movers === "gainers" ? coin.change24h > 0 : coin.change24h < 0))
-    .sort((a, b) => (movers === "gainers" ? b.change24h - a.change24h : a.change24h - b.change24h))
-    .slice(0, 6);
+  const moverList = useMemo(
+    () =>
+      coins
+        .filter((coin) => coin.volume24h >= MOVERS_MIN_VOLUME && (movers === "gainers" ? coin.change24h > 0 : coin.change24h < 0))
+        .sort((a, b) => (movers === "gainers" ? b.change24h - a.change24h : a.change24h - b.change24h))
+        .slice(0, 6),
+    [coins, movers],
+  );
 
   const allUnlocks = useMemo(() => unlockEvents(coins), [coins]);
   const nextUnlocks = allUnlocks.filter((event) => event.date.getTime() > now).sort((a, b) => a.date - b.date).slice(0, 3);
 
-  const sorted = [...fundingRounds].sort((a, b) => b.date - a.date);
-  const sectorRounds = interests.sectors.length ? sorted.filter((round) => interests.sectors.includes(round.sector)) : [];
-  const rounds = (sectorRounds.length ? sectorRounds : sorted).slice(0, 3);
+  const sectorRounds = interests.sectors.length ? roundsNewestFirst.filter((round) => interests.sectors.includes(round.sector)) : [];
+  const rounds = (sectorRounds.length ? sectorRounds : roundsNewestFirst).slice(0, 3);
   const sales = tokenSales.filter((sale) => saleStatus(sale, now) === "upcoming").sort((a, b) => a.start - b.start).slice(0, 2);
   const recent = session.kind === "guest" ? [] : recentCoins.map((id) => coins.find((coin) => coin.id === id)).filter(Boolean);
 
@@ -151,7 +146,7 @@ export default function Home() {
             <span className="pulse-label">{t("Market cap")}</span>
             <strong className="home-figure num">{formatCompact(totalCap, currency, rate)}</strong>
             <span className={`num ${capDir}`}>
-              {capDir === "up" ? "▲" : capDir === "down" ? "▼" : ""} {formatPercent(totalChange)}
+              {arrow(totalChange)} {formatPercent(totalChange)}
             </span>
             <small className="num">{t("24h vol {volume}", { volume: formatCompact(marketPulse.totalVolume24h, currency, rate) })}</small>
           </Link>
@@ -209,7 +204,7 @@ export default function Home() {
                 <CoinLogo coin={coin} />
                 <strong>{coin.symbol}</strong>
                 <span className={`num ${direction(coin.change24h)}`}>
-                  {direction(coin.change24h) === "up" ? "▲" : "▼"} {formatPercent(coin.change24h)}
+                  {arrow(coin.change24h)} {formatPercent(coin.change24h)}
                 </span>
               </Link>
             </li>
@@ -222,14 +217,7 @@ export default function Home() {
         {unlocksFailed ? (
           <div className="card banner-error" role="alert">
             <span>{t("We couldn't load unlocks.")}</span>
-            <button
-              className="link-button"
-              onClick={() => {
-                const next = new URLSearchParams(params);
-                next.delete("simulate");
-                setParams(next, { replace: true });
-              }}
-            >
+            <button className="link-button" onClick={retryUnlocks}>
               {t("Retry")}
             </button>
           </div>

@@ -41,6 +41,9 @@ export const coin = {
   Listing: "Listagem",
   "Chart: {source}": "Gráfico: {source}",
   "Coinbase closes, USD, UTC": "Fechamentos da Coinbase, USD, UTC",
+  "Kraken closes, USD, UTC": "Fechamentos da Kraken, USD, UTC",
+  "Coinbase and Kraken closes, USD, UTC": "Fechamentos da Coinbase e da Kraken, USD, UTC",
+  "Kraken SKY closes × 24,000 (MKR converted to SKY), USD, UTC": "Fechamentos de SKY na Kraken × 24.000 (MKR convertido em SKY), USD, UTC",
   "CPA sample data": "Dados de exemplo do CPA",
   Event: "Evento",
   "Funding round": "Rodada de investimento",
@@ -153,8 +156,8 @@ export const coin = {
     "Tokens ainda em vesting. São liberados conforme um cronograma e podem aumentar a pressão vendedora ao serem desbloqueados.",
   "How the maximum supply splits between circulating, unlocked but not circulating, and still locked.":
     "Como a oferta máxima se divide entre o que circula, o que está desbloqueado sem circular e o que segue bloqueado.",
-  "All-time high and low: the highest and lowest daily closing prices on record. Coins with a Coinbase chart use its history; the rest use sample data.":
-    "Máxima e mínima históricas: os preços de fechamento diário mais alto e mais baixo registrados. Moedas com gráfico da Coinbase usam o histórico dela; as demais usam dados de exemplo.",
+  "All-time high and low: the highest and lowest daily closing prices on record. Coins with a Coinbase or Kraken chart use its history; the rest use sample data.":
+    "Máxima e mínima históricas: os preços de fechamento diário mais alto e mais baixo registrados. Moedas com gráfico da Coinbase ou da Kraken usam o histórico dela; as demais usam dados de exemplo.",
   "Facts that can make a price move more: large unlocks soon, thin trading, or a small share of supply circulating. Each uses a fixed threshold. They aren't a rating or advice.":
     "Fatos que podem fazer um preço oscilar mais: grandes desbloqueios em breve, pouca negociação ou uma pequena parte da oferta em circulação. Cada um usa um limite fixo. Não são uma classificação nem uma recomendação.",
   "Return on investment: current price divided by the round's token price.":

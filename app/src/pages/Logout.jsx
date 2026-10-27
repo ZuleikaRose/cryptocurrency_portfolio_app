@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.jsx";
 import { t } from "../lib/i18n.js";
 import { useApp } from "../state/context.js";
+import { usePageTitle } from "../lib/hooks.js";
 
 // Log out (15-logout.md): confirm, then a done view. Guests are sent home.
 export default function Logout() {
@@ -13,9 +14,7 @@ export default function Logout() {
   const [saveFailed, setSaveFailed] = useState(false);
   const [discarding, setDiscarding] = useState(false);
 
-  useEffect(() => {
-    document.title = `${t("Log out")} · CPA`;
-  }, []);
+  usePageTitle(t("Log out"));
 
   if (done === "demo") return <Navigate to="/" replace />;
   if (done === "user") {
@@ -98,9 +97,7 @@ export default function Logout() {
 
 export function AccountDeleted() {
   const { session, logOut } = useApp();
-  useEffect(() => {
-    document.title = `${t("Account deleted")} · CPA`;
-  }, []);
+  usePageTitle(t("Account deleted"));
   // Arriving here from Settings: end the session of the account that was just deleted.
   useEffect(() => {
     if (session.kind === "user" && session.deleted) logOut({ discard: true });
