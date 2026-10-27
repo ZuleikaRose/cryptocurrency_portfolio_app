@@ -161,6 +161,7 @@ flowchart LR
 4. **Trust signals:** data source, last-updated time, and verified contract on every key screen.
    > **CPA build (Oct 18, 2026):** live prices are labelled "CryptoRank" and sample figures "CPA sample data". The last-updated time is when CryptoRank reported the price, so a delayed sync shows as stale instead of looking fresh.
    > **CPA build (Oct 26, 2026):** every price chart has a source line under it: "Chart: Coinbase closes, USD, UTC" or "Chart: CPA sample data", and on Portfolio the coins on sample data are named. TRON, USDC and Maker say "Kraken closes" (Maker's adds "SKY × 24,000", clarification 36). A live coin's chart shows a skeleton while it loads, never sample data in its place.
+   > **CPA build (Oct 27, 2026; clarification 39):** Maker's source line says its price and 24h change are Sky's × 24,000, and with no Maker market cap from CryptoRank the figure shows "—" rather than an old sample value.
 5. **Progressive disclosure:** "Simple" vs "Pro" density setting to serve both Leo and Maya.
 6. **Guest mode:** let users browse fully without an account. Require sign-in only for sync, alerts, and portfolio.
    > **CPA build (Oct 25, 2026):** CSV import and export and wallet import need sign-in, since they change a saved portfolio. What guests can send (support tickets, bug reports, feedback) is limited to fixed columns with length checks in the database.

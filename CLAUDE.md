@@ -36,7 +36,7 @@ Before changing a page, read its spec and the stories it cites. Before storing a
 
 ## Data model rules
 
-- **Schema changes:** a new file in `supabase/migrations/` (apply with the Supabase MCP `apply_migration`, save it under the recorded version); never edit an applied migration. Mirror it in `schema.sql`, regenerate `drawsql.png` (`npm run diagram` in `tools/diagram/`; new tables need a group in `erd.py`) and keep the README's table count and groups right.
+- **Schema changes:** a new file in `supabase/migrations/` (apply with the Supabase MCP `apply_migration`, then rename the file to the version `list_migrations` reports, which is the apply time, not the file's); never edit an applied migration. Mirror it in `schema.sql`, regenerate `drawsql.png` (`npm run diagram` in `tools/diagram/`; new tables need a group in `erd.py`) and keep the README's table count and groups right.
 - **User tables:** RLS on, policies on `(select auth.uid()) = user_id`, an index on every foreign key, and a load and save mapping in `lib/cloud.js`. **Reference tables:** read-only to `anon` and `authenticated`; only the seed or server code writes them (re-run `npm run seed` in `supabase/` after changing `app/src/data/`).
 - **After DDL**, run `get_advisors` (security and performance) and fix or explain every warning. **Personal data:** collect only what a feature needs (journey §16–17); analytics off by default; export and delete keep working.
 
