@@ -7,9 +7,10 @@
 -- Live prices: a scheduled job (the cryptorank-sync Edge Function on Supabase) writes CryptoRank
 -- v3 price, 24h change, market cap and volume into coins every 10 minutes, and 7d change and FDV
 -- about every 2 days, and records each run in market_sync. Coins without a cryptorank_slug keep
--- their sample figures. A second job (the price-history-sync Edge Function) writes Coinbase
--- Exchange closes into coin_prices, and 1h change and the 7d sparkline into coins, every 15
--- minutes, recording each run in price_history_sync.
+-- their sample figures; Maker is priced from Sky's row times 24,000. A second job (the
+-- price-history-sync Edge Function) writes Coinbase Exchange closes (Kraken's for TRON, USDC and
+-- Maker) into coin_prices, and 1h change and the 7d sparkline into coins, every 15 minutes,
+-- recording each run in price_history_sync.
 --
 -- Guest and demo sessions stay in memory and are not stored (prompt.md clarifications).
 -- Passwords are never stored: only a salted PBKDF2-SHA-256 hash (lib/auth.js).
@@ -53,13 +54,13 @@ CREATE TABLE coins (
   category         text NOT NULL REFERENCES categories (name),
   logo_tint        text,                                      -- fallback logo colour
   price_usd        numeric(30, 12) NOT NULL CHECK (price_usd >= 0),
-  change_1h        numeric(10, 4) NOT NULL DEFAULT 0,         -- percent; from Coinbase 15-minute closes when history_updated_at is set
+  change_1h        numeric(10, 4) NOT NULL DEFAULT 0,         -- percent; from Coinbase (or Kraken) 15-minute closes when history_updated_at is set
   change_24h       numeric(10, 4) NOT NULL DEFAULT 0,
   change_7d        numeric(10, 4) NOT NULL DEFAULT 0,
-  market_cap_usd   numeric(24, 2) CHECK (market_cap_usd >= 0),   -- null when CryptoRank gives none (Maker)
+  market_cap_usd   numeric(24, 2) CHECK (market_cap_usd >= 0),   -- null when CryptoRank gives none (Maker, priced from Sky); shown "—"
   fdv_usd          numeric(24, 2) CHECK (fdv_usd >= 0),
   volume_24h_usd   numeric(24, 2) CHECK (volume_24h_usd >= 0),
-  sparkline_7d     numeric[] NOT NULL DEFAULT '{}',           -- 24 points: Coinbase hourly closes over 7 days, or a sample shape
+  sparkline_7d     numeric[] NOT NULL DEFAULT '{}',           -- 24 points: Coinbase (or Kraken) hourly closes over 7 days, or a sample shape
   listed_on        date,
   contract_address text CHECK (contract_address ~ '^0x[0-9a-f]{40}$'),  -- null for native coins
   contract_verified boolean NOT NULL DEFAULT false,           -- trust signal (journey rule 4)
@@ -72,7 +73,7 @@ CREATE TABLE coins (
   price_updated_at timestamptz,                               -- when CryptoRank last reported price, 24h, cap, volume
   cryptorank_id    integer UNIQUE,                            -- CryptoRank v3 id, for the per-coin endpoint
   details_updated_at timestamptz,                             -- when CryptoRank last reported change_7d and fdv_usd (~every 2 days)
-  history_updated_at timestamptz,                             -- when price-history-sync last wrote coin_prices, change_1h and sparkline_7d; null keeps the sample chart
+  history_updated_at timestamptz,                             -- when price-history-sync last wrote coin_prices, change_1h and sparkline_7d (Coinbase, or Kraken for TRON, USDC and Maker); null keeps the sample chart
   updated_at       timestamptz NOT NULL DEFAULT now()         -- "Last updated" / stale over 5 min
 );
 CREATE INDEX coins_symbol_idx ON coins (symbol);   -- not unique: copycat tickers exist (US-2.5)
@@ -80,8 +81,9 @@ CREATE INDEX coins_category_idx ON coins (category);
 CREATE TRIGGER coins_touch BEFORE UPDATE ON coins FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 -- Price history for charts: ranges 1D · 7D · 1M · 3M · 1Y · ALL (03-coin-detail.md). Coinbase
--- Exchange closes in USD, stamped at the candle's close (UTC): 15-minute closes kept 26 hours,
--- hourly 8 days, 6-hourly 32 days, daily for the whole history. price_history(coin_id, range_id)
+-- Exchange closes in USD (Kraken's for TRON, USDC and Maker, which is SKY × 24,000), stamped at
+-- the candle's close (UTC): 15-minute closes kept 26 hours, hourly 8 days, 6-hourly 32 days,
+-- daily for the whole history. price_history(coin_id, range_id)
 -- returns one range plus the highest and lowest daily close (ATH / ATL); price_at(coin_id, at_ms)
 -- returns the nearest close to a moment (the transaction sheet's "Use market price").
 CREATE TABLE coin_prices (
@@ -128,10 +130,10 @@ CREATE TABLE price_history_sync (
   last_finished_at timestamptz,
   last_status      text CHECK (last_status IN ('ok', 'error')),
   coins_updated    integer NOT NULL DEFAULT 0,
-  requests         integer NOT NULL DEFAULT 0,                -- Coinbase requests (public, 10 a second)
+  requests         integer NOT NULL DEFAULT 0,                -- Coinbase and Kraken requests (public, no key)
   fetched_at       jsonb NOT NULL DEFAULT '{}',               -- last fetch per candle size in seconds
-  backfilled       text[] NOT NULL DEFAULT '{}',              -- coins whose daily closes reach their first Coinbase day
-  skipped_coins    text[] NOT NULL DEFAULT '{}',              -- no Coinbase product, or price over 10% from CryptoRank's
+  backfilled       text[] NOT NULL DEFAULT '{}',              -- coins whose daily closes reach their first Coinbase day (Kraken coins: after one read)
+  skipped_coins    text[] NOT NULL DEFAULT '{}',              -- no Coinbase or Kraken source, or price over 10% from CryptoRank's
   last_error       text
 );
 

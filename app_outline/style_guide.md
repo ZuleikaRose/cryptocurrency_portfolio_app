@@ -36,6 +36,8 @@
 - Percentages: always signed and to 2 decimals: `+3.21%`, `−0.48%` (true minus sign U+2212).
 - Dates: `Oct 17, 2026` for display. Relative time for anything under 7 days ("in 3d 4h", "2h ago").
 
+> **CPA build (Oct 27, 2026; clarification 39):** a figure the source doesn't give shows an em dash ("—"), never `$0` or a sample value: Maker's market cap, and an all-time high or low before its history loads.
+
 > **CPA build (Oct 26, 2026), Spanish:** the same rules in Spanish formats: decimal comma, symbol after the amount, "mil" / "M" / "mil M" / "B" (billón) instead of K / M / B / T: `80.156,48 $`, `2,88 B $`, `842,5 M $`, `−0,48%`, `26 oct 2026`, "hace 2 h", "en 3d 4h". Sentence case and the analyst voice carry over; use informal "tú". Keep tickers, project names and the source names CryptoRank and Coinbase as they are. Name each language in its own language ("English", "Español"). **Portuguese (Brazil):** decimal comma, `US$` before the amount, "mil" / "mi" / "bi" / "tri": `US$ 80.156,48`, `US$ 2,88 tri`, `842,5 mi`, `−0,48%`, `26 de out. de 2026`, "há 2 h"; informal "você". Where a label is too long for the phone tab bar, use a short form there only ("Desbloq.", "Lista") and keep the full name in its accessible label and the desktop sidebar.
 
 ---

@@ -283,6 +283,8 @@
 > **CPA build (Oct 26, 2026):** price charts name their source underneath ("Coinbase closes, USD, UTC" or "CPA sample data"); Portfolio names any coins on sample data; "Use market price" says which close it used; and the Portfolio disclaimer names CryptoRank, Coinbase and sample data.
 >
 > **CPA build (Oct 26, 2026; clarification 36):** TRON, USDC and Maker now have real charts from Kraken (Maker as SKY × 24,000), named as such, so all 34 live coins have price history.
+>
+> **CPA build (Oct 27, 2026; clarification 39):** Maker's price and 24h change come from Sky's CryptoRank row × 24,000 every 10 minutes, and its source line says so ("price and 24h change as SKY × 24,000"). CryptoRank gives no Maker market cap, so Market cap shows "—" and the source line leaves it out instead of showing a stale sample figure.
 
 ### US-9.5 Offline mode · P1 · 3 pts
 **As a** commuter, **I want** to see my last-loaded data offline **so that** the app still works on the subway.
